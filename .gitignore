@@ -1,0 +1,95 @@
+# ========================================
+# TGSC Project - Git Ignore Configuration
+# ========================================
+
+# ========== Python ==========
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# ========== Sensitive Data ==========
+# Database files
+*.db
+*.sqlite3
+tgsc.db
+
+# Session files (Telegram sessions contain auth data!)
+backend/sessions/
+sessions/
+*.session
+
+# Environment files with secrets
+.env
+.env.local
+.env.production
+backend/.env
+frontend/.env
+
+# ========== Logs ==========
+*.log
+celery.log
+backend/celery.log
+
+# ========== Temporary/Downloaded files ==========
+backend/temp_downloads/
+backend/test_download_dir/
+backend/test_download_dir_cli/
+temp_downloads/
+
+# ========== Node/Frontend ==========
+frontend/node_modules/
+frontend/dist/
+node_modules/
+
+# ========== IDE/Editor ==========
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ========== Cursor/AI Tools ==========
+.cursor/
+
+# ========== Test files ==========
+backend/manual_test_session*.session
+backend/unknown_errors.txt
+backend/warmup_errors.txt
+
+# ========== Docker volumes data ==========
+# (if any local data volumes are created)
+
+# ========== Telegram Account Data (SENSITIVE!) ==========
+tgid/
+*.tdata
+*.rar
+*.zip
+
+# ========== SSL Certificates ==========
+*.pem
+*.key
+*.crt
