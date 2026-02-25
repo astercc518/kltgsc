@@ -1,5 +1,3 @@
-import { Account, Proxy, TaskStatus, WarmupTemplate } from '../../services/api';
-
 export interface ImportTask {
   taskId: string;
   url: string;

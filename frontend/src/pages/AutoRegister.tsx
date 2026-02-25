@@ -111,7 +111,7 @@ const AutoRegister: React.FC = () => {
 
       <Card title="启动注册任务">
         <Alert
-          title="使用说明"
+          message="使用说明"
           description="全自动注册流程：提取 IP2World 代理 -> SMS-Activate 接码 -> 注册 -> 启用 2FA -> 入库。"
           type="info"
           showIcon

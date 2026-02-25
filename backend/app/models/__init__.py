@@ -14,6 +14,8 @@ from .keyword_monitor import KeywordMonitor, KeywordMonitorCreate, KeywordMonito
 from .invite_task import InviteTask, InviteTaskCreate, InviteTaskRead, InviteTaskUpdate
 from .invite_log import InviteLog, InviteLogCreate, InviteLogRead, InviteStats, AccountInviteStats
 from .scraping_task import ScrapingTask, ScrapingTaskCreate, ScrapingTaskRead
+from .user import User
+from .token import Token, TokenPayload
 from .ai_config import AIConfig, AIConfigCreate, AIConfigUpdate, AIConfigResponse
 from .campaign import Campaign, CampaignCreate, CampaignUpdate, CampaignRead
 from .source_group import SourceGroup, SourceGroupCreate, SourceGroupUpdate, SourceGroupRead

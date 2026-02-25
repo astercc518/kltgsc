@@ -132,25 +132,31 @@ class TestPasswordHashing:
 class TestTokenRevocation:
     """Tests for revoke_token() and is_token_revoked() with mocked Redis."""
 
-    @patch("app.core.security._redis_client")
-    def test_revoke_token_sets_key_with_ttl(self, mock_redis):
+    @patch("app.core.security._get_redis")
+    def test_revoke_token_sets_key_with_ttl(self, mock_get_redis):
         from app.core.security import revoke_token
 
+        mock_redis = MagicMock()
+        mock_get_redis.return_value = mock_redis
         revoke_token("test-jti-123", ttl=3600)
         mock_redis.setex.assert_called_once_with(
             "revoked_token:test-jti-123", 3600, "1"
         )
 
-    @patch("app.core.security._redis_client")
-    def test_is_token_revoked_returns_true_when_key_exists(self, mock_redis):
+    @patch("app.core.security._get_redis")
+    def test_is_token_revoked_returns_true_when_key_exists(self, mock_get_redis):
         from app.core.security import is_token_revoked
 
+        mock_redis = MagicMock()
+        mock_get_redis.return_value = mock_redis
         mock_redis.exists.return_value = 1
         assert is_token_revoked("revoked-jti") is True
 
-    @patch("app.core.security._redis_client")
-    def test_is_token_revoked_returns_false_when_key_missing(self, mock_redis):
+    @patch("app.core.security._get_redis")
+    def test_is_token_revoked_returns_false_when_key_missing(self, mock_get_redis):
         from app.core.security import is_token_revoked
 
+        mock_redis = MagicMock()
+        mock_get_redis.return_value = mock_redis
         mock_redis.exists.return_value = 0
         assert is_token_revoked("valid-jti") is False

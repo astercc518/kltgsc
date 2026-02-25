@@ -257,7 +257,19 @@ class SafeSendDispatcher:
         """
         total_targets = len(target_user_ids)
         total_capacity = self.calculate_total_capacity(account_ids)
-        
+
+        # 无可用账号或无目标时直接返回空计划
+        if total_capacity <= 0:
+            return {
+                "total_targets": total_targets,
+                "total_capacity_today": 0,
+                "can_complete_today": False,
+                "batches_needed": 0,
+                "sends_today": 0,
+                "sends_remaining": total_targets,
+                "estimated_hours_today": 0,
+            }
+
         # 计算需要多少批次/天
         if total_capacity >= total_targets:
             batches_needed = 1

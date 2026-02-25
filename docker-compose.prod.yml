@@ -73,7 +73,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile.prod
     container_name: tgsc_worker
-    command: celery -A app.worker.celery_app worker --loglevel=info --concurrency=8
+    command: celery -A app.worker.celery_app worker --loglevel=info --concurrency=8 -Q default,high_priority,low_priority
     volumes:
       - backend_sessions:/app/sessions
     environment:

@@ -66,6 +66,7 @@ export interface Account {
     role?: string;
     tags?: string;
     tier?: string;
+    combat_role?: string;
 }
 
 export interface AccountCreate {
@@ -605,8 +606,8 @@ export const revokeTask = async (taskId: string): Promise<any> => {
 
 // --- Registration ---
 
-export const startAutoRegistration = async (options: { count: number; country?: string }): Promise<any> => {
-    const response = await api.post('/registration/auto', options);
+export const startAutoRegistration = async (options: { count: number; country?: number; proxy_category?: string }): Promise<any> => {
+    const response = await api.post('/registration/start', options);
     return response.data;
 };
 

@@ -25,6 +25,7 @@ from app.tasks.monitor_tasks import (
 )
 from app.tasks.invite_tasks import (
     execute_invite_task,
+    check_recurring_tasks,
 )
 
 __all__ = [
@@ -46,4 +47,5 @@ __all__ = [
     "execute_shill_conversation",
     # Invite tasks
     "execute_invite_task",
+    "check_recurring_tasks",
 ]

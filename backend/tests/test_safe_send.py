@@ -91,13 +91,14 @@ class TestGetAccountDailyLimit:
             session_string="",
             status="active",
         )
-        account.created_at = None
         session.add(account)
         session.commit()
+        # Manually set to None after commit to bypass default_factory
+        account.created_at = None
 
         dispatcher = SafeSendDispatcher(session)
         limit = dispatcher.get_account_daily_limit(account)
-        assert limit == 30
+        assert limit == 30  # max_daily_sends_normal
 
 
 # ---------------------------------------------------------------------------
