@@ -1142,6 +1142,27 @@ def scrape_members_batch_task(self, account_ids: List[int], group_links: List[st
         db_session.close()
 
 
+# ==================== 兼容层 ====================
+# 任务已拆分到 app/tasks/ 模块
+# 此文件保留用于向后兼容
+# 新代码请直接从 app.tasks 导入
+
+# 从新模块重新导出任务
+from app.tasks import (
+    check_account_status,
+    import_mega_accounts,
+    create_warmup_after_imports,
+    execute_send_task,
+    execute_warmup_task,
+    check_auto_reply_task,
+    execute_script_task,
+    join_groups_batch_task,
+    scrape_members_batch_task,
+    check_proxies_batch_task,
+    execute_shill_conversation,
+    execute_invite_task,
+)
+
 # Re-export for celery autodiscover
 __all__ = [
     "execute_send_task", 

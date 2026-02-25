@@ -307,3 +307,127 @@ def get_scraping_task_detail(
         "created_at": task.created_at.isoformat() if task.created_at else None,
         "completed_at": task.completed_at.isoformat() if task.completed_at else None
     }
+
+
+# =====================
+# 流量源关联功能
+# =====================
+
+from app.models.source_group import SourceGroup
+from datetime import datetime
+
+
+@router.post("/source-group/{source_group_id}/scrape")
+async def scrape_from_source_group(
+    source_group_id: int,
+    account_id: int = Query(..., description="用于采集的账号ID"),
+    limit: int = Query(500, description="采集数量上限"),
+    filter_active_only: bool = False,
+    filter_has_photo: bool = False,
+    filter_has_username: bool = False,
+    session: Session = Depends(get_session)
+):
+    """从流量源采集成员并更新统计"""
+    # 获取流量源
+    source_group = session.get(SourceGroup, source_group_id)
+    if not source_group:
+        raise HTTPException(status_code=404, detail="Source group not found")
+    
+    # 获取账号
+    account = session.get(Account, account_id)
+    if not account or account.status != "active":
+        raise HTTPException(status_code=400, detail="Invalid or inactive account")
+    
+    # 构造过滤配置
+    filter_config = {
+        "active_only": filter_active_only,
+        "has_photo": filter_has_photo,
+        "has_username": filter_has_username
+    }
+    if not any(filter_config.values()):
+        filter_config = None
+    
+    try:
+        success, members = await scrape_group_members(
+            account,
+            source_group.link,
+            limit,
+            db_session=session,
+            filter_config=filter_config
+        )
+        
+        if not success:
+            raise HTTPException(status_code=400, detail="Scraping failed")
+        
+        # 保存成员到数据库，关联来源群组
+        saved_count = 0
+        high_value_count = 0
+        
+        for m in members:
+            # 检查是否已存在
+            exists = session.exec(
+                select(TargetUser).where(TargetUser.telegram_id == m["telegram_id"])
+            ).first()
+            
+            if not exists:
+                # 设置来源群组
+                m["source_group"] = source_group.link
+                user = TargetUser(**m)
+                session.add(user)
+                saved_count += 1
+                
+                # 简单的高价值判断：有用户名+有bio
+                if m.get("username") and m.get("bio"):
+                    high_value_count += 1
+        
+        # 更新流量源统计
+        source_group.total_scraped += saved_count
+        source_group.high_value_count += high_value_count
+        source_group.member_count = len(members)  # 更新群成员数
+        source_group.last_scraped_at = datetime.utcnow()
+        session.add(source_group)
+        
+        session.commit()
+        
+        return {
+            "status": "success",
+            "source_group_id": source_group_id,
+            "scraped_count": len(members),
+            "new_saved": saved_count,
+            "high_value": high_value_count
+        }
+        
+    except AccountException as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/sync-source-group-stats")
+def sync_source_group_stats(
+    session: Session = Depends(get_session)
+):
+    """同步所有流量源的统计数据"""
+    source_groups = session.exec(select(SourceGroup)).all()
+    
+    updated = 0
+    for sg in source_groups:
+        # 统计从该群采集的用户数
+        total = session.exec(
+            select(func.count(TargetUser.id)).where(TargetUser.source_group == sg.link)
+        ).one()
+        
+        # 统计高价值用户（AI评分>=70）
+        high_value = session.exec(
+            select(func.count(TargetUser.id)).where(
+                TargetUser.source_group == sg.link,
+                TargetUser.ai_score >= 70
+            )
+        ).one()
+        
+        if total != sg.total_scraped or high_value != sg.high_value_count:
+            sg.total_scraped = total
+            sg.high_value_count = high_value
+            session.add(sg)
+            updated += 1
+    
+    session.commit()
+    return {"updated": updated, "total_groups": len(source_groups)}

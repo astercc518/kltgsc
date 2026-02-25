@@ -1,3 +1,4 @@
+import logging
 from typing import List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from sqlmodel import Session, select, func
@@ -8,6 +9,7 @@ from app.models.account import Account
 from app.models.send_task import SendTask, SendRecord
 from app.models.lead import Lead
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # --- System Config ---
@@ -111,3 +113,73 @@ def get_daily_trend(days: int = 7, session: Session = Depends(get_session)):
         result.append({"date": d, **data})
         
     return list(reversed(result))
+
+
+# --- Session Encryption Management ---
+
+@router.get("/security/session-encryption-status")
+def get_session_encryption_status(session: Session = Depends(get_session)):
+    """获取 session 文件加密状态统计"""
+    try:
+        from app.services.session_encryption_service import SessionEncryptionService
+        
+        service = SessionEncryptionService(session)
+        status = service.get_encryption_status()
+        
+        return {
+            "success": True,
+            **status,
+            "encryption_enabled": True
+        }
+    except Exception as e:
+        logger.error(f"Failed to get encryption status: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "encryption_enabled": False
+        }
+
+
+@router.post("/security/encrypt-all-sessions")
+def encrypt_all_sessions(
+    session: Session = Depends(get_session),
+    account_ids: List[int] = Body(None, embed=True)
+):
+    """
+    批量加密 session 文件
+    
+    Args:
+        account_ids: 要加密的账号 ID 列表，None 表示所有账号
+    """
+    try:
+        from app.services.session_encryption_service import SessionEncryptionService
+        
+        service = SessionEncryptionService(session)
+        
+        if account_ids:
+            result = service.encrypt_account_sessions(account_ids)
+        else:
+            result = service.encrypt_all_sessions()
+        
+        return {
+            "success": True,
+            "message": f"加密完成: {result['encrypted']} 个文件已加密",
+            **result
+        }
+    except Exception as e:
+        logger.error(f"Failed to encrypt sessions: {e}")
+        raise HTTPException(status_code=500, detail=f"加密失败: {str(e)}")
+
+
+@router.get("/security/info")
+def get_security_info():
+    """获取安全配置信息"""
+    from app.core.config import settings
+    
+    return {
+        "security_enabled": settings.SECURITY_ENABLED,
+        "secret_key_configured": len(settings.SECRET_KEY) >= 32,
+        "encryption_key_configured": len(settings.SESSION_ENCRYPTION_KEY) >= 32,
+        "algorithm": settings.ALGORITHM,
+        "token_expire_days": settings.ACCESS_TOKEN_EXPIRE_MINUTES // (60 * 24)
+    }

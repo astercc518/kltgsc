@@ -32,6 +32,11 @@ import CRM from './pages/CRM';
 import Login from './pages/Login';
 import MonitorPage from './pages/MonitorPage';
 import InvitePage from './pages/InvitePage';
+import CampaignPage from './pages/CampaignPage';
+import SourceGroupPage from './pages/SourceGroupPage';
+import PersonaPage from './pages/PersonaPage';
+import FunnelGroupPage from './pages/FunnelGroupPage';
+import KnowledgeBasePage from './pages/KnowledgeBasePage';
 
 // 检查用户是否已登录
 const isAuthenticated = (): boolean => {
@@ -63,74 +68,115 @@ const menuItems: MenuProps['items'] = [
     label: <Link to="/">Dashboard</Link>,
   },
   {
-    key: '2',
+    key: 'resources',
     icon: <UserOutlined />,
-    label: <Link to="/accounts">账号管理</Link>,
+    label: '资源中心',
+    children: [
+      {
+        key: '2',
+        label: <Link to="/accounts">账号管理</Link>,
+      },
+      {
+        key: '3',
+        label: <Link to="/proxies">代理管理</Link>,
+      },
+      {
+        key: 'source-groups',
+        label: <Link to="/source-groups">流量源管理</Link>,
+      },
+    ]
   },
   {
-    key: '3',
-    icon: <GlobalOutlined />,
-    label: <Link to="/proxies">代理管理</Link>,
-  },
-  {
-    key: '12',
-    icon: <CoffeeOutlined />,
-    label: <Link to="/warmup">养号任务</Link>,
-  },
-  {
-    key: '4',
+    key: 'operations',
     icon: <RocketOutlined />,
-    label: <Link to="/scraping">采集中心</Link>,
+    label: '作战中心',
+    children: [
+      {
+        key: 'campaigns',
+        label: <Link to="/campaigns">战役管理</Link>,
+      },
+      {
+        key: '12',
+        label: <Link to="/warmup">养号任务</Link>,
+      },
+      {
+        key: '4',
+        label: <Link to="/scraping">采集中心</Link>,
+      },
+      {
+        key: '5',
+        label: <Link to="/marketing">营销群发</Link>,
+      },
+      {
+        key: '14',
+        label: <Link to="/monitors">监控引流</Link>,
+      },
+      {
+        key: '15',
+        label: <Link to="/invites">批量拉人</Link>,
+      },
+      {
+        key: 'funnel-groups',
+        label: <Link to="/funnel-groups">营销群管理</Link>,
+      },
+    ]
   },
   {
-    key: '5',
-    icon: <MessageOutlined />,
-    label: <Link to="/marketing">营销群发</Link>,
-  },
-  {
-    key: '13',
-    icon: <TeamOutlined />,
-    label: <Link to="/crm">客户管理</Link>,
-  },
-  {
-    key: '14',
-    icon: <RocketOutlined />,
-    label: <Link to="/monitors">监控引流</Link>,
-  },
-  {
-    key: '15',
-    icon: <TeamOutlined />,
-    label: <Link to="/invites">批量拉人</Link>,
-  },
-  {
-    key: '6',
+    key: 'ai-hub',
     icon: <RobotOutlined />,
-    label: <Link to="/ai">AI 配置</Link>,
+    label: 'AI 中心',
+    children: [
+      {
+        key: '6',
+        label: <Link to="/ai">AI 配置</Link>,
+      },
+      {
+        key: 'personas',
+        label: <Link to="/personas">AI 人设</Link>,
+      },
+      {
+        key: 'knowledge-bases',
+        label: <Link to="/knowledge-bases">知识库</Link>,
+      },
+      {
+        key: '7',
+        label: <Link to="/scripts">炒群脚本</Link>,
+      },
+    ]
   },
   {
-    key: '7',
-    icon: <FileTextOutlined />,
-    label: <Link to="/scripts">炒群脚本</Link>,
+    key: 'customer',
+    icon: <TeamOutlined />,
+    label: '客户中心',
+    children: [
+      {
+        key: '13',
+        label: <Link to="/crm">客户管理</Link>,
+      },
+      {
+        key: '8',
+        label: <Link to="/inbox">聚合聊天</Link>,
+      },
+    ]
   },
   {
-    key: '8',
-    icon: <MessageOutlined />,
-    label: <Link to="/inbox">聚合聊天</Link>,
-  },
-  {
-    key: '9',
-    icon: <ScheduleOutlined />,
-    label: <Link to="/tasks">任务管理</Link>,
-  },
-  {
-    key: '10',
-    icon: <FileTextOutlined />,
-    label: <Link to="/logs">操作日志</Link>,
-  },
-  {
-    key: '11',
+    key: 'system',
     icon: <SettingOutlined />,
-    label: <Link to="/system-config">系统配置</Link>,
+    label: '系统管理',
+    children: [
+      {
+        key: '9',
+        label: <Link to="/tasks">任务管理</Link>,
+      },
+      {
+        key: '10',
+        label: <Link to="/logs">操作日志</Link>,
+      },
+      {
+        key: '11',
+        label: <Link to="/system-config">系统配置</Link>,
+      },
+    ]
   },
   {
     type: 'divider',
@@ -164,6 +210,11 @@ const AppContent: React.FC = () => {
         '/crm': '客户管理',
         '/monitors': '监控引流',
         '/invites': '批量拉人',
+        '/campaigns': '战役管理',
+        '/source-groups': '流量源管理',
+        '/personas': 'AI人设管理',
+        '/funnel-groups': '营销群管理',
+        '/knowledge-bases': '知识库',
     };
 
     const pathSnippets = location.pathname.split('/').filter(i => i);
@@ -203,6 +254,11 @@ const AppContent: React.FC = () => {
                     <Route path="/crm" element={<CRM />} />
                     <Route path="/monitors" element={<MonitorPage />} />
                     <Route path="/invites" element={<InvitePage />} />
+                    <Route path="/campaigns" element={<CampaignPage />} />
+                    <Route path="/source-groups" element={<SourceGroupPage />} />
+                    <Route path="/personas" element={<PersonaPage />} />
+                    <Route path="/funnel-groups" element={<FunnelGroupPage />} />
+                    <Route path="/knowledge-bases" element={<KnowledgeBasePage />} />
                 </Routes>
             </div>
         </Content>

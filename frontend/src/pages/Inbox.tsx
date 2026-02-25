@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { Layout, List, Input, Button, Tag, Avatar, Badge, Empty, message, Spin, Typography, notification } from 'antd';
-import { UserOutlined, SendOutlined, SearchOutlined, FireOutlined, BellOutlined } from '@ant-design/icons';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { Layout, Input, Button, Tag, Avatar, Badge, Empty, message, Spin, Typography, notification } from 'antd';
+import { UserOutlined, SendOutlined, FireOutlined } from '@ant-design/icons';
 import { getLeads, getLead, sendLeadMessage, connectWebSocket, Lead, LeadInteraction } from '../services/api';
 
 const { Sider, Content } = Layout;
@@ -16,15 +16,39 @@ const Inbox: React.FC = () => {
     const [inputText, setInputText] = useState('');
     const ws = useRef<WebSocket | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const selectedLeadRef = useRef<Lead | null>(null);
+    const wsConnectedRef = useRef<boolean>(false); // 防止 StrictMode 重复连接
 
+    // 保持 selectedLead 的最新引用
+    useEffect(() => {
+        selectedLeadRef.current = selectedLead;
+    }, [selectedLead]);
+
+    const fetchLeads = useCallback(async () => {
+        try {
+            const data = await getLeads();
+            setLeads(data);
+        } catch (e) {
+            // ignore
+        }
+    }, []);
+
+    // WebSocket 连接只在组件挂载时建立一次
     useEffect(() => {
         fetchLeads();
+        
+        // 防止 StrictMode 下重复创建 WebSocket
+        if (wsConnectedRef.current) {
+            return;
+        }
+        wsConnectedRef.current = true;
         
         // Connect WS
         ws.current = connectWebSocket((data) => {
             if (data.type === 'new_message') {
-                // If message belongs to selected lead, append
-                if (selectedLead && data.lead_id === selectedLead.id) {
+                // 使用 ref 获取最新的 selectedLead
+                const currentLead = selectedLeadRef.current;
+                if (currentLead && data.lead_id === currentLead.id) {
                     setMessages(prev => [...prev, data.message]);
                     scrollToBottom();
                 }
@@ -38,8 +62,6 @@ const Inbox: React.FC = () => {
                     icon: <FireOutlined style={{ color: '#ff4d4f' }} />,
                     duration: 0, // Keep open until clicked
                     onClick: () => {
-                        // Find and select the lead if available in current list
-                        // In real app, might need to fetch specific lead if not in list
                         console.log('Alert clicked', data.data);
                     }
                 });
@@ -48,24 +70,20 @@ const Inbox: React.FC = () => {
         });
 
         return () => {
-            ws.current?.close();
+            // 只有真正有连接时才关闭
+            if (ws.current && ws.current.readyState !== WebSocket.CONNECTING) {
+                ws.current.close();
+            }
         };
-    }, [selectedLead]);
+        // eslint-disable-next-line react-hooks-exhaustive-deps
+    }, []);
 
     useEffect(() => {
         if (selectedLead) {
             fetchMessages(selectedLead.id);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedLead?.id]);
-
-    const fetchLeads = async () => {
-        try {
-            const data = await getLeads();
-            setLeads(data);
-        } catch (e) {
-            // ignore
-        }
-    };
 
     const fetchMessages = async (leadId: number) => {
         setLoading(true);
@@ -116,50 +134,46 @@ const Inbox: React.FC = () => {
                 <div style={{ padding: 16, borderBottom: '1px solid #f0f0f0' }}>
                     <Search placeholder="搜索联系人..." />
                 </div>
-                <List
-                    itemLayout="horizontal"
-                    dataSource={leads}
-                    style={{ height: 'calc(100% - 65px)', overflow: 'auto' }}
-                    renderItem={item => (
-                        <List.Item 
+                <div style={{ height: 'calc(100% - 65px)', overflow: 'auto' }}>
+                    {leads.map(item => (
+                        <div 
+                            key={item.id}
                             style={{ 
                                 padding: 16, 
                                 cursor: 'pointer', 
-                                background: selectedLead?.id === item.id ? '#e6f7ff' : 'transparent' 
+                                background: selectedLead?.id === item.id ? '#e6f7ff' : 'transparent',
+                                borderBottom: '1px solid #f0f0f0',
+                                display: 'flex',
+                                alignItems: 'flex-start',
+                                gap: 12
                             }}
                             onClick={() => setSelectedLead(item)}
                         >
-                            <List.Item.Meta
-                                avatar={<Avatar icon={<UserOutlined />} />}
-                                title={
-                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                        <Text ellipsis style={{ maxWidth: 120 }}>
-                                            {item.first_name || item.username || `User ${item.telegram_user_id}`}
-                                        </Text>
-                                        <Text type="secondary" style={{ fontSize: 12 }}>
-                                            {new Date(item.last_interaction_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                        </Text>
+                            <Avatar icon={<UserOutlined />} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <Text ellipsis style={{ maxWidth: 120 }}>
+                                        {item.first_name || item.username || `User ${item.telegram_user_id}`}
+                                    </Text>
+                                    <Text type="secondary" style={{ fontSize: 12 }}>
+                                        {new Date(item.last_interaction_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                    </Text>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <Text ellipsis type="secondary" style={{ maxWidth: 180 }}>
+                                        {item.notes || "点击查看消息"}
+                                    </Text>
+                                    <div style={{ display: 'flex', gap: 4 }}>
+                                        {item.tags_json && JSON.parse(item.tags_json).some((t: string) => t.includes('intent:inquiry') || t.includes('intent:purchase')) && (
+                                            <FireOutlined style={{ color: '#ff4d4f' }} />
+                                        )}
+                                        <Badge status={item.status === 'new' ? 'processing' : 'default'} />
                                     </div>
-                                }
-                                description={
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <Text ellipsis type="secondary" style={{ maxWidth: 180 }}>
-                                            {/* Preview last message content logic needed or store in Lead table */}
-                                            {item.notes || "点击查看消息"}
-                                        </Text>
-                                        {/* Status badge */}
-                                        <div style={{ display: 'flex', gap: 4 }}>
-                                            {item.tags_json && JSON.parse(item.tags_json).some((t: string) => t.includes('intent:inquiry') || t.includes('intent:purchase')) && (
-                                                <FireOutlined style={{ color: '#ff4d4f' }} />
-                                            )}
-                                            <Badge status={item.status === 'new' ? 'processing' : 'default'} />
-                                        </div>
-                                    </div>
-                                }
-                            />
-                        </List.Item>
-                    )}
-                />
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
             </Sider>
             <Content style={{ display: 'flex', flexDirection: 'column' }}>
                 {selectedLead ? (

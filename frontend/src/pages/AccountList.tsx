@@ -156,6 +156,12 @@ const AccountList: React.FC = () => {
   const [aiForm] = Form.useForm();
   const [aiLoading, setAiLoading] = useState(false);
   
+  // Combat Role State
+  const [combatRoleStats, setCombatRoleStats] = useState<any>({});
+  const [isCombatRoleModalVisible, setIsCombatRoleModalVisible] = useState(false);
+  const [selectedCombatRole, setSelectedCombatRole] = useState<string>('cannon');
+  const [combatRoleLoading, setCombatRoleLoading] = useState(false);
+  
   // Auto Reg State
   const [autoRegLoading, setAutoRegLoading] = useState(false);
   const [autoRegForm] = Form.useForm();
@@ -401,9 +407,24 @@ const AccountList: React.FC = () => {
     }
   };
 
+  const fetchCombatRoleStats = async () => {
+    try {
+      const res = await fetch('/api/v1/accounts/combat-roles/stats', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCombatRoleStats(data);
+      }
+    } catch (error) {
+      console.error('获取战斗角色统计失败', error);
+    }
+  };
+
   useEffect(() => {
     fetchAccounts();
     fetchStats();
+    fetchCombatRoleStats();
   }, [statusFilter, roleFilter, tierFilter]);
 
   const resetForms = () => {
@@ -672,6 +693,50 @@ const AccountList: React.FC = () => {
     }
   };
 
+  const handleCombatRoleSubmit = async () => {
+    setCombatRoleLoading(true);
+    try {
+      const accountIds = selectedRowKeys.map(k => Number(k));
+      const res = await fetch('/api/v1/accounts/combat-roles/batch-assign', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          account_ids: accountIds,
+          combat_role: selectedCombatRole
+        })
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        message.success(`成功分配 ${data.updated_count} 个账号到${getCombatRoleName(selectedCombatRole)}`);
+        setIsCombatRoleModalVisible(false);
+        setSelectedRowKeys([]);
+        fetchAccounts(pagination.current, pagination.pageSize);
+        fetchCombatRoleStats();
+      } else {
+        const err = await res.json();
+        message.error(`分配失败: ${err.detail}`);
+      }
+    } catch (error: any) {
+      message.error(`分配失败: ${error.message}`);
+    } finally {
+      setCombatRoleLoading(false);
+    }
+  };
+
+  const getCombatRoleName = (role: string) => {
+    const names: Record<string, string> = {
+      cannon: '炮灰组',
+      scout: '侦察组',
+      actor: '演员组',
+      sniper: '狙击组'
+    };
+    return names[role] || role;
+  };
+
   const getRoleTag = (role?: string) => {
     const roleConfig: Record<string, { color: string; text: string }> = {
       worker: { color: 'default', text: '临时号' },
@@ -925,6 +990,29 @@ const AccountList: React.FC = () => {
       render: (tier: string) => {
           const color = tier === 'tier1' ? 'gold' : (tier === 'tier2' ? 'blue' : 'default');
           return <Tag color={color}>{tier ? tier.toUpperCase() : 'TIER3'}</Tag>;
+      }
+    },
+    {
+      title: '战斗角色',
+      dataIndex: 'combat_role',
+      key: 'combat_role',
+      width: 100,
+      filters: [
+        { text: '炮灰', value: 'cannon' },
+        { text: '侦察', value: 'scout' },
+        { text: '演员', value: 'actor' },
+        { text: '狙击', value: 'sniper' },
+      ],
+      onFilter: (value: any, record: Account) => record.combat_role === value,
+      render: (role: string) => {
+        const config: Record<string, { color: string; label: string }> = {
+          cannon: { color: 'red', label: '炮灰' },
+          scout: { color: 'blue', label: '侦察' },
+          actor: { color: 'purple', label: '演员' },
+          sniper: { color: 'gold', label: '狙击' },
+        };
+        const c = config[role] || { color: 'default', label: role || 'cannon' };
+        return <Tag color={c.color}>{c.label}</Tag>;
       }
     },
     {
@@ -1190,6 +1278,13 @@ const AccountList: React.FC = () => {
               disabled={selectedRowKeys.length === 0}
             >
               设置角色
+            </Button>
+            <Button
+              onClick={() => setIsCombatRoleModalVisible(true)}
+              disabled={selectedRowKeys.length === 0}
+              style={{ backgroundColor: '#722ed1', borderColor: '#722ed1', color: '#fff' }}
+            >
+              战斗角色
             </Button>
             <Button
               icon={<RobotOutlined />}
@@ -1750,6 +1845,61 @@ const AccountList: React.FC = () => {
             />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* Combat Role Modal */}
+      <Modal
+        title="分配战斗角色"
+        open={isCombatRoleModalVisible}
+        onOk={handleCombatRoleSubmit}
+        onCancel={() => setIsCombatRoleModalVisible(false)}
+        confirmLoading={combatRoleLoading}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <p>已选择 <strong>{selectedRowKeys.length}</strong> 个账号</p>
+        </div>
+        
+        <div style={{ marginBottom: 16 }}>
+          <Row gutter={8}>
+            {Object.entries(combatRoleStats).map(([role, data]: [string, any]) => (
+              <Col span={6} key={role}>
+                <Card size="small" style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 18, fontWeight: 'bold' }}>{data.active}/{data.total}</div>
+                  <div style={{ fontSize: 12, color: '#666' }}>{data.display_name}</div>
+                </Card>
+              </Col>
+            ))}
+          </Row>
+        </div>
+
+        <Form layout="vertical">
+          <Form.Item label="目标战斗角色" required>
+            <Select value={selectedCombatRole} onChange={setSelectedCombatRole} style={{ width: '100%' }}>
+              <Option value="cannon">
+                <Tag color="red">炮灰组</Tag> 廉价弹药，用于群发、拉人、高风险操作
+              </Option>
+              <Option value="scout">
+                <Tag color="blue">侦察组</Tag> 情报收集，潜伏采集、监控（禁止发消息）
+              </Option>
+              <Option value="actor">
+                <Tag color="purple">演员组</Tag> 信任铺垫，炒群造势、剧本对话
+              </Option>
+              <Option value="sniper">
+                <Tag color="gold">狙击组</Tag> 精准打击，高价值客户转化（严格限制）
+              </Option>
+            </Select>
+          </Form.Item>
+        </Form>
+
+        <div style={{ fontSize: 12, color: '#888', marginTop: 16 }}>
+          <p><strong>角色说明：</strong></p>
+          <ul style={{ paddingLeft: 16 }}>
+            <li><strong>炮灰</strong>：每日100条，30-60秒间隔，用完即弃</li>
+            <li><strong>侦察</strong>：只读操作，禁止发消息，用于采集监控</li>
+            <li><strong>演员</strong>：每日50条，2-5分钟间隔，需使用剧本</li>
+            <li><strong>狙击</strong>：每日20条，5-10分钟间隔，只打高分用户</li>
+          </ul>
+        </div>
       </Modal>
 
       {/* Quick Warmup Modal */}

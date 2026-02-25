@@ -237,6 +237,14 @@ async def upload_session(
     if not parsed_phone:
         raise HTTPException(status_code=400, detail="无法解析手机号")
     
+    # 自动加密 session 文件
+    try:
+        from app.services.session_encryption_service import encrypt_new_session_file
+        encrypt_new_session_file(file_location)
+        logger.info(f"Session file encrypted: {file_location}")
+    except Exception as e:
+        logger.warning(f"Failed to encrypt session file: {e}")
+    
     # 检查账号是否已存在
     existing = session.exec(
         select(Account).where(Account.phone_number == parsed_phone)
@@ -247,7 +255,7 @@ async def upload_session(
         existing.status = "uploaded"
         session.add(existing)
         session.commit()
-        return {"message": "账号已更新", "account_id": existing.id}
+        return {"message": "账号已更新", "account_id": existing.id, "encrypted": True}
     else:
         account = Account(
             phone_number=parsed_phone,
@@ -263,7 +271,7 @@ async def upload_session(
         if not account.proxy_id:
             auto_assign_proxy(session, account)
         
-        return {"message": "账号已创建", "account_id": account.id}
+        return {"message": "账号已创建", "account_id": account.id, "encrypted": True}
 
 @router.post("/batch/upload")
 def upload_sessions_batch(
@@ -677,4 +685,208 @@ async def import_from_mega(
         "message": f"已提交 {len(task_ids)} 个导入任务",
         "task_ids": task_ids,
         "urls": urls
+    }
+
+
+# =====================
+# 战斗角色管理
+# =====================
+
+class CombatRoleUpdate(BaseModel):
+    combat_role: str  # cannon/scout/actor/sniper
+
+class BatchCombatRoleUpdate(BaseModel):
+    account_ids: List[int]
+    combat_role: str
+
+
+COMBAT_ROLE_CONFIG = {
+    "cannon": {
+        "display_name": "炮灰组",
+        "description": "廉价弹药，用于高风险群发、拉人",
+        "daily_limit": 100,
+        "allowed_actions": ["mass_dm", "invite", "spam"]
+    },
+    "scout": {
+        "display_name": "侦察组",
+        "description": "情报收集，潜伏采集、监控",
+        "daily_limit": 0,
+        "allowed_actions": ["scrape", "monitor", "join_group"]
+    },
+    "actor": {
+        "display_name": "演员组",
+        "description": "信任铺垫，炒群造势",
+        "daily_limit": 50,
+        "allowed_actions": ["shill", "script_chat"]
+    },
+    "sniper": {
+        "display_name": "狙击组",
+        "description": "精准打击，高价值客户转化",
+        "daily_limit": 20,
+        "allowed_actions": ["precision_dm"]
+    }
+}
+
+
+@router.get("/combat-roles/config")
+def get_combat_role_config():
+    """获取战斗角色配置"""
+    return COMBAT_ROLE_CONFIG
+
+
+@router.get("/combat-roles/stats")
+def get_combat_role_stats(
+    session: Session = Depends(get_session)
+):
+    """获取各角色账号统计"""
+    stats = {}
+    for role in COMBAT_ROLE_CONFIG.keys():
+        total = session.exec(
+            select(func.count(Account.id)).where(Account.combat_role == role)
+        ).one()
+        active = session.exec(
+            select(func.count(Account.id)).where(
+                Account.combat_role == role,
+                Account.status == "active"
+            )
+        ).one()
+        stats[role] = {
+            "total": total,
+            "active": active,
+            "display_name": COMBAT_ROLE_CONFIG[role]["display_name"]
+        }
+    return stats
+
+
+@router.put("/{account_id}/combat-role")
+def update_account_combat_role(
+    account_id: int,
+    update: CombatRoleUpdate,
+    session: Session = Depends(get_session)
+):
+    """更新账号战斗角色"""
+    account = session.get(Account, account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    if update.combat_role not in COMBAT_ROLE_CONFIG:
+        raise HTTPException(status_code=400, detail=f"Invalid combat role. Must be one of: {list(COMBAT_ROLE_CONFIG.keys())}")
+    
+    old_role = account.combat_role
+    account.combat_role = update.combat_role
+    session.add(account)
+    session.commit()
+    
+    return {
+        "success": True,
+        "account_id": account_id,
+        "old_role": old_role,
+        "new_role": update.combat_role
+    }
+
+
+@router.post("/combat-roles/batch-assign")
+def batch_assign_combat_role(
+    update: BatchCombatRoleUpdate,
+    session: Session = Depends(get_session)
+):
+    """批量分配战斗角色"""
+    if update.combat_role not in COMBAT_ROLE_CONFIG:
+        raise HTTPException(status_code=400, detail=f"Invalid combat role")
+    
+    updated_count = 0
+    for acc_id in update.account_ids:
+        account = session.get(Account, acc_id)
+        if account:
+            account.combat_role = update.combat_role
+            session.add(account)
+            updated_count += 1
+    
+    session.commit()
+    return {
+        "success": True,
+        "updated_count": updated_count,
+        "combat_role": update.combat_role
+    }
+
+
+@router.get("/by-combat-role/{combat_role}", response_model=List[AccountRead])
+def get_accounts_by_combat_role(
+    combat_role: str,
+    skip: int = 0,
+    limit: int = 100,
+    status: Optional[str] = None,
+    session: Session = Depends(get_session)
+):
+    """按战斗角色获取账号"""
+    if combat_role not in COMBAT_ROLE_CONFIG:
+        raise HTTPException(status_code=400, detail=f"Invalid combat role")
+    
+    query = select(Account).where(Account.combat_role == combat_role)
+    if status:
+        query = query.where(Account.status == status)
+    query = query.offset(skip).limit(limit).order_by(Account.health_score.desc())
+    
+    return session.exec(query).all()
+
+
+@router.post("/{account_id}/promote")
+def promote_account(
+    account_id: int,
+    session: Session = Depends(get_session)
+):
+    """晋升账号角色"""
+    account = session.get(Account, account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    promotion_path = ["cannon", "scout", "actor", "sniper"]
+    current_idx = promotion_path.index(account.combat_role) if account.combat_role in promotion_path else 0
+    
+    if current_idx >= len(promotion_path) - 1:
+        raise HTTPException(status_code=400, detail="Account is already at highest role")
+    
+    new_role = promotion_path[current_idx + 1]
+    old_role = account.combat_role
+    account.combat_role = new_role
+    session.add(account)
+    session.commit()
+    
+    return {
+        "success": True,
+        "account_id": account_id,
+        "old_role": old_role,
+        "new_role": new_role,
+        "message": f"晋升成功: {COMBAT_ROLE_CONFIG[old_role]['display_name']} → {COMBAT_ROLE_CONFIG[new_role]['display_name']}"
+    }
+
+
+@router.post("/{account_id}/demote")
+def demote_account(
+    account_id: int,
+    session: Session = Depends(get_session)
+):
+    """降级账号角色"""
+    account = session.get(Account, account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    promotion_path = ["cannon", "scout", "actor", "sniper"]
+    current_idx = promotion_path.index(account.combat_role) if account.combat_role in promotion_path else 0
+    
+    if current_idx <= 0:
+        raise HTTPException(status_code=400, detail="Account is already at lowest role")
+    
+    new_role = promotion_path[current_idx - 1]
+    old_role = account.combat_role
+    account.combat_role = new_role
+    session.add(account)
+    session.commit()
+    
+    return {
+        "success": True,
+        "account_id": account_id,
+        "old_role": old_role,
+        "new_role": new_role,
+        "message": f"降级完成: {COMBAT_ROLE_CONFIG[old_role]['display_name']} → {COMBAT_ROLE_CONFIG[new_role]['display_name']}"
     }

@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends
 from app.api.deps import get_current_user
 from app.api.v1.endpoints import (
     login, users, accounts, proxies, system, tasks,
-    scraping, marketing, ai, script, ws, crm, logs, warmup, monitor, invite
+    scraping, marketing, ai, script, ws, crm, logs, warmup, monitor, invite,
+    campaigns, source_groups, funnel_groups, personas, knowledge_bases, workflow
 )
 
 api_router = APIRouter()
@@ -23,3 +24,11 @@ api_router.include_router(logs.router, prefix="/logs", tags=["logs"], dependenci
 api_router.include_router(warmup.router, prefix="/warmup", tags=["warmup"], dependencies=[Depends(get_current_user)])
 api_router.include_router(monitor.router, prefix="/monitors", tags=["monitors"], dependencies=[Depends(get_current_user)])
 api_router.include_router(invite.router, prefix="/invites", tags=["invites"], dependencies=[Depends(get_current_user)])
+
+# 战略升级模块
+api_router.include_router(campaigns.router, prefix="/campaigns", tags=["campaigns"], dependencies=[Depends(get_current_user)])
+api_router.include_router(source_groups.router, prefix="/source-groups", tags=["source-groups"], dependencies=[Depends(get_current_user)])
+api_router.include_router(funnel_groups.router, prefix="/funnel-groups", tags=["funnel-groups"], dependencies=[Depends(get_current_user)])
+api_router.include_router(personas.router, prefix="/personas", tags=["personas"], dependencies=[Depends(get_current_user)])
+api_router.include_router(knowledge_bases.router, prefix="/knowledge-bases", tags=["knowledge-bases"], dependencies=[Depends(get_current_user)])
+api_router.include_router(workflow.router, prefix="/workflow", tags=["workflow"], dependencies=[Depends(get_current_user)])

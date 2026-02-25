@@ -46,9 +46,11 @@ const Login: React.FC = () => {
     form.setFieldValue('captcha', '');
   }, [form]);
 
+  // 仅在组件挂载时初始化验证码
   useEffect(() => {
-    refreshCaptcha();
-  }, [refreshCaptcha]);
+    setCaptcha(generateCaptcha());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onFinish = async (values: any) => {
     // 验证验证码

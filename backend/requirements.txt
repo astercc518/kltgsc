@@ -1,28 +1,49 @@
-fastapi
-uvicorn
-sqlalchemy
-sqlmodel
-pydantic
-pydantic-settings
-python-dotenv
-pyrogram
-tgcrypto
-asyncpg
-psycopg2-binary
-greenlet
-redis
-celery
-python-multipart
-aiohttp
-aiohttp-socks
-requests
-pysocks
-faker
-python-jose[cryptography]
-passlib[bcrypt]
+# Web Framework
+fastapi>=0.109.0
+uvicorn>=0.27.0
+
+# Database
+sqlalchemy>=2.0.25
+sqlmodel>=0.0.14
+asyncpg>=0.29.0
+psycopg2-binary>=2.9.9
+greenlet>=3.0.3
+
+# Validation & Settings
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+python-dotenv>=1.0.0
+
+# Telegram
+pyrogram>=2.0.106
+tgcrypto>=1.2.5
+opentele>=1.15.1
+
+# Task Queue
+redis>=5.0.1
+celery>=5.3.4
+
+# HTTP & Networking
+aiohttp>=3.9.1
+aiohttp-socks>=0.8.4
+requests>=2.31.0
+pysocks>=1.7.1
+python-multipart>=0.0.6
+
+# Security & Encryption
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
 bcrypt==4.0.1
-pyotp
-mega.py
-rarfile
-opentele
-openai
+cryptography>=41.0.7
+pyotp>=2.9.0
+
+# Utilities
+faker>=22.0.0
+
+# External Services
+mega.py>=1.0.8
+rarfile>=4.1
+
+# AI
+openai>=1.6.1
+google-genai>=1.0.0

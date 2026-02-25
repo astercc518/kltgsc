@@ -201,3 +201,88 @@ def get_hits(
 ):
     service = KeywordMonitorService(session)
     return service.get_hits(skip=skip, limit=limit, status=status)
+
+
+# ============================================
+# 竞品群实时截流 API
+# ============================================
+
+from app.services.intercept_service import InterceptService
+
+
+class NewMemberEvent(BaseModel):
+    source_group_id: int
+    user_id: int
+    username: str = None
+    first_name: str = None
+    bio: str = None
+
+
+@router.post("/intercept/new-member")
+async def handle_new_member(
+    event: NewMemberEvent,
+    session: Session = Depends(get_session)
+):
+    """
+    处理竞品群新成员加入事件
+    
+    这个接口由监听服务调用，当检测到竞品群有新成员加入时触发
+    """
+    service = InterceptService(session)
+    result = await service.process_new_member(
+        source_group_id=event.source_group_id,
+        user_id=event.user_id,
+        username=event.username,
+        first_name=event.first_name,
+        bio=event.bio
+    )
+    return result
+
+
+@router.get("/intercept/stats")
+def get_intercept_stats(
+    session: Session = Depends(get_session)
+):
+    """获取截流统计数据"""
+    service = InterceptService(session)
+    return service.get_intercept_stats()
+
+
+@router.post("/intercept/test")
+async def test_intercept(
+    source_group_id: int = Query(...),
+    session: Session = Depends(get_session)
+):
+    """
+    测试截流功能（模拟新成员加入）
+    """
+    import random
+    
+    service = InterceptService(session)
+    
+    # 模拟用户数据
+    test_user_id = random.randint(1000000000, 9999999999)
+    test_username = f"test_user_{random.randint(1000, 9999)}"
+    test_bio = random.choice([
+        "Crypto enthusiast | DeFi lover",
+        "投资爱好者，专注区块链",
+        "Trading since 2020",
+        None
+    ])
+    
+    result = await service.process_new_member(
+        source_group_id=source_group_id,
+        user_id=test_user_id,
+        username=test_username,
+        first_name="Test",
+        bio=test_bio
+    )
+    
+    return {
+        "test_data": {
+            "user_id": test_user_id,
+            "username": test_username,
+            "bio": test_bio
+        },
+        "result": result
+    }

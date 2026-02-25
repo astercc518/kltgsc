@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Table, Button, Modal, Form, Input, Select, Switch, Tag, Space, message, Tabs, Tooltip, InputNumber, Checkbox, Card, Row, Col, Slider, Alert, Spin } from 'antd';
 import type { TabsProps } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, RobotOutlined, MessageOutlined, BellOutlined, ReloadOutlined, ForwardOutlined, UserAddOutlined, FireOutlined, BulbOutlined, ThunderboltOutlined, EyeOutlined, SendOutlined } from '@ant-design/icons';
+import { AISelector } from '../components';
 import { 
     KeywordMonitor, getKeywordMonitors, createKeywordMonitor, updateKeywordMonitor, deleteKeywordMonitor, 
     getKeywordHits, KeywordHit,
@@ -193,7 +194,7 @@ const MonitorPage: React.FC = () => {
             key: 'mode',
             width: 100,
             render: (_: any, record: any) => (
-                <Space direction="vertical" size={2}>
+                <Space orientation="vertical" size={2}>
                     {getMarketingModeTag(record.marketing_mode || 'passive')}
                     <span style={{ fontSize: 11, color: '#999' }}>
                         {record.match_type === 'semantic' ? '语义' : 
@@ -333,7 +334,7 @@ const MonitorPage: React.FC = () => {
                 onOk={handleOk}
                 onCancel={() => setIsModalVisible(false)}
                 width={800}
-                bodyStyle={{ maxHeight: '70vh', overflowY: 'auto' }}
+                styles={{ body: { maxHeight: '70vh', overflowY: 'auto' } }}
             >
                 <Form form={form} layout="vertical" initialValues={{ 
                     match_type: 'partial', 
@@ -363,7 +364,7 @@ const MonitorPage: React.FC = () => {
                         
                         {marketingMode === 'passive' && (
                             <Alert 
-                                message="被动模式：监听账号不会在群里说话，只负责转发消息和录入线索。极度安全，适合长期潜伏。" 
+                                title="被动模式：监听账号不会在群里说话，只负责转发消息和录入线索。极度安全，适合长期潜伏。" 
                                 type="info" 
                                 showIcon 
                                 style={{ marginTop: -8 }}
@@ -371,7 +372,7 @@ const MonitorPage: React.FC = () => {
                         )}
                         {marketingMode === 'active' && (
                             <Alert 
-                                message="主动模式：监听账号会直接回复用户或发起私聊。转化率高，但有被踢/封号风险，建议设置合理延迟。" 
+                                title="主动模式：监听账号会直接回复用户或发起私聊。转化率高，但有被踢/封号风险，建议设置合理延迟。" 
                                 type="warning" 
                                 showIcon 
                                 style={{ marginTop: -8 }}
@@ -493,6 +494,10 @@ const MonitorPage: React.FC = () => {
 
                         {actionType === 'auto_reply' && (
                             <>
+                                <Form.Item name="ai_config_id" label="AI 配置" help="选择用于自动回复的 AI 服务">
+                                    <AISelector allowDefault={true} style={{ width: '100%' }} />
+                                </Form.Item>
+
                                 <Form.Item name="ai_persona" label="AI 人设预设">
                                     <Select>
                                         <Option value="helpful">🤝 热心群友 - 语气随意友善，简单分享经验</Option>

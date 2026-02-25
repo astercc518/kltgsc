@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, Form, Input, Button, Table, Space, message, Modal, List, Tag, Select, Steps, Divider } from 'antd';
-import { PlayCircleOutlined, PlusOutlined, RobotOutlined, UserOutlined } from '@ant-design/icons';
+import { PlayCircleOutlined, PlusOutlined, RobotOutlined, UserOutlined, MinusOutlined } from '@ant-design/icons';
+import { AISelector } from '../components';
 import { 
     createScript, 
     getScripts, 
@@ -256,8 +257,12 @@ const ScriptPage: React.FC = () => {
                     <Form.Item name="topic" label="对话主题" rules={[{ required: true }]} help="LLM 将根据此主题生成对话">
                         <TextArea rows={3} placeholder="例如：讨论 Web3 游戏的未来发展，UserA 比较乐观，UserB 持怀疑态度。" />
                     </Form.Item>
+
+                    <Form.Item name="ai_config_id" label="AI 配置" help="选择用于生成对话的 AI 服务">
+                        <AISelector allowDefault={true} style={{ width: '100%' }} />
+                    </Form.Item>
                     
-                    <Divider orientation="left">角色设定</Divider>
+                    <Divider titlePlacement="left">角色设定</Divider>
                     {roles.map((role, index) => (
                         <Space key={index} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
                             <Input 
@@ -329,7 +334,7 @@ const ScriptPage: React.FC = () => {
                             <Input placeholder="@target_group" />
                         </Form.Item>
                         
-                        <Divider orientation="left">账号分配</Divider>
+                        <Divider titlePlacement="left">账号分配</Divider>
                         {JSON.parse(selectedScript.roles_json).map((role: any) => (
                             <Form.Item 
                                 key={role.name} 
@@ -365,8 +370,5 @@ const ScriptPage: React.FC = () => {
         </div>
     );
 };
-
-// Missing MinusOutlined import fix
-import { MinusOutlined } from '@ant-design/icons';
 
 export default ScriptPage;

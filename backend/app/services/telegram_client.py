@@ -6,8 +6,11 @@ import os
 import asyncio
 import random
 import logging
+import tempfile
+import shutil
 from typing import Optional, Tuple, List, Dict, Any, Literal
 from datetime import datetime, timedelta
+from contextlib import contextmanager
 from sqlmodel import Session
 from pyrogram import Client, enums
 from pyrogram.errors import (
@@ -38,6 +41,58 @@ from app.core.exceptions import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+@contextmanager
+def decrypted_session_file(session_file_path: str):
+    """
+    上下文管理器：解密 session 文件用于临时使用
+    
+    如果文件已加密，解密到临时目录
+    如果文件未加密，直接返回原路径
+    使用完毕后自动清理临时文件
+    """
+    temp_dir = None
+    temp_session_path = None
+    
+    try:
+        # 延迟导入避免循环依赖
+        from app.core.encryption import is_session_encrypted, get_encryption_service
+        
+        if is_session_encrypted(session_file_path):
+            # 创建临时目录
+            temp_dir = tempfile.mkdtemp(prefix="tgsc_session_")
+            
+            # 解密到临时文件
+            encryption_service = get_encryption_service()
+            decrypted_data = encryption_service.decrypt_to_memory(session_file_path)
+            
+            # 保持原文件名
+            original_name = os.path.basename(session_file_path)
+            temp_session_path = os.path.join(temp_dir, original_name)
+            
+            with open(temp_session_path, "wb") as f:
+                f.write(decrypted_data)
+            
+            logger.debug(f"Decrypted session to temp: {temp_session_path}")
+            yield temp_session_path, temp_dir
+        else:
+            # 未加密，直接使用原文件
+            yield session_file_path, os.path.dirname(session_file_path)
+            
+    except ImportError:
+        # 如果加密模块不可用，直接使用原文件
+        logger.warning("Encryption module not available, using unencrypted session")
+        yield session_file_path, os.path.dirname(session_file_path)
+        
+    finally:
+        # 清理临时文件
+        if temp_dir and os.path.exists(temp_dir):
+            try:
+                shutil.rmtree(temp_dir)
+                logger.debug(f"Cleaned up temp session dir: {temp_dir}")
+            except Exception as e:
+                logger.warning(f"Failed to clean up temp dir {temp_dir}: {e}")
 
 def get_proxy_dict(proxy: Optional[Proxy]) -> Optional[dict]:
     """将 Proxy 模型转换为 Pyrogram 可用的代理字典"""

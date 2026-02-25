@@ -263,14 +263,14 @@ const CRM: React.FC = () => {
             <Statistic 
               title="新线索" 
               value={leads.filter(l => l.status === 'new').length} 
-              valueStyle={{ color: '#1890ff' }}
+              styles={{ content: { color: '#1890ff' } }}
             />
           </Col>
           <Col span={6}>
             <Statistic 
               title="有意向" 
               value={leads.filter(l => l.status === 'interested' || (l.tags_json && l.tags_json.includes('intent'))).length} 
-              valueStyle={{ color: '#faad14' }}
+              styles={{ content: { color: '#faad14' } }}
               prefix={<StarOutlined />}
             />
           </Col>
@@ -278,7 +278,7 @@ const CRM: React.FC = () => {
             <Statistic 
               title="已转化" 
               value={leads.filter(l => l.status === 'converted').length} 
-              valueStyle={{ color: '#52c41a' }}
+              styles={{ content: { color: '#52c41a' } }}
               prefix={<CheckCircleOutlined />}
             />
           </Col>
@@ -339,7 +339,7 @@ const CRM: React.FC = () => {
         placement="right"
         onClose={() => setDetailVisible(false)}
         open={detailVisible}
-        width={500}
+        size="large"
       >
         {selectedLead && (
           <div>

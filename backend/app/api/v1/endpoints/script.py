@@ -32,31 +32,7 @@ def get_scripts(
     """获取剧本列表"""
     return session.exec(select(Script).offset(skip).limit(limit).order_by(Script.id.desc())).all()
 
-@router.get("/{script_id}", response_model=ScriptRead)
-def get_script(
-    script_id: int,
-    session: Session = Depends(get_session)
-):
-    """获取单个剧本"""
-    script = session.get(Script, script_id)
-    if not script:
-        raise HTTPException(status_code=404, detail="Script not found")
-    return script
-
-@router.post("/{script_id}/generate")
-async def generate_script_content(
-    script_id: int,
-    session: Session = Depends(get_session)
-):
-    """使用 LLM 生成剧本对话内容"""
-    service = ScriptService(session)
-    try:
-        lines = await service.generate_script_lines(script_id)
-        return {"status": "success", "lines": lines}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-# --- Script Tasks ---
+# --- Script Tasks --- (放在 /{script_id} 路由之前避免路径冲突)
 
 @router.post("/tasks", response_model=ScriptTaskRead)
 def create_script_task(
@@ -90,3 +66,29 @@ def get_script_tasks(
 ):
     """获取任务列表"""
     return session.exec(select(ScriptTask).offset(skip).limit(limit).order_by(ScriptTask.id.desc())).all()
+
+# --- Single Script Routes ---
+
+@router.get("/{script_id}", response_model=ScriptRead)
+def get_script(
+    script_id: int,
+    session: Session = Depends(get_session)
+):
+    """获取单个剧本"""
+    script = session.get(Script, script_id)
+    if not script:
+        raise HTTPException(status_code=404, detail="Script not found")
+    return script
+
+@router.post("/{script_id}/generate")
+async def generate_script_content(
+    script_id: int,
+    session: Session = Depends(get_session)
+):
+    """使用 LLM 生成剧本对话内容"""
+    service = ScriptService(session)
+    try:
+        lines = await service.generate_script_lines(script_id)
+        return {"status": "success", "lines": lines}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))

@@ -212,10 +212,10 @@ export const checkHealth = async (): Promise<HealthStatus> => {
 // --- Auth ---
 
 export const login = async (username: string, password: string): Promise<any> => {
-    const formData = new FormData();
-    formData.append('username', username);
-    formData.append('password', password);
-    const response = await api.post('/login/access-token', formData, {
+    const params = new URLSearchParams();
+    params.append('username', username);
+    params.append('password', password);
+    const response = await api.post('/login/access-token', params, {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     });
     return response.data;
@@ -612,8 +612,82 @@ export const startAutoRegistration = async (options: { count: number; country?: 
 
 // --- AI ---
 
+// AI 配置类型
+export interface AIConfigData {
+    id: number;
+    name: string;
+    provider: string;
+    base_url: string;
+    model: string;
+    is_default: boolean;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+    has_api_key: boolean;
+}
+
+export interface AIConfigCreate {
+    name: string;
+    provider: string;
+    api_key: string;
+    base_url?: string;
+    model: string;
+    is_default?: boolean;
+}
+
+export interface AIConfigUpdate {
+    name?: string;
+    provider?: string;
+    api_key?: string;
+    base_url?: string;
+    model?: string;
+    is_default?: boolean;
+    is_active?: boolean;
+}
+
+// 获取所有 AI 配置
+export const getAIConfigs = async (activeOnly: boolean = false): Promise<AIConfigData[]> => {
+    const response = await api.get('/ai/configs', { params: { active_only: activeOnly } });
+    return response.data;
+};
+
+// 获取单个 AI 配置
+export const getAIConfig = async (id: number): Promise<AIConfigData> => {
+    const response = await api.get(`/ai/configs/${id}`);
+    return response.data;
+};
+
+// 创建 AI 配置
+export const createAIConfig = async (data: AIConfigCreate): Promise<AIConfigData> => {
+    const response = await api.post('/ai/configs', data);
+    return response.data;
+};
+
+// 更新 AI 配置
+export const updateAIConfig = async (id: number, data: AIConfigUpdate): Promise<AIConfigData> => {
+    const response = await api.put(`/ai/configs/${id}`, data);
+    return response.data;
+};
+
+// 删除 AI 配置
+export const deleteAIConfig = async (id: number): Promise<void> => {
+    await api.delete(`/ai/configs/${id}`);
+};
+
+// 设置默认 AI 配置
+export const setDefaultAIConfig = async (id: number): Promise<void> => {
+    await api.put(`/ai/configs/${id}/default`);
+};
+
+// 测试指定 AI 配置连接
+export const testAIConfigConnection = async (id: number): Promise<any> => {
+    const response = await api.post(`/ai/configs/${id}/test`);
+    return response.data;
+};
+
+// 测试默认 AI 连接（兼容旧接口）
 export const testAIConnection = async (): Promise<any> => {
-    const response = await api.post('/ai/test');
+    const response = await api.get('/ai/test_connection');
     return response.data;
 };
 
@@ -921,6 +995,36 @@ export const getInviteTasks = async (): Promise<InviteTask[]> => {
 
 export const createInviteTask = async (data: InviteTaskCreate): Promise<InviteTask> => {
     const response = await api.post('/invites/tasks', data);
+    return response.data;
+};
+
+// === 用户管理 ===
+
+export interface ChangePasswordRequest {
+    current_password: string;
+    new_password: string;
+    confirm_password: string;
+}
+
+export interface ChangePasswordResponse {
+    success: boolean;
+    message: string;
+}
+
+export interface UserInfo {
+    id: number;
+    username: string;
+    is_active: boolean;
+    is_superuser: boolean;
+}
+
+export const getCurrentUser = async (): Promise<UserInfo> => {
+    const response = await api.get('/users/me');
+    return response.data;
+};
+
+export const changePassword = async (data: ChangePasswordRequest): Promise<ChangePasswordResponse> => {
+    const response = await api.post('/users/change-password', data);
     return response.data;
 };
 

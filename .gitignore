@@ -52,6 +52,11 @@ frontend/.env
 *.log
 celery.log
 backend/celery.log
+backend/logs/
+
+# ========== Celery ==========
+celerybeat-schedule
+backend/celerybeat-schedule
 
 # ========== Temporary/Downloaded files ==========
 backend/temp_downloads/
