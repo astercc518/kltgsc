@@ -27,8 +27,6 @@ services:
       - ./backend:/app
     env_file:
       - ./backend/.env
-    environment:
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
     depends_on:
       - redis
     networks:
@@ -56,7 +54,6 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - QT_QPA_PLATFORM=offscreen
       - QT_DEBUG_PLUGINS=0
     depends_on:
