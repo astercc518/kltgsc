@@ -61,7 +61,7 @@ async def check_proxy_connectivity_async(proxy: Proxy, fetch_details: bool = Fal
                                 if response.status == 200:
                                     connected = True
                                     break
-                        except:
+                        except Exception:
                             continue
                     
                     if not connected:
@@ -111,7 +111,7 @@ async def check_proxy_connectivity_async(proxy: Proxy, fetch_details: bool = Fal
                             if response.status == 200:
                                 connected = True
                                 break
-                    except:
+                    except Exception:
                         continue
                 
                 if not connected:
@@ -205,7 +205,7 @@ def check_proxy_connectivity(proxy: Proxy, fetch_details: bool = False) -> Tuple
                                 data = resp.json()
                                 if data.get('status') == 'success':
                                     details = data
-                        except:
+                        except Exception:
                             pass
                     return True, None, details
                 

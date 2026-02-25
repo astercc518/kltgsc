@@ -1,3 +1,4 @@
+import asyncio
 import openai
 from typing import Optional, List, Dict
 import logging
@@ -110,7 +111,7 @@ class LLMService:
             return None
 
     def _init_openai(self):
-        """Initialize OpenAI-compatible client for various providers"""
+        """Initialize async OpenAI-compatible client for various providers"""
         # OpenRouter 需要额外的请求头
         default_headers = {}
         if self.provider == "openrouter":
@@ -118,13 +119,13 @@ class LLMService:
                 "HTTP-Referer": "https://tgsc.local",
                 "X-Title": "TGSC Marketing System"
             }
-        
-        self.client = openai.OpenAI(
+
+        self.client = openai.AsyncOpenAI(
             api_key=self.api_key,
             base_url=self.base_url,
             default_headers=default_headers if default_headers else None
         )
-        logger.info(f"OpenAI-compatible client initialized for {self.provider} with model: {self.model}")
+        logger.info(f"Async OpenAI-compatible client initialized for {self.provider} with model: {self.model}")
 
     def _init_gemini(self):
         """Initialize Google Gemini client using new google-genai SDK"""
@@ -152,7 +153,7 @@ class LLMService:
 
     async def _test_openai_connection(self) -> bool:
         try:
-            self.client.models.list()
+            await self.client.models.list()
             return True
         except Exception as e:
             logger.error(f"OpenAI connection test failed: {e}")
@@ -160,8 +161,8 @@ class LLMService:
 
     async def _test_gemini_connection(self) -> bool:
         try:
-            # Simple test generation using new SDK
-            response = self.gemini_client.models.generate_content(
+            response = await asyncio.to_thread(
+                self.gemini_client.models.generate_content,
                 model=self.model,
                 contents="Hello, respond with 'OK' only."
             )
@@ -198,7 +199,7 @@ class LLMService:
         messages.append({"role": "user", "content": prompt})
 
         try:
-            chat_completion = self.client.chat.completions.create(
+            chat_completion = await self.client.chat.completions.create(
                 messages=messages,
                 model=self.model,
                 temperature=0.7,
@@ -235,8 +236,9 @@ class LLMService:
                 "parts": [{"text": full_prompt}]
             })
             
-            # Generate response using new SDK
-            response = self.gemini_client.models.generate_content(
+            # Generate response using new SDK (via thread to avoid blocking)
+            response = await asyncio.to_thread(
+                self.gemini_client.models.generate_content,
                 model=self.model,
                 contents=contents
             )
@@ -244,6 +246,14 @@ class LLMService:
         except Exception as e:
             logger.error(f"Gemini generation failed: {e}")
             return None
+
+    async def generate(self, prompt: str, system_prompt: str = "You are a helpful assistant.") -> Optional[str]:
+        """Convenience alias for get_response (used by AIEngine for content generation)"""
+        return await self.get_response(prompt, system_prompt)
+
+    async def chat(self, prompt: str, system_prompt: str = "You are a helpful assistant.") -> Optional[str]:
+        """Convenience alias for get_response (used by AIEngine for conversational analysis)"""
+        return await self.get_response(prompt, system_prompt)
 
     async def analyze_intent(self, message: str, history: List[Dict[str, str]] = None) -> Dict:
         """

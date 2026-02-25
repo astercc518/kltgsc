@@ -10,6 +10,7 @@ import logging
 from typing import List, Dict, Optional
 from datetime import datetime
 
+from celery.exceptions import SoftTimeLimitExceeded
 from sqlmodel import Session as DBSession, select
 from app.core.db import engine
 from app.core.celery_app import celery_app
@@ -21,7 +22,7 @@ from app.services.telegram_client import join_group_with_client, scrape_group_me
 logger = logging.getLogger(__name__)
 
 
-@celery_app.task(bind=True, max_retries=2)
+@celery_app.task(bind=True, max_retries=2, soft_time_limit=3600, time_limit=7200)
 def join_groups_batch_task(
     self,
     account_ids: List[int],
@@ -50,18 +51,21 @@ def join_groups_batch_task(
         asyncio.set_event_loop(loop)
     
     try:
-        # Get valid accounts
+        # Get valid accounts - load in chunks to avoid memory issues with large lists
+        ACCOUNT_BATCH_SIZE = 100
         accounts = []
-        for aid in account_ids:
-            account = db_session.get(Account, aid)
-            if account and account.status == 'active':
-                accounts.append(account)
-        
+        for offset in range(0, len(account_ids), ACCOUNT_BATCH_SIZE):
+            batch_ids = account_ids[offset:offset + ACCOUNT_BATCH_SIZE]
+            batch = list(db_session.exec(
+                select(Account).where(Account.id.in_(batch_ids), Account.status == 'active')
+            ).all())
+            accounts.extend(batch)
+
         if not accounts:
             logger.warning("No valid accounts for batch join")
             _update_scraping_task_status(db_session, scraping_task_id, "failed", "No valid accounts", results)
             return results
-        
+
         for group_link in group_links:
             for account in accounts:
                 try:
@@ -112,6 +116,10 @@ def join_groups_batch_task(
         
         return results
         
+    except SoftTimeLimitExceeded:
+        logger.error(f"Batch join task timed out. Success: {len(results['success'])}, Failed: {len(results['failed'])}")
+        _update_scraping_task_status(db_session, scraping_task_id, "failed", "Task timed out", results)
+        return {"error": "Task timed out", **results}
     except Exception as e:
         logger.error(f"Batch join task failed: {e}")
         _update_scraping_task_status(db_session, scraping_task_id, "failed", str(e), results)
@@ -120,7 +128,7 @@ def join_groups_batch_task(
         db_session.close()
 
 
-@celery_app.task(bind=True, max_retries=2)
+@celery_app.task(bind=True, max_retries=2, soft_time_limit=3600, time_limit=7200)
 def scrape_members_batch_task(
     self,
     account_ids: List[int],
@@ -152,13 +160,16 @@ def scrape_members_batch_task(
         asyncio.set_event_loop(loop)
     
     try:
-        # Get valid accounts
+        # Get valid accounts - load in chunks to avoid memory issues with large lists
+        ACCOUNT_BATCH_SIZE = 100
         accounts = []
-        for aid in account_ids:
-            account = db_session.get(Account, aid)
-            if account and account.status == 'active':
-                accounts.append(account)
-        
+        for offset in range(0, len(account_ids), ACCOUNT_BATCH_SIZE):
+            batch_ids = account_ids[offset:offset + ACCOUNT_BATCH_SIZE]
+            batch = list(db_session.exec(
+                select(Account).where(Account.id.in_(batch_ids), Account.status == 'active')
+            ).all())
+            accounts.extend(batch)
+
         if not accounts:
             logger.warning("No valid accounts for batch scrape")
             _update_scraping_task_status(db_session, scraping_task_id, "failed", "No valid accounts", results)
@@ -186,17 +197,20 @@ def scrape_members_batch_task(
                 success, members = loop.run_until_complete(do_scrape())
                 
                 if success:
-                    # Save scraped users
+                    # Save scraped users - bulk existence check
                     saved_count = 0
-                    for m in members:
-                        exists = db_session.exec(
-                            select(TargetUser).where(TargetUser.telegram_id == m["telegram_id"])
-                        ).first()
-                        if not exists:
-                            user = TargetUser(**m)
-                            db_session.add(user)
-                            saved_count += 1
-                    
+                    if members:
+                        existing_ids = set(db_session.exec(
+                            select(TargetUser.telegram_id).where(
+                                TargetUser.telegram_id.in_([m["telegram_id"] for m in members])
+                            )
+                        ).all())
+                        for m in members:
+                            if m["telegram_id"] not in existing_ids:
+                                user = TargetUser(**m)
+                                db_session.add(user)
+                                saved_count += 1
+
                     db_session.commit()
                     
                     results["success"].append({
@@ -231,6 +245,10 @@ def scrape_members_batch_task(
         logger.info(f"Batch scrape completed: {results['total_scraped']} scraped, {results['new_users']} new")
         return results
         
+    except SoftTimeLimitExceeded:
+        logger.error(f"Batch scrape task timed out. Scraped: {results['total_scraped']}, New: {results['new_users']}")
+        _update_scraping_task_status(db_session, scraping_task_id, "failed", "Task timed out", results)
+        return {"error": "Task timed out", **results}
     except Exception as e:
         logger.error(f"Batch scrape task failed: {e}")
         _update_scraping_task_status(db_session, scraping_task_id, "failed", str(e), results)

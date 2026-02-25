@@ -1,0 +1,56 @@
+# =============================================
+# TGSC Backend - Production Dockerfile
+# Multi-stage build with non-root user
+# =============================================
+
+# ---------- Stage 1: Build dependencies ----------
+FROM python:3.10-slim AS builder
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Install build-time system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# ---------- Stage 2: Production image ----------
+FROM python:3.10-slim
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Install runtime system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    megatools \
+    unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy installed Python packages from builder stage
+COPY --from=builder /install /usr/local
+
+# Copy application code
+COPY . .
+
+# Create sessions directory
+RUN mkdir -p sessions
+
+# Create non-root user for security
+RUN groupadd --gid 1000 appuser \
+    && useradd --uid 1000 --gid appuser --shell /bin/bash --create-home appuser \
+    && chown -R appuser:appuser /app
+
+USER appuser
+
+EXPOSE 8000
+
+CMD ["gunicorn", "app.main:app", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000"]

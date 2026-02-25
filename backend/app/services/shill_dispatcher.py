@@ -65,8 +65,8 @@ class ShillDispatcher:
             try:
                 roles = json.loads(script.roles_json) # [{"name": "A", ...}, {"name": "B", ...}]
                 lines = json.loads(script.lines_json) # [{"role": "A", "content": "...", "reply_to_line_index": ...}]
-            except:
-                logger.error("Invalid script JSON")
+            except (json.JSONDecodeError, TypeError, ValueError) as e:
+                logger.error(f"Invalid script JSON: {e}")
                 return
 
             if not roles or not lines:
@@ -96,7 +96,7 @@ class ShillDispatcher:
             # But here we are in the dispatcher. Let's trigger a Celery task for the actual execution.
             
             celery_app.send_task(
-                "app.worker.execute_shill_conversation",
+                "app.tasks.monitor_tasks.execute_shill_conversation",
                 args=[hit.id, script.id, {k: v.id for k, v in role_map.items()}]
             )
             
@@ -188,9 +188,9 @@ async def run_shill_conversation(hit_id: int, script_id: int, role_account_ids: 
                 # See update below.
                 try:
                     # If we update send_message to return object or ID
-                    msg_id = int(result) 
+                    msg_id = int(result)
                     message_id_map[i] = msg_id
-                except:
+                except (ValueError, TypeError):
                     pass
             else:
                 logger.error(f"Shill failed to send line {i}: {result}")
@@ -209,7 +209,7 @@ async def send_message_with_client_reply(account: Account, chat_id: str, text: s
             # Try to convert chat_id to int if it looks like one
             try:
                 target = int(cid)
-            except:
+            except (ValueError, TypeError):
                 target = cid
                 
             msg = await client.send_message(

@@ -175,7 +175,7 @@ class AutoRegisterService:
             if activation_id:
                 try:
                     await self.sms_service.set_status(activation_id, 8)
-                except:
+                except Exception:
                     pass
             return {"status": "error", "message": str(e)}
             

@@ -37,6 +37,7 @@ import SourceGroupPage from './pages/SourceGroupPage';
 import PersonaPage from './pages/PersonaPage';
 import FunnelGroupPage from './pages/FunnelGroupPage';
 import KnowledgeBasePage from './pages/KnowledgeBasePage';
+import AutoRegister from './pages/AutoRegister';
 
 // 检查用户是否已登录
 const isAuthenticated = (): boolean => {
@@ -83,6 +84,10 @@ const menuItems: MenuProps['items'] = [
       {
         key: 'source-groups',
         label: <Link to="/source-groups">流量源管理</Link>,
+      },
+      {
+        key: 'auto-register',
+        label: <Link to="/auto-register">自动注册</Link>,
       },
     ]
   },
@@ -215,6 +220,7 @@ const AppContent: React.FC = () => {
         '/personas': 'AI人设管理',
         '/funnel-groups': '营销群管理',
         '/knowledge-bases': '知识库',
+        '/auto-register': '自动注册',
     };
 
     const pathSnippets = location.pathname.split('/').filter(i => i);
@@ -259,6 +265,7 @@ const AppContent: React.FC = () => {
                     <Route path="/personas" element={<PersonaPage />} />
                     <Route path="/funnel-groups" element={<FunnelGroupPage />} />
                     <Route path="/knowledge-bases" element={<KnowledgeBasePage />} />
+                    <Route path="/auto-register" element={<AutoRegister />} />
                 </Routes>
             </div>
         </Content>

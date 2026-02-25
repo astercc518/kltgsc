@@ -11,6 +11,7 @@ import logging
 from typing import List, Optional
 from datetime import datetime
 
+from celery.exceptions import SoftTimeLimitExceeded
 from sqlmodel import Session, select
 from app.core.db import engine
 from app.core.celery_app import celery_app
@@ -24,7 +25,7 @@ from app.services.safe_send_dispatcher import SafeSendDispatcher, SafeSendConfig
 logger = logging.getLogger(__name__)
 
 
-@celery_app.task(bind=True, max_retries=2)
+@celery_app.task(bind=True, max_retries=2, soft_time_limit=7200, time_limit=10800)
 def execute_send_task(self, task_id: int, account_ids: List[int], target_user_ids: List[int], config_override: dict = None):
     """
     执行安全营销发送任务
@@ -71,25 +72,30 @@ def execute_send_task(self, task_id: int, account_ids: List[int], target_user_id
         session.add(task)
         session.commit()
         
-        # 获取目标用户
-        target_pool = session.exec(
-            select(TargetUser).where(TargetUser.id.in_(target_user_ids))
-        ).all()
-        
+        # 获取目标用户 - load in chunks to avoid memory issues with large lists
+        TARGET_BATCH_SIZE = 100
+        target_pool = []
+        for offset in range(0, len(target_user_ids), TARGET_BATCH_SIZE):
+            batch_ids = target_user_ids[offset:offset + TARGET_BATCH_SIZE]
+            batch = session.exec(
+                select(TargetUser).where(TargetUser.id.in_(batch_ids))
+            ).all()
+            target_pool.extend(batch)
+
         if not target_pool:
             task.status = "failed"
             session.add(task)
             session.commit()
             return {"success": False, "error": "No target users found"}
-        
+
         # 创建事件循环
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        
+
         async def process_safe_batch():
             sent_count = 0
             skipped_count = 0
-            
+
             for target in target_pool:
                 # 检查任务状态
                 session.refresh(task)
@@ -178,9 +184,16 @@ def execute_send_task(self, task_id: int, account_ids: List[int], target_user_id
         
         try:
             sent_count, skipped_count = loop.run_until_complete(process_safe_batch())
+        except SoftTimeLimitExceeded:
+            logger.error(f"Send task {task_id} timed out")
+            session.refresh(task)
+            task.status = "failed"
+            session.add(task)
+            session.commit()
+            return {"success": False, "error": "Task timed out", "task_id": task_id}
         finally:
             loop.close()
-        
+
         # 更新任务状态
         session.refresh(task)
         remaining = len(target_user_ids) - task.success_count - task.fail_count
@@ -204,7 +217,7 @@ def execute_send_task(self, task_id: int, account_ids: List[int], target_user_id
     }
 
 
-@celery_app.task(bind=True)
+@celery_app.task(bind=True, soft_time_limit=7200, time_limit=10800)
 def continue_send_task(self, task_id: int, account_ids: List[int]):
     """
     继续执行未完成的发送任务
@@ -229,7 +242,7 @@ def continue_send_task(self, task_id: int, account_ids: List[int]):
         return {"success": False, "error": "Feature not implemented - need to store target_ids in task"}
 
 
-@celery_app.task(bind=True, max_retries=2)
+@celery_app.task(bind=True, max_retries=2, soft_time_limit=3600, time_limit=7200)
 def execute_warmup_task(self, warmup_task_id: int):
     """执行养号任务"""
     from app.services.warmup_service import WarmupService
@@ -245,6 +258,9 @@ def execute_warmup_task(self, warmup_task_id: int):
         try:
             loop.run_until_complete(service.run_task(warmup_task_id))
             return {"success": True, "task_id": warmup_task_id}
+        except SoftTimeLimitExceeded:
+            logger.error(f"Warmup task {warmup_task_id} timed out")
+            return {"success": False, "error": "Task timed out", "task_id": warmup_task_id}
         except Exception as e:
             logger.error(f"Warmup task {warmup_task_id} failed: {e}")
             return {"success": False, "error": str(e)}
@@ -252,7 +268,7 @@ def execute_warmup_task(self, warmup_task_id: int):
             loop.close()
 
 
-@celery_app.task(bind=True)
+@celery_app.task(bind=True, soft_time_limit=300, time_limit=600)
 def check_auto_reply_task(self, account_id: int):
     """检查并处理自动回复"""
     logger.info(f"Checking auto-replies for account {account_id}")
@@ -277,7 +293,7 @@ def check_auto_reply_task(self, account_id: int):
             return {"success": False, "error": str(e)}
 
 
-@celery_app.task(bind=True)
+@celery_app.task(bind=True, soft_time_limit=7200, time_limit=10800)
 def execute_script_task(self, script_task_id: int):
     """执行炒群脚本任务"""
     from app.models.script import Script, ScriptTask
@@ -300,15 +316,21 @@ def execute_script_task(self, script_task_id: int):
                 session.add(task)
                 session.commit()
                 return {"success": False, "error": "Script not found"}
-            
+
             logger.info(f"Executing script {script.id} for task {script_task_id}")
-            
+
             task.status = "completed"
             session.add(task)
             session.commit()
-            
+
             return {"success": True, "task_id": script_task_id}
-            
+
+        except SoftTimeLimitExceeded:
+            logger.error(f"Script task {script_task_id} timed out")
+            task.status = "failed"
+            session.add(task)
+            session.commit()
+            return {"success": False, "error": "Task timed out", "task_id": script_task_id}
         except Exception as e:
             logger.error(f"Script task {script_task_id} failed: {e}")
             task.status = "failed"

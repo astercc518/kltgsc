@@ -5,12 +5,13 @@ from jose import jwt, JWTError
 from pydantic import ValidationError
 
 from app.core.config import settings
-from app.core.security import ALGORITHM
+from app.core.security import ALGORITHM, is_token_revoked
 from app.models.token import TokenPayload
 
 reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/login/access-token"
 )
+
 
 def get_current_user(token: str = Depends(reusable_oauth2)) -> str:
     try:
@@ -23,11 +24,18 @@ def get_current_user(token: str = Depends(reusable_oauth2)) -> str:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Could not validate credentials",
         )
-    
+
+    # Check if the token has been revoked
+    if token_data.jti and is_token_revoked(token_data.jti):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked",
+        )
+
     if token_data.sub != settings.ADMIN_USERNAME:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User not authorized",
         )
-        
+
     return token_data.sub

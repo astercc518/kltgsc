@@ -112,7 +112,7 @@ class ScoreService:
             if user.tags:
                 try:
                     existing_tags = json.loads(user.tags)
-                except:
+                except (json.JSONDecodeError, TypeError, ValueError):
                     pass
             new_tags = list(set(existing_tags + tags))
             user.tags = json.dumps(new_tags)

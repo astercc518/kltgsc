@@ -14,6 +14,7 @@ import shutil
 import subprocess
 from typing import List, Optional
 
+from celery.exceptions import SoftTimeLimitExceeded
 from sqlmodel import Session, select
 from app.core.db import engine
 from app.core.celery_app import celery_app
@@ -25,7 +26,7 @@ from app.services.device_generator import DeviceGenerator
 logger = logging.getLogger(__name__)
 
 
-@celery_app.task(bind=True, max_retries=3)
+@celery_app.task(bind=True, max_retries=3, soft_time_limit=300, time_limit=600)
 def check_account_status(self, account_id: int):
     """
     检查单个账号状态
@@ -60,7 +61,7 @@ def check_account_status(self, account_id: int):
             status, error_msg, last_active, device_info = loop.run_until_complete(
                 check_account_with_client(account, proxy, mode="safe")
             )
-            
+
             # Auto-warmup for spam_block accounts
             if status == "spam_block":
                 _schedule_auto_warmup(session, account_id, account.phone_number)
@@ -73,21 +74,27 @@ def check_account_status(self, account_id: int):
                 account.device_model = device_info.get("device_model")
                 account.system_version = device_info.get("system_version")
                 account.app_version = device_info.get("app_version")
-            
+
             # Release proxy for banned accounts
             if status == "banned" and account.proxy_id:
                 logger.info(f"Account {account_id} is banned, releasing proxy")
                 account.proxy_id = None
-            
+
             session.add(account)
             session.commit()
-            
+
             return {
                 "success": status == "active",
                 "status": status,
                 "message": error_msg if error_msg else "OK",
                 "account_id": account_id
             }
+        except SoftTimeLimitExceeded:
+            logger.error(f"Account check timed out for account {account_id}")
+            account.status = "error"
+            session.add(account)
+            session.commit()
+            return {"success": False, "error": "Task timed out"}
         except Exception as e:
             logger.error(f"Error checking account {account_id}: {e}")
             account.status = "error"
@@ -135,7 +142,7 @@ def _schedule_auto_warmup(session: Session, account_id: int, phone_number: str):
         logger.error(f"Failed to auto-start warmup for {account_id}: {e}")
 
 
-@celery_app.task(bind=True, max_retries=2)
+@celery_app.task(bind=True, max_retries=2, soft_time_limit=1800, time_limit=3600)
 def import_mega_accounts(self, mega_url: str, target_channels: str = "kltgsc"):
     """
     从 MEGA 链接导入账号
@@ -189,6 +196,9 @@ def import_mega_accounts(self, mega_url: str, target_channels: str = "kltgsc"):
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
             
+    except SoftTimeLimitExceeded:
+        logger.error(f"MEGA import timed out for URL: {mega_url}")
+        return {"success": False, "error": "Import task timed out", "url": mega_url}
     except subprocess.TimeoutExpired:
         return {"success": False, "error": "Download timeout", "url": mega_url}
     except FileNotFoundError:
@@ -381,7 +391,7 @@ def _convert_and_import_tdata(tdata_path, phone, imported_account_ids, errors, t
         errors.append(f"tdata conversion error: {e}")
 
 
-@celery_app.task(bind=True)
+@celery_app.task(bind=True, soft_time_limit=1800, time_limit=3600)
 def create_warmup_after_imports(
     self,
     task_ids: list,
@@ -401,20 +411,24 @@ def create_warmup_after_imports(
     max_wait = 600
     start_time = time.time()
     
-    pending_tasks = set(task_ids)
-    while pending_tasks and (time.time() - start_time) < max_wait:
-        for task_id in list(pending_tasks):
-            result = AsyncResult(task_id, app=celery_app)
-            if result.ready():
-                pending_tasks.discard(task_id)
-                if result.successful():
-                    task_result = result.result
-                    if task_result and task_result.get("imported_account_ids"):
-                        all_account_ids.extend(task_result["imported_account_ids"])
-        
-        if pending_tasks:
-            time.sleep(2)
-    
+    try:
+        pending_tasks = set(task_ids)
+        while pending_tasks and (time.time() - start_time) < max_wait:
+            for task_id in list(pending_tasks):
+                result = AsyncResult(task_id, app=celery_app)
+                if result.ready():
+                    pending_tasks.discard(task_id)
+                    if result.successful():
+                        task_result = result.result
+                        if task_result and task_result.get("imported_account_ids"):
+                            all_account_ids.extend(task_result["imported_account_ids"])
+
+            if pending_tasks:
+                time.sleep(2)
+    except SoftTimeLimitExceeded:
+        logger.error("create_warmup_after_imports timed out while waiting for import tasks")
+        return {"success": False, "error": "Task timed out waiting for imports"}
+
     if not all_account_ids:
         return {"success": False, "message": "No accounts imported"}
     

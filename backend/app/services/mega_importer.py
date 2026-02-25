@@ -24,10 +24,16 @@ class MegaImporter:
         self.download_dir = download_dir
         os.makedirs(download_dir, exist_ok=True)
 
+    MEGA_URL_PATTERN = re.compile(r'^https://mega\.nz/(file|folder)/[A-Za-z0-9#!_-]+$')
+
     def download(self, url: str) -> str:
         """
         下载 Mega 文件
         """
+        # 安全: 验证 URL 格式，防止 SSRF
+        if not self.MEGA_URL_PATTERN.match(url):
+            raise ValueError(f"Invalid MEGA URL format: {url}")
+
         logger.info(f"Downloading from MEGA: {url}")
         
         # 优先使用 megatools (megadl) 如果可用，因为它更可靠
@@ -91,13 +97,22 @@ class MegaImporter:
             logger.error(f"Mega download failed: {e}")
             raise e
 
+    @staticmethod
+    def _safe_extract_check(members, extract_to: str):
+        """安全检查: 防止 Zip Slip 路径穿越攻击"""
+        real_extract = os.path.realpath(extract_to)
+        for member_name in members:
+            target = os.path.realpath(os.path.join(extract_to, member_name))
+            if not target.startswith(real_extract + os.sep) and target != real_extract:
+                raise ValueError(f"Zip Slip detected: {member_name}")
+
     def extract(self, file_path: str, extract_to: str):
         """
         解压文件 (支持 zip, rar)
         """
         logger.info(f"Extracting {file_path} to {extract_to}")
         os.makedirs(extract_to, exist_ok=True)
-        
+
         try:
             if file_path.lower().endswith('.rar'):
                 # 优先尝试使用 unrar 命令行工具，因为它支持 RAR5
@@ -106,14 +121,18 @@ class MegaImporter:
                     return
                 except Exception as e:
                     logger.warning(f"unrar command failed, falling back to rarfile: {e}")
-                
+
                 with rarfile.RarFile(file_path) as rf:
+                    self._safe_extract_check(rf.namelist(), extract_to)
                     rf.extractall(extract_to)
             elif file_path.lower().endswith('.zip'):
                 with zipfile.ZipFile(file_path) as zf:
+                    self._safe_extract_check(zf.namelist(), extract_to)
                     zf.extractall(extract_to)
             else:
                 logger.warning(f"Unsupported archive format: {file_path}")
+        except ValueError:
+            raise  # Re-raise Zip Slip errors
         except Exception as e:
             logger.error(f"Extraction failed: {e}")
             raise e

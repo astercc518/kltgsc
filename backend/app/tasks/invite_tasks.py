@@ -3,6 +3,7 @@
 """
 import logging
 import asyncio
+from celery.exceptions import SoftTimeLimitExceeded
 from app.core.celery_app import celery_app
 from app.core.db import get_session
 from app.services.invite_service import InviteService
@@ -14,7 +15,9 @@ logger = logging.getLogger(__name__)
     name="app.tasks.invite_tasks.execute_invite_task",
     bind=True,
     max_retries=3,
-    default_retry_delay=60
+    default_retry_delay=60,
+    soft_time_limit=7200,
+    time_limit=10800
 )
 def execute_invite_task(self, task_id: int):
     """
@@ -42,17 +45,20 @@ def execute_invite_task(self, task_id: int):
             logger.info(f"Invite task {task_id} completed: {result}")
             return result
             
+        except SoftTimeLimitExceeded:
+            logger.error(f"Invite task {task_id} timed out")
+            return {"success": False, "error": "Task timed out", "status": "timeout"}
         except Exception as e:
             logger.error(f"Invite task {task_id} failed: {e}")
-            
+
             # 重试
             if self.request.retries < self.max_retries:
                 raise self.retry(exc=e)
-            
+
             return {"success": False, "error": str(e)}
 
 
-@celery_app.task(name="app.tasks.invite_tasks.check_recurring_tasks")
+@celery_app.task(name="app.tasks.invite_tasks.check_recurring_tasks", soft_time_limit=300, time_limit=600)
 def check_recurring_tasks():
     """
     检查并触发循环任务（由 Celery Beat 调用）

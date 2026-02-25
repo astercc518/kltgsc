@@ -3,7 +3,8 @@ from app.api.deps import get_current_user
 from app.api.v1.endpoints import (
     login, users, accounts, proxies, system, tasks,
     scraping, marketing, ai, script, ws, crm, logs, warmup, monitor, invite,
-    campaigns, source_groups, funnel_groups, personas, knowledge_bases, workflow
+    campaigns, source_groups, funnel_groups, personas, knowledge_bases, workflow,
+    registration
 )
 
 api_router = APIRouter()
@@ -32,3 +33,4 @@ api_router.include_router(funnel_groups.router, prefix="/funnel-groups", tags=["
 api_router.include_router(personas.router, prefix="/personas", tags=["personas"], dependencies=[Depends(get_current_user)])
 api_router.include_router(knowledge_bases.router, prefix="/knowledge-bases", tags=["knowledge-bases"], dependencies=[Depends(get_current_user)])
 api_router.include_router(workflow.router, prefix="/workflow", tags=["workflow"], dependencies=[Depends(get_current_user)])
+api_router.include_router(registration.router, prefix="/registration", tags=["registration"], dependencies=[Depends(get_current_user)])

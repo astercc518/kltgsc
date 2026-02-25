@@ -54,20 +54,20 @@ celery_app.conf.update(
     # ==================== 任务路由 ====================
     task_routes={
         # 高优先级任务
-        'app.worker.check_account_status': {'queue': 'high_priority'},
-        'app.worker.execute_shill_conversation': {'queue': 'high_priority'},
-        
+        'app.tasks.account_tasks.check_account_status': {'queue': 'high_priority'},
+        'app.tasks.monitor_tasks.execute_shill_conversation': {'queue': 'high_priority'},
+
         # 低优先级任务
-        'app.worker.execute_warmup_task': {'queue': 'low_priority'},
-        'app.worker.check_proxies_batch_task': {'queue': 'low_priority'},
+        'app.tasks.marketing_tasks.execute_warmup_task': {'queue': 'low_priority'},
+        'app.tasks.proxy_tasks.check_proxies_batch_task': {'queue': 'low_priority'},
     },
-    
+
     # ==================== 并发限制 ====================
     # 任务级别的速率限制
     task_annotations={
-        'app.worker.execute_send_task': {'rate_limit': '10/m'},  # 每分钟最多10个
-        'app.worker.check_account_status': {'rate_limit': '30/m'},  # 每分钟最多30个
-        'app.worker.scrape_members_batch_task': {'rate_limit': '5/m'},  # 每分钟最多5个
+        'app.tasks.marketing_tasks.execute_send_task': {'rate_limit': '10/m'},  # 每分钟最多10个
+        'app.tasks.account_tasks.check_account_status': {'rate_limit': '30/m'},  # 每分钟最多30个
+        'app.tasks.scraping_tasks.scrape_members_batch_task': {'rate_limit': '5/m'},  # 每分钟最多5个
     },
     
     # ==================== 监控配置 ====================

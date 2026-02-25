@@ -39,6 +39,7 @@ from app.core.exceptions import (
     AccountSessionInvalidException,
     AccountException
 )
+from app.services.client_pool import client_pool
 
 logger = logging.getLogger(__name__)
 
@@ -224,7 +225,7 @@ async def send_message_with_client(account: Account, username: str, message: str
             if client and client.is_connected:
                 try:
                     await client.stop()
-                except:
+                except Exception:
                     pass
 
     # 重试逻辑
@@ -335,7 +336,7 @@ async def _create_client_and_run(account: Account, operation, *args, db_session:
             if client and client.is_connected:
                 try:
                     await client.stop()
-                except:
+                except Exception:
                     pass
 
     # 重试逻辑

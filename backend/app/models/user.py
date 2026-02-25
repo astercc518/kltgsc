@@ -6,5 +6,6 @@ class User(SQLModel, table=True):
     username: str = Field(unique=True, index=True)
     hashed_password: str
     totp_secret: Optional[str] = None
+    totp_enabled: bool = False
     is_active: bool = True
     is_superuser: bool = False

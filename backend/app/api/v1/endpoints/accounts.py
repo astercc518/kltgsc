@@ -120,24 +120,23 @@ def delete_accounts_batch(
     session: Session = Depends(get_session)
 ):
     """批量删除账号"""
+    accounts = session.exec(select(Account).where(Account.id.in_(account_ids))).all()
     deleted_count = 0
-    for account_id in account_ids:
-        account = session.get(Account, account_id)
-        if account:
-            # 删除关联的 session 文件
-            if account.session_file_path:
-                import os
-                try:
-                    if os.path.exists(account.session_file_path):
-                        os.remove(account.session_file_path)
-                    # 也删除可能存在的 .session.telethon 文件
-                    telethon_path = account.session_file_path + ".telethon"
-                    if os.path.exists(telethon_path):
-                        os.remove(telethon_path)
-                except Exception:
-                    pass
-            session.delete(account)
-            deleted_count += 1
+    for account in accounts:
+        # 删除关联的 session 文件
+        if account.session_file_path:
+            import os
+            try:
+                if os.path.exists(account.session_file_path):
+                    os.remove(account.session_file_path)
+                # 也删除可能存在的 .session.telethon 文件
+                telethon_path = account.session_file_path + ".telethon"
+                if os.path.exists(telethon_path):
+                    os.remove(telethon_path)
+            except Exception:
+                pass
+        session.delete(account)
+        deleted_count += 1
     session.commit()
     return {"message": f"已删除 {deleted_count} 个账号", "deleted_count": deleted_count}
 
@@ -203,19 +202,18 @@ def update_accounts_role_batch(
     if tier and tier not in ["tier1", "tier2", "tier3"]:
         raise HTTPException(status_code=400, detail="Invalid tier")
     
+    accounts = session.exec(select(Account).where(Account.id.in_(account_ids))).all()
     updated = 0
-    for aid in account_ids:
-        account = session.get(Account, aid)
-        if account:
-            if role:
-                account.role = role
-            if tags is not None:
-                account.tags = tags
-            if tier:
-                account.tier = tier
-            session.add(account)
-            updated += 1
-            
+    for account in accounts:
+        if role:
+            account.role = role
+        if tags is not None:
+            account.tags = tags
+        if tier:
+            account.tier = tier
+        session.add(account)
+        updated += 1
+
     session.commit()
     return {"updated": updated}
 
@@ -227,8 +225,15 @@ async def upload_session(
 ):
     """上传单个 Session 文件"""
     os.makedirs("sessions", exist_ok=True)
-    
-    file_location = f"sessions/{file.filename}"
+
+    # 安全: 防止路径穿越，仅使用文件名的基本部分
+    safe_filename = os.path.basename(file.filename)
+    if not safe_filename or safe_filename.startswith('.'):
+        raise HTTPException(status_code=400, detail="无效的文件名")
+    file_location = os.path.join("sessions", safe_filename)
+    # 确认最终路径在 sessions 目录内
+    if not os.path.realpath(file_location).startswith(os.path.realpath("sessions")):
+        raise HTTPException(status_code=400, detail="非法文件路径")
     with open(file_location, "wb+") as file_object:
         shutil.copyfileobj(file.file, file_object)
     
@@ -794,14 +799,13 @@ def batch_assign_combat_role(
     if update.combat_role not in COMBAT_ROLE_CONFIG:
         raise HTTPException(status_code=400, detail=f"Invalid combat role")
     
+    accounts = session.exec(select(Account).where(Account.id.in_(update.account_ids))).all()
     updated_count = 0
-    for acc_id in update.account_ids:
-        account = session.get(Account, acc_id)
-        if account:
-            account.combat_role = update.combat_role
-            session.add(account)
-            updated_count += 1
-    
+    for account in accounts:
+        account.combat_role = update.combat_role
+        session.add(account)
+        updated_count += 1
+
     session.commit()
     return {
         "success": True,

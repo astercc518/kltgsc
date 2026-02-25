@@ -3,6 +3,9 @@ version: '3.8'
 # =============================================
 # TGSC 生产环境配置 (PostgreSQL + Redis)
 # 适用于 1000 账号规模
+#
+# 使用前请复制 .env.example 为 .env 并填入真实密钥
+# cp .env.example .env
 # =============================================
 
 services:
@@ -11,9 +14,9 @@ services:
     image: postgres:14-alpine
     container_name: tgsc_postgres
     environment:
-      - POSTGRES_USER=tgsc_user
-      - POSTGRES_PASSWORD=TgSc_Pr0d_2026!
-      - POSTGRES_DB=tgsc_prod
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB:-tgsc_prod}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     expose:
@@ -22,7 +25,7 @@ services:
       - tgsc_internal
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tgsc_user -d tgsc_prod"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-tgsc_prod}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -30,7 +33,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: tgsc_redis
-    command: redis-server --requirepass 7z0RvmWuSTPJvJcS4-A4BA --appendonly yes --maxmemory 2gb --maxmemory-policy allkeys-lru
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes --maxmemory 2gb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
     expose:
@@ -41,20 +44,20 @@ services:
 
   # ========== 应用层 ==========
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
     container_name: tgsc_backend
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
     expose:
       - "8000"
     volumes:
-      - ./backend:/app
       - backend_sessions:/app/sessions
     environment:
-      - DATABASE_URL=postgresql://tgsc_user:TgSc_Pr0d_2026!@db:5432/tgsc_prod
-      - REDIS_URL=redis://:7z0RvmWuSTPJvJcS4-A4BA@redis:6379/0
-      - SECRET_KEY=Pr0duct10n_S3cr3t_K3y_2026!
-      - ADMIN_USERNAME=admin
-      - ADMIN_PASSWORD=Admin@Tgsc2026
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-tgsc_prod}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - SECRET_KEY=${SECRET_KEY}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
     depends_on:
       db:
         condition: service_healthy
@@ -66,17 +69,18 @@ services:
 
   # Celery Worker - 处理后台任务 (多进程)
   worker:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
     container_name: tgsc_worker
     command: celery -A app.worker.celery_app worker --loglevel=info --concurrency=8
     volumes:
-      - ./backend:/app
       - backend_sessions:/app/sessions
     environment:
-      - DATABASE_URL=postgresql://tgsc_user:TgSc_Pr0d_2026!@db:5432/tgsc_prod
-      - REDIS_URL=redis://:7z0RvmWuSTPJvJcS4-A4BA@redis:6379/0
-      - CELERY_BROKER_URL=redis://:7z0RvmWuSTPJvJcS4-A4BA@redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://:7z0RvmWuSTPJvJcS4-A4BA@redis:6379/0
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-tgsc_prod}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@redis:6379/0
       - QT_QPA_PLATFORM=offscreen
       - QT_DEBUG_PLUGINS=0
     depends_on:
@@ -90,15 +94,15 @@ services:
 
   # Celery Beat - 定时任务调度器
   beat:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
     container_name: tgsc_beat
     command: celery -A app.worker.celery_app beat --loglevel=info
-    volumes:
-      - ./backend:/app
     environment:
-      - DATABASE_URL=postgresql://tgsc_user:TgSc_Pr0d_2026!@db:5432/tgsc_prod
-      - REDIS_URL=redis://:7z0RvmWuSTPJvJcS4-A4BA@redis:6379/0
-      - CELERY_BROKER_URL=redis://:7z0RvmWuSTPJvJcS4-A4BA@redis:6379/0
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-tgsc_prod}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
     depends_on:
       - worker
     networks:
@@ -107,7 +111,9 @@ services:
 
   # ========== 前端层 ==========
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
     container_name: tgsc_frontend
     expose:
       - "3000"

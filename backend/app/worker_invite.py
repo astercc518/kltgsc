@@ -30,7 +30,7 @@ def execute_invite_task(self, task_id: int):
         try:
             account_ids = json.loads(task.account_ids_json)
             target_ids = json.loads(task.target_user_ids_json)
-        except:
+        except (json.JSONDecodeError, TypeError, ValueError) as e:
             task.status = "failed"
             session.add(task)
             session.commit()

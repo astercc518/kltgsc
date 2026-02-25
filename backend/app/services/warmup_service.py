@@ -193,7 +193,7 @@ class WarmupService:
                                     await asyncio.sleep(random.uniform(1, 3))
                                     try:
                                         await client.read_chat_history(target_chat_id, msg.id)
-                                    except:
+                                    except Exception:
                                         pass
                                     msg_count += 1
                                 if msg_count > 0:
@@ -212,9 +212,9 @@ class WarmupService:
                                     try:
                                         await client.send_reaction(chat_id=target_chat_id, message_id=msg.id, emoji="👍")
                                         logger.info(f"Account {account.phone_number} reacted to message")
-                                    except:
+                                    except Exception:
                                         pass
-                            except:
+                            except Exception:
                                 pass
                                 
                     except Exception as e:

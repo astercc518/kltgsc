@@ -132,58 +132,65 @@ class InviteService:
         """获取账号的邀请统计"""
         if since is None:
             since = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-        
-        # 今日统计
-        today_logs = self.session.exec(
-            select(InviteLog).where(
+
+        # 今日统计 - use COUNT queries instead of loading all logs
+        today_count = self.session.exec(
+            select(func.count(InviteLog.id)).where(
                 InviteLog.account_id == account_id,
                 InviteLog.created_at >= since
             )
-        ).all()
-        
-        today_count = len(today_logs)
-        today_success = sum(1 for log in today_logs if log.status == "success")
+        ).one()
+
+        today_success = self.session.exec(
+            select(func.count(InviteLog.id)).where(
+                InviteLog.account_id == account_id,
+                InviteLog.created_at >= since,
+                InviteLog.status == "success"
+            )
+        ).one()
+
         today_failed = today_count - today_success
-        
+
         # 总统计
-        total_result = self.session.exec(
+        total_count = self.session.exec(
             select(func.count(InviteLog.id)).where(InviteLog.account_id == account_id)
-        ).first()
-        total_count = total_result or 0
-        
-        total_success_result = self.session.exec(
+        ).one()
+
+        total_success = self.session.exec(
             select(func.count(InviteLog.id)).where(
                 InviteLog.account_id == account_id,
                 InviteLog.status == "success"
             )
-        ).first()
-        total_success = total_success_result or 0
-        
-        # 最后邀请时间
+        ).one()
+
+        # 最后邀请时间 - only fetch the timestamp, not the full row
         last_log = self.session.exec(
-            select(InviteLog).where(InviteLog.account_id == account_id)
+            select(InviteLog.created_at).where(InviteLog.account_id == account_id)
             .order_by(InviteLog.created_at.desc()).limit(1)
         ).first()
-        
+
         # 最后风控时间和冷却状态
         last_flood = self.session.exec(
-            select(InviteLog).where(
+            select(InviteLog.created_at, InviteLog.flood_wait_seconds).where(
                 InviteLog.account_id == account_id,
                 InviteLog.error_code == "peer_flood"
             ).order_by(InviteLog.created_at.desc()).limit(1)
         ).first()
-        
+
         cooldown_until = None
+        last_flood_at = None
         if last_flood:
+            last_flood_at = last_flood[0]
+            flood_wait_seconds = last_flood[1]
             # 默认冷却24小时
             cooldown_hours = 24
-            if last_flood.flood_wait_seconds:
+            if flood_wait_seconds:
                 # 如果有具体等待时间，使用它（加上缓冲）
-                cooldown_hours = max(24, last_flood.flood_wait_seconds / 3600 * 1.5)
-            cooldown_until = last_flood.created_at + timedelta(hours=cooldown_hours)
-        
+                cooldown_hours = max(24, flood_wait_seconds / 3600 * 1.5)
+            cooldown_until = last_flood_at + timedelta(hours=cooldown_hours)
+
         account = self.session.get(Account, account_id)
-        
+
         return AccountInviteStats(
             account_id=account_id,
             account_username=account.username if account else None,
@@ -192,8 +199,8 @@ class InviteService:
             today_failed=today_failed,
             total_count=total_count,
             total_success=total_success,
-            last_invite_at=last_log.created_at if last_log else None,
-            last_flood_at=last_flood.created_at if last_flood else None,
+            last_invite_at=last_log if last_log else None,
+            last_flood_at=last_flood_at,
             cooldown_until=cooldown_until,
             is_available=cooldown_until is None or cooldown_until <= datetime.utcnow()
         )
@@ -568,31 +575,42 @@ class InviteService:
     # ==================== 统计查询 ====================
     
     def get_task_stats(self, task_id: int) -> InviteStats:
-        """获取任务统计"""
-        logs = self.session.exec(
-            select(InviteLog).where(InviteLog.task_id == task_id)
+        """获取任务统计 - uses GROUP BY aggregation instead of loading all logs"""
+        # Count by status
+        status_counts = self.session.exec(
+            select(InviteLog.status, func.count(InviteLog.id)).where(
+                InviteLog.task_id == task_id
+            ).group_by(InviteLog.status)
         ).all()
-        
+
+        # Count by error_code for failed logs
+        error_counts = self.session.exec(
+            select(InviteLog.error_code, func.count(InviteLog.id)).where(
+                InviteLog.task_id == task_id,
+                InviteLog.status != "success"
+            ).group_by(InviteLog.error_code)
+        ).all()
+
         stats = InviteStats()
-        stats.total = len(logs)
-        
-        for log in logs:
-            if log.status == "success":
-                stats.success += 1
+
+        # Process status counts
+        for status, count in status_counts:
+            stats.total += count
+            if status == "success":
+                stats.success += count
             else:
-                stats.failed += 1
-                if log.error_code == "privacy_restricted":
-                    stats.privacy_restricted += 1
-                elif log.error_code == "peer_flood":
-                    stats.peer_flood += 1
-                elif log.error_code == "banned":
-                    stats.user_banned += 1
-                else:
-                    stats.other_errors += 1
-        
+                stats.failed += count
+
+        # Process error code counts
+        error_map = dict(error_counts)
+        stats.privacy_restricted = error_map.get("privacy_restricted", 0)
+        stats.peer_flood = error_map.get("peer_flood", 0)
+        stats.user_banned = error_map.get("banned", 0)
+        stats.other_errors = stats.failed - stats.privacy_restricted - stats.peer_flood - stats.user_banned
+
         if stats.total > 0:
             stats.success_rate = round(stats.success / stats.total * 100, 2)
-        
+
         return stats
     
     def get_recent_logs(self, task_id: int, limit: int = 50) -> List[InviteLog]:

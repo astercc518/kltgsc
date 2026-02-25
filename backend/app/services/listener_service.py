@@ -163,7 +163,7 @@ class ListenerService:
             try:
                 if re.search(monitor.keyword, content, re.IGNORECASE):
                     return True, 100
-            except:
+            except re.error:
                 pass
         else:  # partial
             if monitor.keyword.lower() in content.lower():
@@ -184,7 +184,7 @@ class ListenerService:
         if monitor.auto_keywords:
             try:
                 auto_keywords = json.loads(monitor.auto_keywords)
-            except:
+            except (json.JSONDecodeError, TypeError, ValueError):
                 auto_keywords = [k.strip() for k in monitor.auto_keywords.split(",")]
         
         # 如果有自动关键词，先进行粗筛

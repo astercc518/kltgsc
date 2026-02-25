@@ -73,7 +73,7 @@ async def join_groups_batch(
     
     # 创建异步任务
     celery_task = celery_app.send_task(
-        "app.worker.join_groups_batch_task",
+        "app.tasks.scraping_tasks.join_groups_batch_task",
         args=[valid_account_ids, valid_links, scraping_task.id]
     )
     
@@ -141,16 +141,20 @@ async def scrape_members(
             # If scrape returns False (e.g. error in client creation), members might be empty or error string
             raise HTTPException(status_code=400, detail="Scraping failed")
             
-        # Save members to DB
+        # Save members to DB - bulk existence check
         saved_count = 0
-        for m in members:
-            # Check if exists
-            exists = session.exec(select(TargetUser).where(TargetUser.telegram_id == m["telegram_id"])).first()
-            if not exists:
-                user = TargetUser(**m)
-                session.add(user)
-                saved_count += 1
-        
+        if members:
+            existing_ids = set(session.exec(
+                select(TargetUser.telegram_id).where(
+                    TargetUser.telegram_id.in_([m["telegram_id"] for m in members])
+                )
+            ).all())
+            for m in members:
+                if m["telegram_id"] not in existing_ids:
+                    user = TargetUser(**m)
+                    session.add(user)
+                    saved_count += 1
+
         session.commit()
         return {"status": "success", "scraped_count": len(members), "new_saved": saved_count}
         
@@ -207,7 +211,7 @@ async def scrape_members_batch(
     
     # 发送 Celery 任务
     celery_task = celery_app.send_task(
-        "app.worker.scrape_members_batch_task",
+        "app.tasks.scraping_tasks.scrape_members_batch_task",
         args=[valid_account_ids, valid_links, request.limit, scraping_task.id, filter_config]
     )
     
@@ -359,26 +363,28 @@ async def scrape_from_source_group(
         if not success:
             raise HTTPException(status_code=400, detail="Scraping failed")
         
-        # 保存成员到数据库，关联来源群组
+        # 保存成员到数据库，关联来源群组 - bulk existence check
         saved_count = 0
         high_value_count = 0
-        
-        for m in members:
-            # 检查是否已存在
-            exists = session.exec(
-                select(TargetUser).where(TargetUser.telegram_id == m["telegram_id"])
-            ).first()
-            
-            if not exists:
-                # 设置来源群组
-                m["source_group"] = source_group.link
-                user = TargetUser(**m)
-                session.add(user)
-                saved_count += 1
-                
-                # 简单的高价值判断：有用户名+有bio
-                if m.get("username") and m.get("bio"):
-                    high_value_count += 1
+
+        if members:
+            existing_ids = set(session.exec(
+                select(TargetUser.telegram_id).where(
+                    TargetUser.telegram_id.in_([m["telegram_id"] for m in members])
+                )
+            ).all())
+
+            for m in members:
+                if m["telegram_id"] not in existing_ids:
+                    # 设置来源群组
+                    m["source_group"] = source_group.link
+                    user = TargetUser(**m)
+                    session.add(user)
+                    saved_count += 1
+
+                    # 简单的高价值判断：有用户名+有bio
+                    if m.get("username") and m.get("bio"):
+                        high_value_count += 1
         
         # 更新流量源统计
         source_group.total_scraped += saved_count

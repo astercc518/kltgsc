@@ -28,7 +28,7 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      - REDIS_URL=redis://:7z0RvmWuSTPJvJcS4-A4BA@redis:6379/0
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
     depends_on:
       - redis
     networks:
@@ -56,7 +56,7 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      - REDIS_URL=redis://:7z0RvmWuSTPJvJcS4-A4BA@redis:6379/0
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - QT_QPA_PLATFORM=offscreen
       - QT_DEBUG_PLUGINS=0
     depends_on:
@@ -72,7 +72,7 @@ services:
     expose:
       - "6379"
     # 启用密码认证
-    command: redis-server --requirepass 7z0RvmWuSTPJvJcS4-A4BA --appendonly yes
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
     volumes:
       - redis_data:/data
     networks:

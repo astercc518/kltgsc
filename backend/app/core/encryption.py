@@ -31,11 +31,10 @@ class SessionEncryption:
         if not encryption_key or len(encryption_key) < 32:
             raise ValueError("Encryption key must be at least 32 hex characters")
         
-        # 从十六进制字符串派生 256-bit AES 密钥
-        self.key = self._derive_key(encryption_key)
-    
-    def _derive_key(self, password: str, salt: bytes = b"tgsc_session_salt") -> bytes:
-        """使用 PBKDF2 从密码派生密钥"""
+        self._password = encryption_key
+
+    def _derive_key(self, password: str, salt: bytes) -> bytes:
+        """使用 PBKDF2 从密码派生密钥（每次使用随机 salt）"""
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,  # 256-bit key for AES-256
@@ -153,27 +152,47 @@ class SessionEncryption:
             return False
     
     def _encrypt(self, plaintext: bytes) -> bytes:
-        """AES-256-GCM 加密"""
-        # 生成随机 nonce (12 bytes for GCM)
+        """AES-256-GCM 加密（每次生成随机 salt + nonce）"""
+        # 生成随机 salt 和 nonce
+        salt = os.urandom(16)
         nonce = os.urandom(12)
-        
-        aesgcm = AESGCM(self.key)
+
+        key = self._derive_key(self._password, salt)
+        aesgcm = AESGCM(key)
         ciphertext = aesgcm.encrypt(nonce, plaintext, None)
-        
-        # 返回 nonce + ciphertext
-        return nonce + ciphertext
-    
+
+        # 格式: salt(16) + nonce(12) + ciphertext
+        return salt + nonce + ciphertext
+
     def _decrypt(self, encrypted_data: bytes) -> bytes:
-        """AES-256-GCM 解密"""
-        if len(encrypted_data) < 12:
+        """AES-256-GCM 解密（从数据中读取 salt + nonce）"""
+        if len(encrypted_data) < 28:  # 16 salt + 12 nonce
+            # 兼容旧格式 (无 salt，仅 nonce + ciphertext)
+            if len(encrypted_data) >= 12:
+                nonce = encrypted_data[:12]
+                ciphertext = encrypted_data[12:]
+                key = self._derive_key(self._password, b"tgsc_session_salt")
+                aesgcm = AESGCM(key)
+                return aesgcm.decrypt(nonce, ciphertext, None)
             raise ValueError("Invalid encrypted data: too short")
-        
-        # 分离 nonce 和 ciphertext
-        nonce = encrypted_data[:12]
-        ciphertext = encrypted_data[12:]
-        
-        aesgcm = AESGCM(self.key)
-        return aesgcm.decrypt(nonce, ciphertext, None)
+
+        # 新格式: salt(16) + nonce(12) + ciphertext
+        salt = encrypted_data[:16]
+        nonce = encrypted_data[16:28]
+        ciphertext = encrypted_data[28:]
+
+        key = self._derive_key(self._password, salt)
+        aesgcm = AESGCM(key)
+        try:
+            return aesgcm.decrypt(nonce, ciphertext, None)
+        except Exception:
+            # 回退: 尝试旧格式解密（整段作为 nonce + ciphertext）
+            logger.debug("New format decryption failed, trying legacy format")
+            nonce = encrypted_data[:12]
+            ciphertext = encrypted_data[12:]
+            key = self._derive_key(self._password, b"tgsc_session_salt")
+            aesgcm = AESGCM(key)
+            return aesgcm.decrypt(nonce, ciphertext, None)
 
 
 # 全局加密服务实例 (延迟初始化)
