@@ -12,30 +12,48 @@ class ScriptService:
         self.session = db_session
         self.llm = LLMService(db_session)
 
-    async def generate_script_lines(self, script_id: int) -> Optional[List[Dict[str, str]]]:
+    async def generate_script_lines(self, script_id: int, campaign_id: Optional[int] = None) -> Optional[List[Dict[str, str]]]:
         """
         Generate dialogue lines for a script using LLM
+
+        Args:
+            script_id: Script ID
+            campaign_id: Optional campaign ID for knowledge injection
         """
         script = self.session.get(Script, script_id)
         if not script:
             raise ValueError("Script not found")
-            
+
         if not self.llm.is_configured():
             raise ValueError("LLM not configured")
 
         roles = json.loads(script.roles_json) # [{"name": "UserA", "prompt": "..."}]
-        
+
+        # Load knowledge if campaign_id provided
+        knowledge_section = ""
+        if campaign_id:
+            from app.services.ai_engine import AIEngine
+            knowledge = AIEngine.get_campaign_knowledge(self.session, campaign_id)
+            if knowledge:
+                knowledge_section = f"""
+        Professional knowledge background (the conversation should naturally incorporate this knowledge):
+        {knowledge}
+        """
+
         # Construct prompt
         system_prompt = "You are a creative scriptwriter for Telegram group conversations."
-        
+
         user_prompt = f"""
         Generate a natural conversation between {len(roles)} people about the topic: "{script.topic}".
-        
+
         Roles:
         """
         for r in roles:
             user_prompt += f"- {r['name']}: {r.get('prompt', 'Participant')}\n"
-            
+
+        if knowledge_section:
+            user_prompt += knowledge_section
+
         user_prompt += """
         Format the output as a JSON array of objects, where each object has "role", "content", and optionally "reply_to_line_index" (integer index of the line to reply to, or null).
         Example:

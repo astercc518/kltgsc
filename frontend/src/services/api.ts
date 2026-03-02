@@ -90,6 +90,7 @@ export interface Proxy {
     last_checked?: string;
     latency?: number;
     country?: string;
+    expire_time?: string;
 }
 
 export interface ProxyCreate {
@@ -100,6 +101,7 @@ export interface ProxyCreate {
     password?: string;
     category?: string;
     provider_type?: string;
+    expire_time?: string;
 }
 
 export interface TargetUser {
@@ -304,6 +306,11 @@ export const deleteAccountsBatch = async (accountIds: number[]): Promise<{ messa
     return response.data;
 };
 
+export const deleteAbnormalAccounts = async (): Promise<{ message: string; deleted_count: number }> => {
+    const response = await api.post('/accounts/batch/delete-abnormal');
+    return response.data;
+};
+
 export const uploadAccountSession = async (file: File, phoneNumber?: string): Promise<Account> => {
     const formData = new FormData();
     formData.append('file', file);
@@ -399,6 +406,37 @@ export const autoUpdateAccount = async (accountId: number, options: { update_pro
     return response.data;
 };
 
+// 批量头像更新
+export const batchUpdatePhotoRandom = async (accountIds: number[], avatarStyle: string = 'face'): Promise<any> => {
+    const response = await api.post('/accounts/batch/update_photo/random', {
+        account_ids: accountIds,
+        avatar_style: avatarStyle,
+    });
+    return response.data;
+};
+
+// 批量自动更新
+export const batchAutoUpdate = async (accountIds: number[], options: {
+    update_profile?: boolean;
+    update_photo?: boolean;
+    update_2fa?: boolean;
+    update_username?: boolean;
+    password_2fa?: string;
+    avatar_style?: string;
+}): Promise<any> => {
+    const response = await api.post('/accounts/batch/auto_update', {
+        account_ids: accountIds,
+        ...options,
+    });
+    return response.data;
+};
+
+// 查询批量任务进度
+export const getBatchTaskStatus = async (taskId: string): Promise<any> => {
+    const response = await api.get(`/accounts/batch/task_status/${taskId}`);
+    return response.data;
+};
+
 export const updateAccountAIConfig = async (accountId: number, config: { auto_reply: boolean; persona_prompt?: string }): Promise<any> => {
     const response = await api.put(`/accounts/${accountId}/ai_config`, config);
     return response.data;
@@ -411,6 +449,16 @@ export const importMegaAccounts = async (
     auto_warmup: boolean = false
 ): Promise<{ task_ids: string[]; urls: string[]; message: string }> => {
     const response = await api.post('/accounts/import/mega', { urls, target_channels, auto_check, auto_warmup });
+    return response.data;
+};
+
+export const uploadTdataBatch = async (files: File[]): Promise<{ task_ids: string[]; filenames: string[]; message: string; errors: string[] }> => {
+    const formData = new FormData();
+    files.forEach(file => formData.append('files', file));
+    const response = await api.post('/accounts/batch/upload-tdata', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 5 * 60 * 1000, // 5 minutes for large uploads
+    });
     return response.data;
 };
 
@@ -441,9 +489,9 @@ export const deleteProxy = async (id: number): Promise<void> => {
     await api.delete(`/proxies/${id}`);
 };
 
-export const uploadProxies = async (fileOrText: File | string, category: string = 'static', providerType: string = 'datacenter'): Promise<any> => {
+export const uploadProxies = async (fileOrText: File | string, category: string = 'static', providerType: string = 'datacenter', expireTime?: string): Promise<any> => {
     let proxiesText: string;
-    
+
     if (fileOrText instanceof File) {
         // 如果是文件，读取文件内容
         proxiesText = await fileOrText.text();
@@ -451,11 +499,12 @@ export const uploadProxies = async (fileOrText: File | string, category: string 
         // 如果是字符串，直接使用
         proxiesText = fileOrText;
     }
-    
-    const response = await api.post('/proxies/batch/upload', { 
+
+    const response = await api.post('/proxies/batch/upload', {
         proxies_text: proxiesText,
         category: category,
-        provider_type: providerType
+        provider_type: providerType,
+        expire_time: expireTime || null,
     });
     return response.data;
 };
@@ -472,6 +521,29 @@ export const checkProxiesBatch = async (proxyIds: number[]): Promise<any> => {
 
 export const deleteProxiesBatch = async (proxyIds: number[]): Promise<any> => {
     const response = await api.post('/proxies/batch/delete', { proxy_ids: proxyIds });
+    return response.data;
+};
+
+export const deleteAbnormalProxies = async (): Promise<{ message: string; deleted_count: number }> => {
+    const response = await api.post('/proxies/batch/delete-abnormal');
+    return response.data;
+};
+
+export const setProxiesExpireBatch = async (proxyIds: number[], expireTime?: string): Promise<{ updated: number }> => {
+    const response = await api.post('/proxies/batch/set-expire', {
+        proxy_ids: proxyIds,
+        expire_time: expireTime || null,
+    });
+    return response.data;
+};
+
+export const cleanupExpiredProxies = async (): Promise<{ expired_count: number; migrated_count: number; unbound_count: number }> => {
+    const response = await api.post('/proxies/batch/cleanup-expired');
+    return response.data;
+};
+
+export const getExpiredProxyCount = async (): Promise<{ expired_count: number; expiring_soon_count: number }> => {
+    const response = await api.get('/proxies/expired-count');
     return response.data;
 };
 
@@ -765,8 +837,10 @@ export const createScript = async (data: { name: string; description?: string; r
     return response.data;
 };
 
-export const generateScriptLines = async (scriptId: number): Promise<any> => {
-    const response = await api.post(`/scripts/${scriptId}/generate`);
+export const generateScriptLines = async (scriptId: number, campaignId?: number): Promise<any> => {
+    const params: any = {};
+    if (campaignId) params.campaign_id = campaignId;
+    const response = await api.post(`/scripts/${scriptId}/generate`, null, { params });
     return response.data;
 };
 
@@ -873,6 +947,9 @@ export interface KeywordMonitor {
     enable_account_rotation?: boolean;
     max_replies_per_day?: number;
     ai_persona?: string;      // helpful, expert, curious, custom
+    // 战役 & Persona 关联
+    campaign_id?: number;
+    ai_persona_id?: number;
 }
 
 export interface KeywordMonitorCreate {
@@ -898,6 +975,8 @@ export interface KeywordMonitorCreate {
     enable_account_rotation?: boolean;
     max_replies_per_day?: number;
     ai_persona?: string;
+    campaign_id?: number;
+    ai_persona_id?: number;
 }
 
 export interface KeywordMonitorUpdate {
@@ -923,6 +1002,8 @@ export interface KeywordMonitorUpdate {
     enable_account_rotation?: boolean;
     max_replies_per_day?: number;
     ai_persona?: string;
+    campaign_id?: number;
+    ai_persona_id?: number;
 }
 
 export interface KeywordHit {
@@ -1026,6 +1107,77 @@ export const getCurrentUser = async (): Promise<UserInfo> => {
 
 export const changePassword = async (data: ChangePasswordRequest): Promise<ChangePasswordResponse> => {
     const response = await api.post('/users/change-password', data);
+    return response.data;
+};
+
+// === Campaigns ===
+
+export interface CampaignData {
+    id: number;
+    name: string;
+    description?: string;
+    status: string;
+    allowed_roles: string;
+    daily_budget: number;
+    daily_account_limit: number;
+    ai_persona_id?: number;
+    total_messages_sent: number;
+    total_replies_received: number;
+    total_conversions: number;
+    created_at: string;
+    updated_at: string;
+}
+
+export const getCampaigns = async (status?: string): Promise<CampaignData[]> => {
+    const params: any = {};
+    if (status) params.status = status;
+    const response = await api.get('/campaigns/', { params });
+    return response.data;
+};
+
+// === AI Personas ===
+
+export interface PersonaData {
+    id: number;
+    name: string;
+    description?: string;
+    system_prompt: string;
+    tone: string;
+    language: string;
+    forbidden_topics?: string;
+    required_keywords?: string;
+    usage_count: number;
+    avg_reply_rate?: number;
+    created_at: string;
+}
+
+export const getPersonas = async (): Promise<PersonaData[]> => {
+    const response = await api.get('/personas/');
+    return response.data;
+};
+
+// === Knowledge Bases ===
+
+export interface KnowledgeBaseData {
+    id: number;
+    name: string;
+    description?: string;
+    content: string;
+    auto_update: boolean;
+    source_url?: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export const getKnowledgeBases = async (): Promise<KnowledgeBaseData[]> => {
+    const response = await api.get('/knowledge-bases/');
+    return response.data;
+};
+
+// === Campaign Knowledge Links ===
+
+export const getCampaignKnowledgeLinks = async (campaignId: number): Promise<{ campaign_id: number; knowledge_base_id: number }[]> => {
+    const response = await api.get(`/campaigns/${campaignId}/knowledge-links`);
     return response.data;
 };
 

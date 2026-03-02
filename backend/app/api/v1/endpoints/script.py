@@ -83,12 +83,13 @@ def get_script(
 @router.post("/{script_id}/generate")
 async def generate_script_content(
     script_id: int,
+    campaign_id: int = Query(default=None, description="关联战役ID，用于注入知识库内容"),
     session: Session = Depends(get_session)
 ):
-    """使用 LLM 生成剧本对话内容"""
+    """使用 LLM 生成剧本对话内容（可选注入战役知识库）"""
     service = ScriptService(session)
     try:
-        lines = await service.generate_script_lines(script_id)
+        lines = await service.generate_script_lines(script_id, campaign_id=campaign_id)
         return {"status": "success", "lines": lines}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

@@ -15,23 +15,44 @@ def get_tasks_batch(
     """
     results = {}
     for task_id in task_ids:
-        task_result = AsyncResult(task_id, app=celery_app)
-        response = {
-            "task_id": task_id,
-            "status": task_result.status,
-            "result": task_result.result if task_result.ready() else None,
-        }
-        
-        # Handle specific metadata if available (e.g. for progress updates)
-        if task_result.status == 'PROGRESS' and isinstance(task_result.info, dict):
-            response["progress"] = task_result.info
-            
-        # Handle exceptions serialization
-        if task_result.failed():
-            response["error"] = str(task_result.result)
-            
-        results[task_id] = response
-        
+        try:
+            task_result = AsyncResult(task_id, app=celery_app)
+
+            # Safely get result - exceptions are not JSON-serializable
+            result_value = None
+            if task_result.ready():
+                try:
+                    r = task_result.result
+                    if isinstance(r, Exception):
+                        result_value = {"error": str(r)}
+                    else:
+                        result_value = r
+                except Exception:
+                    result_value = None
+
+            response = {
+                "task_id": task_id,
+                "status": task_result.status,
+                "result": result_value,
+            }
+
+            # Handle specific metadata if available (e.g. for progress updates)
+            if task_result.status == 'PROGRESS' and isinstance(task_result.info, dict):
+                response["result"] = task_result.info
+
+            # Handle exceptions serialization
+            if task_result.failed():
+                response["error"] = str(task_result.result)
+
+            results[task_id] = response
+        except Exception:
+            results[task_id] = {
+                "task_id": task_id,
+                "status": "FAILURE",
+                "result": None,
+                "error": "Failed to fetch task status",
+            }
+
     return {"tasks": results}
 
 @router.get("/active", response_model=Dict[str, Any])
@@ -55,21 +76,33 @@ def get_task_status(task_id: str):
     Get status of a specific task
     """
     task_result = AsyncResult(task_id, app=celery_app)
-    
+
+    # Safely get result - exceptions are not JSON-serializable
+    result_value = None
+    if task_result.ready():
+        try:
+            r = task_result.result
+            if isinstance(r, Exception):
+                result_value = {"error": str(r)}
+            else:
+                result_value = r
+        except Exception:
+            result_value = None
+
     response = {
         "task_id": task_id,
         "status": task_result.status,
-        "result": task_result.result if task_result.ready() else None,
+        "result": result_value,
     }
-    
+
     # Handle specific metadata if available (e.g. for progress updates)
     if task_result.status == 'PROGRESS' and isinstance(task_result.info, dict):
-         response["progress"] = task_result.info
-         
+        response["result"] = task_result.info
+
     # Handle exceptions serialization
     if task_result.failed():
         response["error"] = str(task_result.result)
-        
+
     return response
 
 @router.delete("/{task_id}")

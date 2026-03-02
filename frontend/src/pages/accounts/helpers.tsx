@@ -19,6 +19,7 @@ export const getStatusTag = (status: string) => {
     flood_wait: { color: 'volcano', icon: <ClockCircleOutlined />, text: '冷却中' },
     warmup: { color: 'gold', icon: <ClockCircleOutlined />, text: '养号中' },
     error: { color: 'red', icon: <CloseCircleOutlined />, text: '错误' },
+    session_invalid: { color: 'magenta', icon: <CloseCircleOutlined />, text: 'Session无效' },
     pending: { color: 'default', icon: <ClockCircleOutlined />, text: '待处理' },
     checking: { color: 'processing', icon: <SyncOutlined spin />, text: '检测中' },
   };

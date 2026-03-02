@@ -37,5 +37,8 @@ ENV/
 *.session
 *.session-journal
 
+# Uploads
+app/uploads/
+
 # Environment
 .env

@@ -3,10 +3,12 @@ import { Table, Button, Modal, Form, Input, Select, Switch, Tag, Space, message,
 import type { TabsProps } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, RobotOutlined, MessageOutlined, BellOutlined, ReloadOutlined, ForwardOutlined, UserAddOutlined, FireOutlined, BulbOutlined, ThunderboltOutlined, EyeOutlined, SendOutlined } from '@ant-design/icons';
 import { AISelector } from '../components';
-import { 
-    KeywordMonitor, getKeywordMonitors, createKeywordMonitor, updateKeywordMonitor, deleteKeywordMonitor, 
+import {
+    KeywordMonitor, getKeywordMonitors, createKeywordMonitor, updateKeywordMonitor, deleteKeywordMonitor,
     getKeywordHits, KeywordHit,
-    getScripts, Script
+    getScripts, Script,
+    getCampaigns, CampaignData,
+    getPersonas, PersonaData,
 } from '../services/api';
 import api from '../services/api';
 
@@ -26,6 +28,9 @@ const MonitorPage: React.FC = () => {
     const [monitors, setMonitors] = useState<KeywordMonitor[]>([]);
     const [hits, setHits] = useState<KeywordHit[]>([]);
     const [scripts, setScripts] = useState<Script[]>([]);
+    const [campaigns, setCampaigns] = useState<CampaignData[]>([]);
+    const [personas, setPersonas] = useState<PersonaData[]>([]);
+    const [campaignKBs, setCampaignKBs] = useState<{id: number; name: string}[]>([]);
     const [loading, setLoading] = useState(false);
     const [hitsLoading, setHitsLoading] = useState(false);
     const [isModalVisible, setIsModalVisible] = useState(false);
@@ -44,16 +49,29 @@ const MonitorPage: React.FC = () => {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const [monitorsData, scriptsData] = await Promise.all([
+            const [monitorsData, scriptsData, campaignsData, personasData] = await Promise.all([
                 getKeywordMonitors(),
-                getScripts()
+                getScripts(),
+                getCampaigns('active').catch(() => []),
+                getPersonas().catch(() => []),
             ]);
             setMonitors(monitorsData);
             setScripts(scriptsData);
+            setCampaigns(campaignsData);
+            setPersonas(personasData);
         } catch (error) {
             message.error('加载数据失败');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchCampaignKBs = async (campaignId: number) => {
+        try {
+            const res = await api.get(`/campaigns/${campaignId}/knowledge-links`);
+            setCampaignKBs(res.data || []);
+        } catch {
+            setCampaignKBs([]);
         }
     };
 
@@ -80,6 +98,7 @@ const MonitorPage: React.FC = () => {
         setMatchType('partial');
         setMarketingMode('passive');
         setSuggestions([]);
+        setCampaignKBs([]);
         setIsModalVisible(true);
     };
 
@@ -90,6 +109,10 @@ const MonitorPage: React.FC = () => {
         setMatchType(record.match_type);
         setMarketingMode((record as any).marketing_mode || 'passive');
         setSuggestions([]);
+        setCampaignKBs([]);
+        if (record.campaign_id) {
+            fetchCampaignKBs(record.campaign_id);
+        }
         setIsModalVisible(true);
     };
 
@@ -498,7 +521,50 @@ const MonitorPage: React.FC = () => {
                                     <AISelector allowDefault={true} style={{ width: '100%' }} />
                                 </Form.Item>
 
-                                <Form.Item name="ai_persona" label="AI 人设预设">
+                                <Form.Item
+                                    name="campaign_id"
+                                    label="关联战役"
+                                    help="选择战役后，AI 回复将注入该战役关联的知识库内容"
+                                >
+                                    <Select
+                                        allowClear
+                                        placeholder="选择战役（可选）"
+                                        onChange={(val) => {
+                                            if (val) {
+                                                fetchCampaignKBs(val);
+                                            } else {
+                                                setCampaignKBs([]);
+                                            }
+                                        }}
+                                    >
+                                        {campaigns.map(c => (
+                                            <Option key={c.id} value={c.id}>{c.name}</Option>
+                                        ))}
+                                    </Select>
+                                </Form.Item>
+
+                                {campaignKBs.length > 0 && (
+                                    <Alert
+                                        message={`该战役关联了 ${campaignKBs.length} 个知识库：${campaignKBs.map(kb => kb.name).join('、')}`}
+                                        type="info"
+                                        showIcon
+                                        style={{ marginBottom: 16, marginTop: -8 }}
+                                    />
+                                )}
+
+                                <Form.Item
+                                    name="ai_persona_id"
+                                    label="AI 人设（数据库）"
+                                    help="优先使用此选择器，下方预设作为快捷入口"
+                                >
+                                    <Select allowClear placeholder="选择 AI 人设（可选）">
+                                        {personas.map(p => (
+                                            <Option key={p.id} value={p.id}>{p.name} - {p.description || p.tone}</Option>
+                                        ))}
+                                    </Select>
+                                </Form.Item>
+
+                                <Form.Item name="ai_persona" label="AI 人设预设（快捷）">
                                     <Select>
                                         <Option value="helpful">🤝 热心群友 - 语气随意友善，简单分享经验</Option>
                                         <Option value="expert">🎓 行业老鸟 - 语气专业但不高傲，偶尔分享干货</Option>
@@ -506,7 +572,7 @@ const MonitorPage: React.FC = () => {
                                         <Option value="custom">✏️ 自定义 Prompt</Option>
                                     </Select>
                                 </Form.Item>
-                                
+
                                 <Form.Item name="ai_reply_prompt" label="自定义 AI 提示词 (可选)">
                                     <TextArea rows={2} placeholder="覆盖预设人设，自定义 AI 回复风格..." />
                                 </Form.Item>

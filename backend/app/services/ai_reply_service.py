@@ -114,16 +114,48 @@ class AIReplyService:
         except Exception as e:
             logger.error(f"Intent analysis error: {e}")
 
-        # 2. Prepare System Prompt
+        # 2. Prepare System Prompt + Knowledge
         system_prompt = account.persona_prompt or "You are a helpful assistant on Telegram."
-        
+        knowledge_context = ""
+
+        # Try to find campaign linked to this account for knowledge injection
+        try:
+            from app.models.campaign import Campaign
+            from app.services.ai_engine import AIEngine
+
+            campaign = None
+            if account.combat_role:
+                # Match account's combat_role against campaign's allowed_roles
+                campaigns = self.session.exec(select(Campaign).where(Campaign.status == "active")).all()
+                for c in campaigns:
+                    allowed = [r.strip() for r in (c.allowed_roles or "").split(",")]
+                    if account.combat_role in allowed:
+                        campaign = c
+                        break
+
+            if campaign:
+                # Load knowledge
+                knowledge_context = AIEngine.get_campaign_knowledge(self.session, campaign.id)
+
+                # Fallback persona from campaign if account has no persona_prompt
+                if not account.persona_prompt and campaign.ai_persona_id:
+                    persona_prompt = AIEngine.get_persona_prompt(self.session, campaign.ai_persona_id)
+                    if persona_prompt:
+                        system_prompt = persona_prompt
+        except Exception as e:
+            logger.error(f"Knowledge injection error: {e}")
+
+        # Inject knowledge into system prompt if available
+        if knowledge_context:
+            system_prompt += f"\n\n参考知识（回答时可引用）：\n{knowledge_context}"
+
         # 3. Call LLM for Reply
         response = await self.llm.get_response(
             prompt=user_msg,
             system_prompt=system_prompt,
             history=history_msgs
         )
-        
+
         return response
 
     def _update_lead_tags(self, account_id: int, target_user_id: int, username: str, first_name: str, analysis: dict):

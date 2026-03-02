@@ -101,7 +101,7 @@ def delete_template(
 # =====================
 
 @router.post("/tasks", response_model=WarmupTaskRead)
-async def create_warmup_task(
+def create_warmup_task(
     task_create: WarmupTaskCreate,
     session: Session = Depends(get_session)
 ):

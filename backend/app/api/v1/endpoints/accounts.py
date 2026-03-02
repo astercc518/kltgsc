@@ -3,9 +3,10 @@ import json
 import re
 import shutil
 import logging
+import tempfile
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, Body, Request
-from sqlmodel import Session, select, func
+from sqlmodel import Session, select, func, col
 from datetime import datetime
 from pydantic import BaseModel
 
@@ -15,7 +16,7 @@ from app.models.account import Account, AccountCreate, AccountRead
 from app.models.proxy import Proxy
 from app.services.proxy_assigner import auto_assign_proxy
 from app.services.session_parser import parse_session_file
-from app.worker import check_account_status, import_mega_accounts
+from app.worker import check_account_status, import_mega_accounts, import_tdata_archive
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,8 @@ class ProfileUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     bio: Optional[str] = None
+    about: Optional[str] = None  # alias for bio
+    random: bool = False
 
 class TwoFAUpdate(BaseModel):
     password: Optional[str] = None
@@ -40,6 +43,21 @@ class AutoUpdateOptions(BaseModel):
     update_username: bool = False
     update_photo: bool = False
     update_2fa: bool = False
+    password_2fa: Optional[str] = None
+    avatar_style: str = "face"
+
+class BatchPhotoRequest(BaseModel):
+    account_ids: List[int]
+    avatar_style: str = "face"  # face, portrait, illustration, abstract
+
+class BatchAutoUpdateRequest(BaseModel):
+    account_ids: List[int]
+    update_profile: bool = False
+    update_username: bool = False
+    update_photo: bool = False
+    update_2fa: bool = False
+    password_2fa: Optional[str] = None
+    avatar_style: str = "face"
 
 class MegaImportRequest(BaseModel):
     urls: List[str]
@@ -91,6 +109,75 @@ def get_account_count(
         logger.error(f"Error counting accounts: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# =====================
+# 批量操作端点（必须在 /{account_id} 路由之前注册）
+# =====================
+
+@router.post("/batch/update_photo/random")
+def batch_update_photo_random(
+    req: BatchPhotoRequest,
+    session: Session = Depends(get_session)
+):
+    """批量随机头像更新"""
+    if not req.account_ids:
+        raise HTTPException(status_code=400, detail="No accounts selected")
+    if len(req.account_ids) > 100:
+        raise HTTPException(status_code=400, detail="Max 100 accounts per batch")
+
+    from app.worker import batch_update_photos_random
+    task = batch_update_photos_random.delay(req.account_ids, req.avatar_style)
+    return {
+        "message": f"批量随机头像任务已提交，共 {len(req.account_ids)} 个账号",
+        "task_id": task.id,
+        "total": len(req.account_ids),
+    }
+
+@router.post("/batch/auto_update")
+def batch_auto_update_endpoint(
+    req: BatchAutoUpdateRequest,
+    session: Session = Depends(get_session)
+):
+    """批量自动更新"""
+    if not req.account_ids:
+        raise HTTPException(status_code=400, detail="No accounts selected")
+    if len(req.account_ids) > 100:
+        raise HTTPException(status_code=400, detail="Max 100 accounts per batch")
+
+    from app.worker import batch_auto_update
+    task = batch_auto_update.delay(req.account_ids, req.dict(exclude={"account_ids"}))
+    return {
+        "message": f"批量自动更新任务已提交，共 {len(req.account_ids)} 个账号",
+        "task_id": task.id,
+        "total": len(req.account_ids),
+    }
+
+@router.get("/batch/task_status/{task_id}")
+def get_batch_task_status(task_id: str):
+    """查询批量任务进度"""
+    from celery.result import AsyncResult
+    from app.core.celery_app import celery_app as cel_app
+    result = AsyncResult(task_id, app=cel_app)
+
+    if result.state == 'PROGRESS':
+        return {
+            "status": "running",
+            "progress": result.info,
+        }
+    elif result.state == 'SUCCESS':
+        return {
+            "status": "completed",
+            "result": result.result,
+        }
+    elif result.state == 'FAILURE':
+        return {
+            "status": "failed",
+            "error": str(result.result),
+        }
+    else:
+        return {
+            "status": result.state.lower(),
+        }
+
 @router.get("/{account_id}")
 def get_account(
     account_id: int,
@@ -139,6 +226,27 @@ def delete_accounts_batch(
         deleted_count += 1
     session.commit()
     return {"message": f"已删除 {deleted_count} 个账号", "deleted_count": deleted_count}
+
+@router.post("/batch/delete-abnormal")
+def delete_abnormal_accounts(session: Session = Depends(get_session)):
+    """一键删除异常账号（banned, spam_block, error）"""
+    abnormal_statuses = ["banned", "spam_block", "error"]
+    accounts = session.exec(
+        select(Account).where(col(Account.status).in_(abnormal_statuses))
+    ).all()
+    deleted_count = 0
+    for account in accounts:
+        if account.session_file_path:
+            for path in [account.session_file_path, account.session_file_path + ".telethon"]:
+                try:
+                    if os.path.exists(path):
+                        os.remove(path)
+                except Exception:
+                    pass
+        session.delete(account)
+        deleted_count += 1
+    session.commit()
+    return {"message": f"已删除 {deleted_count} 个异常账号", "deleted_count": deleted_count}
 
 @router.delete("/{account_id}")
 def delete_account(
@@ -405,6 +513,69 @@ def upload_sessions_batch(
         "errors": results["errors"][:10]
     }
 
+
+MAX_TDATA_FILE_SIZE = 500 * 1024 * 1024  # 500MB
+
+
+@router.post("/batch/upload-tdata")
+async def upload_tdata_batch(
+    files: List[UploadFile] = File(...),
+):
+    """批量上传 tdata 压缩包（ZIP/RAR）"""
+    task_ids = []
+    filenames = []
+    errors = []
+
+    for file in files:
+        safe_filename = os.path.basename(file.filename or "unknown")
+
+        # Validate extension
+        if not safe_filename.lower().endswith(('.zip', '.rar')):
+            errors.append(f"{safe_filename}: 仅支持 .zip/.rar 格式")
+            continue
+
+        # Validate non-empty
+        content = await file.read()
+        if len(content) == 0:
+            errors.append(f"{safe_filename}: 文件为空")
+            continue
+
+        # Validate file size
+        if len(content) > MAX_TDATA_FILE_SIZE:
+            errors.append(f"{safe_filename}: 文件超过 500MB 限制")
+            continue
+
+        # Save to shared volume (accessible by both backend and worker containers)
+        try:
+            upload_base = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), 'uploads', 'tdata')
+            os.makedirs(upload_base, exist_ok=True)
+            tmp_dir = tempfile.mkdtemp(prefix="tdata_upload_", dir=upload_base)
+            tmp_path = os.path.join(tmp_dir, safe_filename)
+            # Verify path is inside tmp_dir (prevent path traversal)
+            if not os.path.realpath(tmp_path).startswith(os.path.realpath(tmp_dir)):
+                errors.append(f"{safe_filename}: 非法文件路径")
+                shutil.rmtree(tmp_dir, ignore_errors=True)
+                continue
+            with open(tmp_path, "wb") as f:
+                f.write(content)
+
+            task = import_tdata_archive.delay(tmp_path, safe_filename)
+            task_ids.append(task.id)
+            filenames.append(safe_filename)
+        except Exception as e:
+            errors.append(f"{safe_filename}: 保存失败 - {str(e)}")
+
+    if not task_ids and errors:
+        raise HTTPException(status_code=400, detail="; ".join(errors))
+
+    return {
+        "message": f"已提交 {len(task_ids)} 个 TData 导入任务",
+        "task_ids": task_ids,
+        "filenames": filenames,
+        "errors": errors
+    }
+
+
 @router.post("/batch/check")
 async def check_accounts_batch(
     account_ids: List[int] = Body(..., embed=True),
@@ -560,7 +731,7 @@ async def send_message_batch(
     }
 
 @router.post("/{account_id}/update_profile")
-async def update_account_profile(
+def update_account_profile(
     account_id: int,
     data: ProfileUpdate,
     session: Session = Depends(get_session)
@@ -569,12 +740,16 @@ async def update_account_profile(
     account = session.get(Account, account_id)
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
-    
-    # TODO: 实际调用 Telegram API 更新资料
-    return {"message": "资料更新任务已提交", "account_id": account_id}
+
+    from app.worker import update_single_profile_task
+    bio = data.about or data.bio
+    task = update_single_profile_task.delay(
+        account_id, data.first_name, data.last_name, bio, data.random
+    )
+    return {"message": "资料更新任务已提交", "account_id": account_id, "task_id": task.id}
 
 @router.post("/{account_id}/update_username")
-async def update_account_username(
+def update_account_username(
     account_id: int,
     username: str = Body(..., embed=True),
     session: Session = Depends(get_session)
@@ -583,12 +758,13 @@ async def update_account_username(
     account = session.get(Account, account_id)
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
-    
-    # TODO: 实际调用 Telegram API 更新用户名
-    return {"message": "用户名更新任务已提交", "account_id": account_id}
+
+    from app.worker import update_single_username_task
+    task = update_single_username_task.delay(account_id, username)
+    return {"message": "用户名更新任务已提交", "account_id": account_id, "task_id": task.id}
 
 @router.post("/{account_id}/update_2fa")
-async def update_account_2fa(
+def update_account_2fa(
     account_id: int,
     data: TwoFAUpdate,
     session: Session = Depends(get_session)
@@ -597,9 +773,10 @@ async def update_account_2fa(
     account = session.get(Account, account_id)
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
-    
-    # TODO: 实际调用 Telegram API 更新 2FA
-    return {"message": "2FA 更新任务已提交", "account_id": account_id}
+
+    from app.worker import update_single_2fa_task
+    task = update_single_2fa_task.delay(account_id, data.password, None, data.hint)
+    return {"message": "2FA 更新任务已提交", "account_id": account_id, "task_id": task.id}
 
 @router.post("/{account_id}/update_photo")
 async def update_account_photo(
@@ -607,40 +784,49 @@ async def update_account_photo(
     file: UploadFile = File(...),
     session: Session = Depends(get_session)
 ):
-    """更新账号头像"""
+    """更新账号头像（上传文件）"""
     account = session.get(Account, account_id)
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
-    
-    # TODO: 实际调用 Telegram API 更新头像
-    return {"message": "头像更新任务已提交", "account_id": account_id}
+
+    # 保存上传文件到临时目录
+    tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+    content = await file.read()
+    tmp.write(content)
+    tmp.close()
+
+    from app.worker import update_account_photo_task
+    task = update_account_photo_task.delay(account_id, tmp.name)
+    return {"message": "头像更新任务已提交", "account_id": account_id, "task_id": task.id}
 
 @router.post("/{account_id}/update_photo/random")
-async def update_account_photo_random(
+def update_account_photo_random(
     account_id: int,
     session: Session = Depends(get_session)
 ):
-    """使用随机头像更新账号"""
+    """使用随机头像更新单个账号"""
     account = session.get(Account, account_id)
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
-    
-    # TODO: 生成随机头像并更新
-    return {"message": "随机头像更新任务已提交", "account_id": account_id}
+
+    from app.worker import batch_update_photos_random
+    task = batch_update_photos_random.delay([account_id], "face")
+    return {"message": "随机头像更新任务已提交", "account_id": account_id, "task_id": task.id}
 
 @router.post("/{account_id}/auto_update")
-async def auto_update_account(
+def auto_update_account(
     account_id: int,
     options: AutoUpdateOptions,
     session: Session = Depends(get_session)
 ):
-    """自动更新账号信息"""
+    """自动更新单个账号信息"""
     account = session.get(Account, account_id)
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
-    
-    # TODO: 实际执行自动更新
-    return {"message": "自动更新任务已提交", "account_id": account_id, "options": options.dict()}
+
+    from app.worker import batch_auto_update
+    task = batch_auto_update.delay([account_id], options.dict())
+    return {"message": "自动更新任务已提交", "account_id": account_id, "task_id": task.id}
 
 @router.put("/{account_id}/ai_config")
 def update_account_ai_config(

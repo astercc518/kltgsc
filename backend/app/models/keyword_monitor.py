@@ -53,6 +53,11 @@ class KeywordMonitorBase(SQLModel):
     # AI 人设预设
     ai_persona: str = Field(default="helpful")  # helpful(热心群友) / expert(行业老鸟) / curious(好奇小白) / custom(自定义)
 
+    # 战役关联（提供知识库 + 默认 Persona）
+    campaign_id: Optional[int] = Field(default=None, foreign_key="campaign.id")
+    # 直接指定 Persona（优先级高于 campaign 的 ai_persona_id）
+    ai_persona_id: Optional[int] = Field(default=None, foreign_key="ai_persona.id")
+
 class KeywordMonitor(KeywordMonitorBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -91,6 +96,9 @@ class KeywordMonitorUpdate(SQLModel):
     enable_account_rotation: Optional[bool] = None
     max_replies_per_day: Optional[int] = None
     ai_persona: Optional[str] = None
+    # 战役 & Persona 关联
+    campaign_id: Optional[int] = None
+    ai_persona_id: Optional[int] = None
 
 
 class KeywordHitBase(SQLModel):

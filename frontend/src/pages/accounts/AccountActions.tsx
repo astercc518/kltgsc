@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   Modal,
   Form,
@@ -10,21 +10,28 @@ import {
   Upload,
   UploadFile,
   message,
+  Progress,
+  Radio,
+  Alert,
+  Typography,
 } from 'antd';
-import { UploadOutlined } from '@ant-design/icons';
+import { UploadOutlined, PictureOutlined } from '@ant-design/icons';
 import {
   sendTestMessageBatch,
   updateAccountProfile,
   updateAccountUsername,
   updateAccount2FA,
   updateAccountPhoto,
-  updateAccountPhotoRandom,
-  autoUpdateAccount,
   updateAccountAIConfig,
   updateAccountsRoleBatch,
+  batchUpdatePhotoRandom,
+  batchAutoUpdate,
+  getBatchTaskStatus,
   Account,
 } from '../../services/api';
 import { PaginationState } from './types';
+
+const { Text } = Typography;
 
 const { Option } = Select;
 
@@ -81,6 +88,12 @@ const AccountActions: React.FC<AccountActionsProps> = ({
   const [twoFAForm] = Form.useForm();
   const [autoUpdateForm] = Form.useForm();
   const [photoFile, setPhotoFile] = useState<UploadFile | null>(null);
+
+  // Avatar batch state
+  const [avatarStyle, setAvatarStyle] = useState<string>('face');
+  const [batchTaskId, setBatchTaskId] = useState<string | null>(null);
+  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; success: number; fail: number } | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // AI state
   const [aiForm] = Form.useForm();
@@ -206,6 +219,41 @@ const AccountActions: React.FC<AccountActionsProps> = ({
     }
   };
 
+  // 轮询任务进度
+  const startPolling = useCallback((taskId: string) => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await getBatchTaskStatus(taskId);
+        if (res.status === 'running' && res.progress) {
+          setBatchProgress(res.progress);
+        } else if (res.status === 'completed') {
+          if (pollRef.current) clearInterval(pollRef.current);
+          pollRef.current = null;
+          setBatchTaskId(null);
+          const r = res.result;
+          setBatchProgress(null);
+          setAttrLoading(false);
+          if (r.fail_count > 0) {
+            message.warning(`完成: 成功 ${r.success_count}, 失败 ${r.fail_count}`);
+          } else {
+            message.success(`成功更新 ${r.success_count} 个账号`);
+          }
+          fetchAccounts(pagination.current, pagination.pageSize);
+        } else if (res.status === 'failed') {
+          if (pollRef.current) clearInterval(pollRef.current);
+          pollRef.current = null;
+          setBatchTaskId(null);
+          setBatchProgress(null);
+          setAttrLoading(false);
+          message.error(`任务失败: ${res.error || '未知错误'}`);
+        }
+      } catch {
+        // ignore poll errors
+      }
+    }, 2000);
+  }, [fetchAccounts, pagination]);
+
   const handleUpdatePhoto = async () => {
     if (!photoFile) {
       message.error('请先选择图片');
@@ -230,9 +278,8 @@ const AccountActions: React.FC<AccountActionsProps> = ({
       if (failCount > 0) {
         message.warning(`完成: 成功 ${successCount}, 失败 ${failCount}`);
       } else {
-        message.success(`成功更新 ${successCount} 个账号`);
+        message.success(`已提交 ${successCount} 个头像更新任务`);
       }
-      setIsAttrModalVisible(false);
       setPhotoFile(null);
     } finally {
       setAttrLoading(false);
@@ -241,54 +288,34 @@ const AccountActions: React.FC<AccountActionsProps> = ({
 
   const handleUpdatePhotoRandom = async () => {
     setAttrLoading(true);
+    setBatchProgress(null);
     try {
       const accountIds = selectedRowKeys as number[];
-      let successCount = 0;
-      let failCount = 0;
-
-      for (const id of accountIds) {
-        try {
-          await updateAccountPhotoRandom(id);
-          successCount++;
-        } catch (e) {
-          failCount++;
-        }
+      const res = await batchUpdatePhotoRandom(accountIds, avatarStyle);
+      if (res.task_id) {
+        setBatchTaskId(res.task_id);
+        message.info(`批量头像任务已提交，共 ${accountIds.length} 个账号`);
+        startPolling(res.task_id);
       }
-
-      if (failCount > 0) {
-        message.warning(`完成: 成功 ${successCount}, 失败 ${failCount}`);
-      } else {
-        message.success(`成功更新 ${successCount} 个账号`);
-      }
-      setIsAttrModalVisible(false);
-    } finally {
+    } catch (error: any) {
+      message.error(`提交失败: ${error.response?.data?.detail || error.message}`);
       setAttrLoading(false);
     }
   };
 
   const handleAutoUpdate = async (values: any) => {
     setAttrLoading(true);
+    setBatchProgress(null);
     try {
       const accountIds = selectedRowKeys as number[];
-      let successCount = 0;
-      let failCount = 0;
-
-      for (const id of accountIds) {
-        try {
-          await autoUpdateAccount(id, values);
-          successCount++;
-        } catch (e) {
-          failCount++;
-        }
+      const res = await batchAutoUpdate(accountIds, { ...values, avatar_style: avatarStyle });
+      if (res.task_id) {
+        setBatchTaskId(res.task_id);
+        message.info(`批量更新任务已提交，共 ${accountIds.length} 个账号`);
+        startPolling(res.task_id);
       }
-
-      if (failCount > 0) {
-        message.warning(`完成: 成功 ${successCount}, 失败 ${failCount}`);
-      } else {
-        message.success(`成功自动更新 ${successCount} 个账号`);
-      }
-      setIsAttrModalVisible(false);
-    } finally {
+    } catch (error: any) {
+      message.error(`提交失败: ${error.response?.data?.detail || error.message}`);
       setAttrLoading(false);
     }
   };
@@ -393,15 +420,52 @@ const AccountActions: React.FC<AccountActionsProps> = ({
                   update_2fa: false,
                   update_username: false,
                 }}>
-                  <div style={{ marginBottom: 16, background: '#e6f7ff', padding: '10px', borderRadius: '4px', border: '1px solid #91d5ff' }}>
-                    <p>全自动模式将为选中账号随机生成并设置以下属性。</p>
-                  </div>
+                  <Alert
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                    message={`全自动模式将为选中的 ${selectedRowKeys.length} 个账号批量执行以下操作`}
+                  />
+
+                  {/* 进度条 */}
+                  {batchProgress && (
+                    <div style={{ marginBottom: 16 }}>
+                      <Progress
+                        percent={Math.round((batchProgress.current / batchProgress.total) * 100)}
+                        format={() => `${batchProgress.current}/${batchProgress.total}`}
+                        status="active"
+                      />
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        成功: {batchProgress.success} | 失败: {batchProgress.fail}
+                      </Text>
+                    </div>
+                  )}
+
                   <Form.Item name="update_profile" valuePropName="checked">
                     <Checkbox>随机资料 (姓名 + 简介)</Checkbox>
                   </Form.Item>
                   <Form.Item name="update_photo" valuePropName="checked">
-                    <Checkbox>随机头像 (AI 人脸)</Checkbox>
+                    <Checkbox>随机头像</Checkbox>
                   </Form.Item>
+
+                  <Form.Item
+                    noStyle
+                    shouldUpdate={(prev, current) => prev.update_photo !== current.update_photo}
+                  >
+                    {({ getFieldValue }) =>
+                      getFieldValue('update_photo') ? (
+                        <Form.Item label="头像风格" style={{ marginLeft: 24 }}>
+                          <Radio.Group value={avatarStyle} onChange={(e) => setAvatarStyle(e.target.value)} size="small">
+                            <Radio.Button value="face">AI 人脸</Radio.Button>
+                            <Radio.Button value="portrait">肖像</Radio.Button>
+                            <Radio.Button value="illustration">插画</Radio.Button>
+                            <Radio.Button value="abstract">抽象</Radio.Button>
+                          </Radio.Group>
+                        </Form.Item>
+                      ) : null
+                    }
+                  </Form.Item>
+
                   <Form.Item name="update_2fa" valuePropName="checked">
                     <Checkbox>设置随机 2FA 密码 (仅适用于无密码的新号)</Checkbox>
                   </Form.Item>
@@ -422,8 +486,8 @@ const AccountActions: React.FC<AccountActionsProps> = ({
                     }
                   </Form.Item>
 
-                  <Button type="primary" htmlType="submit" loading={attrLoading} block>
-                    一键执行
+                  <Button type="primary" htmlType="submit" loading={attrLoading} disabled={!!batchTaskId} block>
+                    一键执行 ({selectedRowKeys.length} 个账号)
                   </Button>
                 </Form>
               ),
@@ -457,27 +521,80 @@ const AccountActions: React.FC<AccountActionsProps> = ({
               key: 'avatar',
               label: '头像',
               children: (
-                <div style={{ textAlign: 'center' }}>
-                  <Upload
-                    beforeUpload={(file) => {
-                      setPhotoFile(file);
-                      return false;
-                    }}
-                    fileList={photoFile ? [photoFile] : []}
-                    onRemove={() => setPhotoFile(null)}
-                    accept="image/*"
-                    maxCount={1}
-                  >
-                    <Button icon={<UploadOutlined />}>选择图片</Button>
-                  </Upload>
-                  <div style={{ margin: '16px 0' }}>
-                    <Button type="primary" onClick={handleUpdatePhoto} loading={attrLoading} disabled={!photoFile} block>
-                      批量上传并设置头像 (使用选中图片)
+                <div>
+                  {/* 进度条 */}
+                  {batchProgress && (
+                    <div style={{ marginBottom: 16 }}>
+                      <Progress
+                        percent={Math.round((batchProgress.current / batchProgress.total) * 100)}
+                        format={() => `${batchProgress.current}/${batchProgress.total}`}
+                        status="active"
+                      />
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        成功: {batchProgress.success} | 失败: {batchProgress.fail}
+                      </Text>
+                    </div>
+                  )}
+
+                  {/* 方式一：上传自定义图片 */}
+                  <div style={{ marginBottom: 16, padding: '12px', background: '#fafafa', borderRadius: 6 }}>
+                    <Text strong style={{ display: 'block', marginBottom: 8 }}>方式一：上传自定义图片</Text>
+                    <Upload
+                      beforeUpload={(file) => {
+                        setPhotoFile(file);
+                        return false;
+                      }}
+                      fileList={photoFile ? [photoFile] : []}
+                      onRemove={() => setPhotoFile(null)}
+                      accept="image/*"
+                      maxCount={1}
+                    >
+                      <Button icon={<UploadOutlined />}>选择图片</Button>
+                    </Upload>
+                    <Button
+                      type="primary"
+                      onClick={handleUpdatePhoto}
+                      loading={attrLoading && !batchTaskId}
+                      disabled={!photoFile || !!batchTaskId}
+                      block
+                      style={{ marginTop: 8 }}
+                    >
+                      批量上传并设置 (所有选中账号使用同一图片)
                     </Button>
-                    <div style={{ margin: '8px 0', textAlign: 'center', color: '#999' }}>{'\u2014\u2014 \u6216 \u2014\u2014'}</div>
-                    <Button onClick={handleUpdatePhotoRandom} loading={attrLoading} block>
-                      批量随机生成头像 (AI 人脸/随机图)
+                  </div>
+
+                  {/* 方式二：随机生成 */}
+                  <div style={{ padding: '12px', background: '#fafafa', borderRadius: 6 }}>
+                    <Text strong style={{ display: 'block', marginBottom: 8 }}>方式二：批量随机生成 (每个账号不同)</Text>
+                    <div style={{ marginBottom: 12 }}>
+                      <Text type="secondary" style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>选择头像风格:</Text>
+                      <Radio.Group value={avatarStyle} onChange={(e) => setAvatarStyle(e.target.value)}>
+                        <Radio.Button value="face">
+                          <PictureOutlined /> AI 人脸
+                        </Radio.Button>
+                        <Radio.Button value="portrait">肖像照片</Radio.Button>
+                        <Radio.Button value="illustration">插画风格</Radio.Button>
+                        <Radio.Button value="abstract">抽象图案</Radio.Button>
+                      </Radio.Group>
+                    </div>
+                    <Button
+                      type="primary"
+                      onClick={handleUpdatePhotoRandom}
+                      loading={attrLoading && !!batchTaskId}
+                      disabled={!!batchTaskId && !attrLoading}
+                      block
+                      icon={<PictureOutlined />}
+                    >
+                      批量随机生成头像 ({selectedRowKeys.length} 个账号)
                     </Button>
+                    {avatarStyle === 'face' && (
+                      <Alert
+                        type="info"
+                        showIcon
+                        style={{ marginTop: 8 }}
+                        message="AI 人脸由 thispersondoesnotexist.com 生成，每张独一无二"
+                      />
+                    )}
                   </div>
                 </div>
               ),

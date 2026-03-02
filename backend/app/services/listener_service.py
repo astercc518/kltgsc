@@ -327,10 +327,14 @@ class ListenerService:
         logger.info(f"Active marketing: waiting {delay}s before reply...")
         await asyncio.sleep(delay)
         
-        # 2. 选择回复账号 (TODO: 账号轮询，当前使用监听账号)
+        # 2. 选择回复账号 (账号轮询)
         reply_client = client
-        # if monitor.enable_account_rotation:
-        #     reply_client = self._select_reply_account(message.chat.id)
+        if monitor.enable_account_rotation and len(self.clients) > 1:
+            # 从可用 clients 中随机选一个非当前监听账号
+            other_clients = [c for c in self.clients if c != client]
+            if other_clients:
+                reply_client = random.choice(other_clients)
+                logger.info(f"Account rotation: using alternate client {reply_client.name}")
         
         # 3. 生成回复内容
         reply_text = await self._generate_ai_reply(message, session, monitor)
@@ -370,39 +374,56 @@ class ListenerService:
     async def _generate_ai_reply(
         self, message, session: Session, monitor: KeywordMonitor
     ) -> Optional[str]:
-        """根据 AI 人设生成回复"""
+        """根据 AI 人设 + 知识库生成回复"""
         try:
             from app.services.llm import LLMService
+            from app.services.ai_engine import AIEngine
+
             llm = LLMService(session)
-            
-            # 获取人设 Prompt
-            persona = monitor.ai_persona or "helpful"
-            if persona == "custom" and monitor.ai_reply_prompt:
-                system_prompt = monitor.ai_reply_prompt
-            else:
-                system_prompt = AI_PERSONA_PROMPTS.get(persona, AI_PERSONA_PROMPTS["helpful"])
-            
-            # 获取上下文
+
+            # === Persona 解析优先级 ===
+            # 1. monitor.ai_persona_id (直接指定的 Persona FK)
+            # 2. monitor.campaign.ai_persona_id (战役默认 Persona)
+            # 3. 旧的 ai_persona 字符串预设回退
+            system_prompt = None
+
+            if monitor.ai_persona_id:
+                system_prompt = AIEngine.get_persona_prompt(session, monitor.ai_persona_id)
+
+            if not system_prompt and monitor.campaign_id:
+                from app.models.campaign import Campaign
+                campaign = session.get(Campaign, monitor.campaign_id)
+                if campaign and campaign.ai_persona_id:
+                    system_prompt = AIEngine.get_persona_prompt(session, campaign.ai_persona_id)
+
+            if not system_prompt:
+                persona = monitor.ai_persona or "helpful"
+                if persona == "custom" and monitor.ai_reply_prompt:
+                    system_prompt = monitor.ai_reply_prompt
+                else:
+                    system_prompt = AI_PERSONA_PROMPTS.get(persona, AI_PERSONA_PROMPTS["helpful"])
+
+            # === 知识库注入 ===
+            knowledge = ""
+            if monitor.campaign_id:
+                knowledge = AIEngine.get_campaign_knowledge(session, monitor.campaign_id)
+
+            # === 获取上下文 ===
             chat_id = message.chat.id
             context = self.context_cache.get(chat_id, [])[-5:]
-            context_str = "\n".join(context) if context else ""
-            
-            user_prompt = f"""
-群聊上下文:
-{context_str}
+            context_str = "\n".join(context) if context else "无"
 
-最新消息 (需要回复): {message.text}
+            # === 使用 group_smart_reply 模板 ===
+            user_prompt = AIEngine.PROMPTS["group_smart_reply"].format(
+                persona_prompt=system_prompt,
+                knowledge=knowledge or "无",
+                context=context_str,
+                message=message.text
+            )
 
-请根据人设，生成一条自然的群聊回复。要求：
-1. 简短，不超过2句话
-2. 口语化，像真人聊天
-3. 不要带链接或广告词
-4. 可以适当有错别字或表情
-"""
-            
             reply = await llm.get_response(user_prompt, system_prompt=system_prompt)
             return reply
-            
+
         except Exception as e:
             logger.error(f"Generate AI reply failed: {e}")
             return None

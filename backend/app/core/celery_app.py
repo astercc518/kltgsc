@@ -51,6 +51,15 @@ celery_app.conf.update(
     task_default_queue='default',
     task_default_routing_key='default',
     
+    # ==================== 定时调度 (Beat) ====================
+    beat_schedule={
+        "rebalance-proxy-accounts": {
+            "task": "app.tasks.proxy_tasks.rebalance_proxy_accounts",
+            "schedule": 300.0,  # 每 5 分钟
+            "options": {"queue": "default"},
+        },
+    },
+
     # ==================== 任务路由 ====================
     task_routes={
         # 高优先级任务
@@ -60,6 +69,7 @@ celery_app.conf.update(
         # 低优先级任务
         'app.tasks.marketing_tasks.execute_warmup_task': {'queue': 'low_priority'},
         'app.tasks.proxy_tasks.check_proxies_batch_task': {'queue': 'low_priority'},
+        'app.tasks.proxy_tasks.rebalance_proxy_accounts': {'queue': 'default'},
     },
 
     # ==================== 并发限制 ====================

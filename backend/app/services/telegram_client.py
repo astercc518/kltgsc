@@ -296,6 +296,13 @@ async def _create_client_and_run(account: Account, operation, *args, db_session:
 
             # 连接
             await client.connect()
+            # 初始化 self.me（save_file 等方法需要 me.is_premium）
+            # 注意：connect() 不会设置 self.me，必须手动赋值
+            if not client.me:
+                try:
+                    client.me = await client.get_me()
+                except Exception:
+                    pass
             try:
                 # 执行操作
                 result = await operation(client, *args, **kwargs)

@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 
 # Safe channels to browse
 DEFAULT_CHANNELS = [
-    "telegram", "durov", "contest", "designers", "security", 
-    "sticker_channel", "stickers", "news_en", "bloomberg"
+    "telegram", "durov", "contest", "designers", "bloomberg",
+    "bbcnews", "nytimes", "techcrunch", "androidchannel", "nasa"
 ]
 
 class WarmupService:
@@ -26,8 +26,7 @@ class WarmupService:
     async def run_task(self, task_id: int):
         task = self.session.get(WarmupTask, task_id)
         if not task:
-            logger.error(f"WarmupTask {task_id} not found")
-            return
+            raise ValueError(f"WarmupTask {task_id} not found")
             
         task.status = "running"
         self.session.add(task)
@@ -71,7 +70,10 @@ class WarmupService:
         success_count = 0
         fail_count = 0
         for r in results:
-            if r == "Warmup done":
+            if isinstance(r, Exception):
+                fail_count += 1
+                logger.error(f"Warmup account exception: {r}")
+            elif r is True:
                 success_count += 1
             else:
                 fail_count += 1
@@ -83,23 +85,27 @@ class WarmupService:
         self.session.commit()
         logger.info(f"Warmup task {task_id} completed. Success: {success_count}, Fail: {fail_count}")
 
-    async def _warmup_account(self, account_id: int, task: WarmupTask, channels: List[str]):
+    async def _warmup_account(self, account_id: int, task: WarmupTask, channels: List[str]) -> bool:
+        """返回 True 表示成功，False 表示失败"""
         account = self.session.get(Account, account_id)
         if not account:
-            return
-            
+            logger.warning(f"Account {account_id} not found, skipping")
+            return False
+
         # Check if account is usable
         if account.status in ["banned"]:
-            return
+            logger.warning(f"Account {account.phone_number} is banned, skipping")
+            return False
         if account.cooldown_until and account.cooldown_until > datetime.utcnow():
-            return
+            logger.warning(f"Account {account.phone_number} in cooldown, skipping")
+            return False
 
         end_time = datetime.utcnow() + timedelta(minutes=task.duration_minutes)
-        
+
         try:
             async def operation(client: Client):
                 logger.info(f"Account {account.phone_number} started warmup")
-                
+
                 # 检测 Search Ban：尝试解析官方账号 @Telegram
                 is_search_banned = False
                 try:
@@ -112,7 +118,7 @@ class WarmupService:
                         account.status = "spam_block"
                         self.session.add(account)
                         self.session.commit()
-                
+
                 # 获取账号已加入的对话列表
                 existing_dialogs = []
                 try:
@@ -122,33 +128,23 @@ class WarmupService:
                     logger.info(f"Account {account.phone_number} has {len(existing_dialogs)} group/channel dialogs")
                 except Exception as e:
                     logger.warning(f"Error getting dialogs: {e}")
-                
+
                 warmup_targets = existing_dialogs.copy()
-                
+
                 # 尝试加入目标频道
                 logger.info(f"Account {account.phone_number} trying to join channels: {channels}")
                 for ch in channels:
                     try:
-                        # Pyrogram join_chat accepts:
-                        # - username directly (e.g. "kltgsc" or "@kltgsc") for public channels
-                        # - invite link (e.g. "https://t.me/+xxxxx") for private channels
-                        # Do NOT add https://t.me/ prefix for public usernames!
                         chat_identifier = ch
-                        
-                        # If it's already a full URL, use as-is (for invite links)
-                        # Otherwise, it's a username - use directly
+
                         if ch.startswith("https://t.me/") or ch.startswith("http://t.me/"):
-                            # Extract username or keep invite link
                             if "/+" in ch or "/joinchat/" in ch:
-                                # Private invite link - use as-is
                                 chat_identifier = ch
                             else:
-                                # Public channel URL like https://t.me/kltgsc - extract username
                                 chat_identifier = ch.split("/")[-1]
                         elif ch.startswith("t.me/"):
                             chat_identifier = ch.replace("t.me/", "")
-                        # For plain usernames, use as-is (kltgsc or @kltgsc)
-                        
+
                         logger.info(f"Account {account.phone_number} joining with identifier: {chat_identifier}")
                         joined_chat = await client.join_chat(chat_identifier)
                         if joined_chat.id not in warmup_targets:
@@ -165,27 +161,27 @@ class WarmupService:
                                     logger.info(f"Account {account.phone_number} already in {ch}")
                             except Exception as get_err:
                                 logger.warning(f"Account {account.phone_number} failed to get chat {ch}: {get_err}")
-                
+
                 if not warmup_targets:
                     if is_search_banned:
                         logger.warning(f"Account {account.phone_number} is Search Banned and has no existing dialogs")
-                        return "Search Banned - no dialogs"
-                    logger.warning(f"Account {account.phone_number} has no dialogs for warmup")
-                    return "No dialogs"
-                
+                    else:
+                        logger.warning(f"Account {account.phone_number} has no dialogs for warmup")
+                    return "no_targets"
+
                 logger.info(f"Account {account.phone_number} warmup targets: {len(warmup_targets)} chats")
-                
+
                 while datetime.utcnow() < end_time:
                     delay = random.randint(task.min_delay, task.max_delay)
                     await asyncio.sleep(delay)
-                    
+
                     action = task.action_type
                     if action == "mixed":
                         action = random.choice(["view_channel", "view_channel", "reaction"])
-                    
+
                     try:
                         target_chat_id = random.choice(warmup_targets)
-                        
+
                         if action == "view_channel":
                             try:
                                 msg_count = 0
@@ -200,13 +196,13 @@ class WarmupService:
                                     logger.info(f"Account {account.phone_number} read {msg_count} messages")
                             except Exception as e:
                                 logger.warning(f"Error reading history: {e}")
-                                
+
                         elif action == "reaction":
                             try:
                                 history = []
                                 async for msg in client.get_chat_history(target_chat_id, limit=10):
                                     history.append(msg)
-                                
+
                                 if history:
                                     msg = random.choice(history)
                                     try:
@@ -216,20 +212,27 @@ class WarmupService:
                                         pass
                             except Exception:
                                 pass
-                                
+
                     except Exception as e:
                         logger.warning(f"Warmup step error for {account.phone_number}: {e}")
-                        
-                logger.info(f"Account {account.phone_number} finished warmup")
-                return "Warmup done"
 
-            result = await _create_client_and_run(account, operation, db_session=self.session)
-            
-            account.last_active = datetime.utcnow()
-            self.session.add(account)
-            self.session.commit()
-            
+                logger.info(f"Account {account.phone_number} finished warmup")
+                return "done"
+
+            success, result = await _create_client_and_run(account, operation, db_session=self.session)
+
+            if success:
+                account.last_active = datetime.utcnow()
+                self.session.add(account)
+                self.session.commit()
+                return result != "no_targets"
+            else:
+                logger.warning(f"Account {account.phone_number} warmup failed: {result}")
+                return False
+
         except AccountException as e:
             logger.warning(f"Account {account.phone_number} exception during warmup: {e}")
+            return False
         except Exception as e:
             logger.error(f"Unexpected error for {account.phone_number}: {e}")
+            return False

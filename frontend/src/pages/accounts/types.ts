@@ -1,11 +1,13 @@
 export interface ImportTask {
   taskId: string;
   url: string;
+  filename?: string;
   status: string; // PENDING, STARTED, SUCCESS, FAILURE, PROGRESS
   progress?: {
     status: string;
     message: string;
-    url: string;
+    url?: string;
+    source_label?: string;
   };
   result?: any;
   error?: string;

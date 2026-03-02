@@ -15,6 +15,7 @@ from sqlmodel import Session, select
 
 from app.services.llm import LLMService
 from app.models.ai_persona import AIPersona
+from app.models.knowledge_base import KnowledgeBase, CampaignKnowledgeLink
 
 logger = logging.getLogger(__name__)
 
@@ -145,6 +146,50 @@ class AIEngine:
 ["变体1", "变体2", ...]
 
 只输出JSON，不要任何其他内容。""",
+
+        "knowledge_generation": """你是一个专业的知识库内容编辑。请根据以下信息生成结构化的 Markdown 知识库内容。
+
+知识库名称：{name}
+知识库描述：{description}
+{reference_section}
+
+要求：
+1. 使用清晰的 Markdown 格式，包含标题、小节、要点列表
+2. 内容结构化，便于 AI 检索和引用
+3. 如果有参考资料，基于参考资料整理和结构化内容
+4. 如果没有参考资料，根据描述创造合理的知识库内容
+5. 包含以下部分（根据内容适当调整）：
+   - 概述/简介
+   - 核心要点/功能介绍
+   - 常见问题 FAQ
+   - 关键术语/概念解释
+6. 内容要专业、准确、简洁
+7. 使用中文撰写
+
+只输出 Markdown 内容，不要任何额外解释。""",
+
+        "group_smart_reply": """你正在一个 Telegram 群聊中参与对话。
+
+你的人设：
+{persona_prompt}
+
+专业知识背景（回答问题时优先参考）：
+{knowledge}
+
+群聊上下文（最近几条消息）：
+{context}
+
+最新消息（需要回复）：{message}
+
+请生成一条自然的群聊回复，要求：
+1. 保持人设一致，语气自然
+2. 如果问题涉及专业知识背景中的内容，用自己的话融入回答（不要照搬原文）
+3. 简短，不超过2-3句话
+4. 口语化，像真人聊天，可以适当有emoji
+5. 不要带链接或明显广告词
+6. 如果专业知识背景为空或不相关，就正常聊天
+
+只输出回复内容，不要任何解释。""",
 
         "group_analysis": """分析以下 Telegram 群组的最近消息，评估其作为营销目标的价值。
 
@@ -423,6 +468,62 @@ class AIEngine:
             logger.error(f"Content rewrite failed: {e}")
             return [content]
     
+    async def generate_knowledge_content(
+        self,
+        name: str,
+        description: str,
+        reference_material: Optional[str] = None,
+    ) -> str:
+        """
+        AI 生成知识库内容
+
+        Args:
+            name: 知识库名称
+            description: 知识库描述
+            reference_material: 可选的参考资料
+
+        Returns:
+            生成的 Markdown 内容
+        """
+        if reference_material and reference_material.strip():
+            reference_section = f"参考资料：\n{reference_material}"
+        else:
+            reference_section = "参考资料：无（请根据描述创造内容）"
+
+        prompt = self.PROMPTS["knowledge_generation"].format(
+            name=name,
+            description=description,
+            reference_section=reference_section
+        )
+
+        try:
+            response = await self.llm.generate(prompt)
+            if response:
+                return response.strip()
+            raise ValueError("LLM returned empty response")
+        except Exception as e:
+            logger.error(f"Knowledge content generation failed: {e}")
+            # 降级：返回基于描述的简单模板
+            return f"""# {name}
+
+## 概述
+{description}
+
+## 核心要点
+- 待补充
+
+## 常见问题 FAQ
+
+### Q: {name}是什么？
+A: {description}
+
+### Q: 如何使用？
+A: 待补充
+
+## 关键术语
+- 待补充
+"""
+
     async def batch_score_users(
         self,
         users: List[Dict[str, Any]]
@@ -541,6 +642,65 @@ class AIEngine:
                     "recommendations": ["持续监控"],
                     "suggested_actions": {}
                 }
+
+
+    @staticmethod
+    def get_campaign_knowledge(session: Session, campaign_id: int) -> str:
+        """
+        获取战役关联的所有知识库内容
+
+        Args:
+            session: 数据库会话
+            campaign_id: 战役ID
+
+        Returns:
+            拼接的知识文本，无知识库则返回空字符串
+        """
+        links = session.exec(
+            select(CampaignKnowledgeLink).where(
+                CampaignKnowledgeLink.campaign_id == campaign_id
+            )
+        ).all()
+
+        if not links:
+            return ""
+
+        kb_ids = [link.knowledge_base_id for link in links]
+        knowledge_bases = session.exec(
+            select(KnowledgeBase).where(KnowledgeBase.id.in_(kb_ids))
+        ).all()
+
+        if not knowledge_bases:
+            return ""
+
+        parts = []
+        for kb in knowledge_bases:
+            if kb.content and kb.content.strip():
+                parts.append(f"【{kb.name}】\n{kb.content.strip()}")
+
+        combined = "\n\n".join(parts)
+        # 截断到合理长度
+        if len(combined) > 4000:
+            combined = combined[:4000] + "\n...(内容已截断)"
+
+        return combined
+
+    @staticmethod
+    def get_persona_prompt(session: Session, persona_id: int) -> Optional[str]:
+        """
+        获取 AI 人设的 system_prompt
+
+        Args:
+            session: 数据库会话
+            persona_id: 人设ID
+
+        Returns:
+            system_prompt 字符串，不存在则返回 None
+        """
+        persona = session.get(AIPersona, persona_id)
+        if persona:
+            return persona.system_prompt
+        return None
 
 
 # 工厂函数 - 用于创建带session的实例

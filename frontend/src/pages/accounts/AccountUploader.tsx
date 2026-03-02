@@ -16,6 +16,7 @@ import {
 } from 'antd';
 import {
   UploadOutlined,
+  InboxOutlined,
   CloudDownloadOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
@@ -26,6 +27,7 @@ import {
   createAccount,
   uploadAccountSession,
   importMegaAccounts,
+  uploadTdataBatch,
   startAutoRegistration,
   refreshProxiesFromIP2World,
   getTasksBatch,
@@ -59,12 +61,14 @@ const AccountUploader: React.FC<AccountUploaderProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState('manual');
   const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const [tdataFileList, setTdataFileList] = useState<UploadFile[]>([]);
   const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set(['manual']));
   const [autoRegLoading, setAutoRegLoading] = useState(false);
 
   const [form] = Form.useForm();
   const [uploadForm] = Form.useForm();
   const [megaForm] = Form.useForm();
+  const [tdataForm] = Form.useForm();
   const [autoRegForm] = Form.useForm();
 
   const pollingInterval = useRef<NodeJS.Timeout | null>(null);
@@ -150,6 +154,7 @@ const AccountUploader: React.FC<AccountUploaderProps> = ({
     if (visitedTabs.has('manual')) form.resetFields();
     if (visitedTabs.has('upload')) uploadForm.resetFields();
     if (visitedTabs.has('mega')) megaForm.resetFields();
+    if (visitedTabs.has('tdata')) { tdataForm.resetFields(); setTdataFileList([]); }
     if (visitedTabs.has('auto_reg')) autoRegForm.resetFields();
   };
 
@@ -181,6 +186,33 @@ const AccountUploader: React.FC<AccountUploaderProps> = ({
         const newTasks: ImportTask[] = res.task_ids.map((tid: string, index: number) => ({
           taskId: tid,
           url: res.urls[index],
+          status: 'PENDING',
+        }));
+
+        setImportTasks(prev => [...newTasks, ...prev]);
+        setIsImportProgressVisible(true);
+      } else if (activeTab === 'tdata') {
+        if (tdataFileList.length === 0) {
+          message.error('请选择 TData 压缩包');
+          return;
+        }
+        const files = tdataFileList
+          .map(f => f.originFileObj)
+          .filter((f): f is File => f instanceof File);
+        if (files.length === 0) {
+          message.error('无法读取所选文件，请重新选择');
+          return;
+        }
+        const res = await uploadTdataBatch(files);
+        message.success(`已提交 ${res.task_ids.length} 个 TData 导入任务`);
+        if (res.errors?.length > 0) {
+          res.errors.forEach(e => message.warning(e));
+        }
+
+        const newTasks: ImportTask[] = res.task_ids.map((tid: string, index: number) => ({
+          taskId: tid,
+          url: res.filenames[index],
+          filename: res.filenames[index],
           status: 'PENDING',
         }));
 
@@ -218,6 +250,7 @@ const AccountUploader: React.FC<AccountUploaderProps> = ({
     onClose();
     resetForms();
     setFileList([]);
+    setTdataFileList([]);
   };
 
   const renderImportTaskItem = (task: ImportTask) => {
@@ -269,7 +302,7 @@ const AccountUploader: React.FC<AccountUploaderProps> = ({
       <List.Item>
         <div style={{ width: '100%' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-            <Text ellipsis style={{ maxWidth: '60%' }}>{task.url}</Text>
+            <Text ellipsis style={{ maxWidth: '60%' }}>{task.filename || task.url}</Text>
             <Tag icon={statusIcon} color={statusColor}>{statusText}</Tag>
           </div>
           {['STARTED', 'PROGRESS', 'SUCCESS', 'FAILURE'].includes(task.status) && (
@@ -434,13 +467,52 @@ const AccountUploader: React.FC<AccountUploaderProps> = ({
                 </Form>
               ),
             },
+            {
+              key: 'tdata',
+              label: '批量上传 TData',
+              children: (
+                <Form form={tdataForm} onFinish={handleCreate} layout="vertical">
+                  <Form.Item label="TData 压缩包">
+                    <Upload.Dragger
+                      beforeUpload={() => false}
+                      fileList={tdataFileList}
+                      onChange={({ fileList }) => setTdataFileList(fileList)}
+                      multiple
+                      accept=".zip,.rar"
+                    >
+                      <p className="ant-upload-drag-icon">
+                        <InboxOutlined />
+                      </p>
+                      <p className="ant-upload-text">点击或拖拽文件到此区域上传</p>
+                      <p className="ant-upload-hint">
+                        支持 .zip/.rar 格式，压缩包内应包含 tdata 目录（如 +1234567890/tdata/）。
+                        支持多文件同时上传，单个文件不超过 500MB。
+                      </p>
+                    </Upload.Dragger>
+                  </Form.Item>
+                  <Form.Item>
+                    <Button
+                      type="primary"
+                      htmlType="submit"
+                      block
+                      icon={<UploadOutlined />}
+                      disabled={tdataFileList.length === 0}
+                    >
+                      {tdataFileList.length > 0
+                        ? `上传并导入 (${tdataFileList.length} 个文件)`
+                        : '上传并导入'}
+                    </Button>
+                  </Form.Item>
+                </Form>
+              ),
+            },
           ]}
         />
       </Modal>
 
       {/* Import Progress Modal */}
       <Modal
-        title="MEGA 导入进度"
+        title="导入进度"
         open={isImportProgressVisible}
         onCancel={() => setIsImportProgressVisible(false)}
         footer={null}

@@ -4,6 +4,7 @@ AI 知识库管理 API
 """
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlmodel import Session, select
 from datetime import datetime
 
@@ -12,8 +13,30 @@ from app.models.knowledge_base import (
     KnowledgeBase, KnowledgeBaseCreate, KnowledgeBaseUpdate, KnowledgeBaseRead,
     CampaignKnowledgeLink
 )
+from app.services.ai_engine import AIEngine
 
 router = APIRouter()
+
+
+class GenerateContentRequest(BaseModel):
+    name: str
+    description: str
+    reference_material: Optional[str] = None
+
+
+@router.post("/generate-content")
+async def generate_knowledge_content(
+    request: GenerateContentRequest,
+    session: Session = Depends(get_session)
+):
+    """AI 自动生成知识库内容"""
+    engine = AIEngine(session)
+    content = await engine.generate_knowledge_content(
+        name=request.name,
+        description=request.description,
+        reference_material=request.reference_material,
+    )
+    return {"content": content}
 
 
 @router.get("/", response_model=List[KnowledgeBaseRead])

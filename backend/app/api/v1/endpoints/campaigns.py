@@ -8,6 +8,7 @@ from datetime import datetime
 
 from app.core.db import get_session
 from app.models.campaign import Campaign, CampaignCreate, CampaignUpdate, CampaignRead
+from app.models.knowledge_base import CampaignKnowledgeLink, KnowledgeBase
 from app.models.send_task import SendTask
 from app.models.funnel_group import FunnelGroup
 
@@ -89,6 +90,31 @@ def delete_campaign(
     session.delete(campaign)
     session.commit()
     return {"success": True, "message": "Campaign deleted"}
+
+
+@router.get("/{campaign_id}/knowledge-links")
+def get_campaign_knowledge_links(
+    campaign_id: int,
+    session: Session = Depends(get_session)
+):
+    """获取战役关联的知识库列表"""
+    campaign = session.get(Campaign, campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    links = session.exec(
+        select(CampaignKnowledgeLink).where(
+            CampaignKnowledgeLink.campaign_id == campaign_id
+        )
+    ).all()
+
+    result = []
+    for link in links:
+        kb = session.get(KnowledgeBase, link.knowledge_base_id)
+        if kb:
+            result.append({"id": kb.id, "name": kb.name, "description": kb.description})
+
+    return result
 
 
 @router.get("/{campaign_id}/dashboard")

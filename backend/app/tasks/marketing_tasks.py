@@ -246,42 +246,77 @@ def continue_send_task(self, task_id: int, account_ids: List[int]):
 def execute_warmup_task(self, warmup_task_id: int):
     """执行养号任务"""
     from app.services.warmup_service import WarmupService
-    
+    from app.models.warmup_task import WarmupTask
+
     logger.info(f"Starting warmup task {warmup_task_id}")
-    
-    with Session(engine) as session:
-        service = WarmupService(session)
-        
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-            
-        try:
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    try:
+        with Session(engine) as session:
+            service = WarmupService(session)
             loop.run_until_complete(service.run_task(warmup_task_id))
-            return {"success": True, "task_id": warmup_task_id}
-        except SoftTimeLimitExceeded:
-            logger.error(f"Warmup task {warmup_task_id} timed out")
-            return {"success": False, "error": "Task timed out", "task_id": warmup_task_id}
-        except Exception as e:
-            logger.error(f"Warmup task {warmup_task_id} failed: {e}")
-            return {"success": False, "error": str(e)}
-        finally:
-            loop.close()
+
+        # 用新 session 读取最终状态
+        with Session(engine) as session:
+            task = session.get(WarmupTask, warmup_task_id)
+            final_status = task.status if task else "unknown"
+
+        return {"success": final_status == "completed", "task_id": warmup_task_id, "status": final_status}
+
+    except SoftTimeLimitExceeded:
+        logger.error(f"Warmup task {warmup_task_id} timed out")
+        # 超时时主动把任务标记为 failed，避免永远卡在 running
+        with Session(engine) as session:
+            task = session.get(WarmupTask, warmup_task_id)
+            if task and task.status == "running":
+                task.status = "failed"
+                task.error_message = "Task timed out (SoftTimeLimitExceeded)"
+                session.add(task)
+                session.commit()
+        return {"success": False, "error": "Task timed out", "task_id": warmup_task_id}
+
+    except Exception as e:
+        logger.error(f"Warmup task {warmup_task_id} failed: {e}")
+        # 异常时也标记任务失败
+        try:
+            with Session(engine) as session:
+                task = session.get(WarmupTask, warmup_task_id)
+                if task and task.status == "running":
+                    task.status = "failed"
+                    task.error_message = str(e)[:500]
+                    session.add(task)
+                    session.commit()
+        except Exception:
+            logger.error(f"Failed to update task {warmup_task_id} status after error")
+        return {"success": False, "error": str(e)}
+
+    finally:
+        loop.close()
 
 
 @celery_app.task(bind=True, soft_time_limit=300, time_limit=600)
 def check_auto_reply_task(self, account_id: int):
     """检查并处理自动回复"""
+    from app.services.ai_reply_service import AIReplyService
+
     logger.info(f"Checking auto-replies for account {account_id}")
-    
+
     with Session(engine) as session:
         account = session.get(Account, account_id)
         if not account:
             return {"success": False, "error": "Account not found"}
-        
+
         if not account.auto_reply:
             return {"success": False, "error": "Auto-reply not enabled"}
-        
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
         try:
+            service = AIReplyService(session)
+            loop.run_until_complete(service.process_account_messages(account_id))
             logger.info(f"Auto-reply check completed for account {account_id}")
             return {
                 "success": True,
@@ -291,49 +326,48 @@ def check_auto_reply_task(self, account_id: int):
         except Exception as e:
             logger.error(f"Auto-reply error for account {account_id}: {e}")
             return {"success": False, "error": str(e)}
+        finally:
+            loop.close()
 
 
 @celery_app.task(bind=True, soft_time_limit=7200, time_limit=10800)
 def execute_script_task(self, script_task_id: int):
     """执行炒群脚本任务"""
-    from app.models.script import Script, ScriptTask
-    
+    from app.models.script import ScriptTask
+    from app.services.script_executor import ScriptExecutorService
+
     logger.info(f"Starting script task {script_task_id}")
-    
+
     with Session(engine) as session:
         task = session.get(ScriptTask, script_task_id)
         if not task:
             return {"success": False, "error": "Task not found"}
-        
-        task.status = "running"
-        session.add(task)
-        session.commit()
-        
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
         try:
-            script = session.get(Script, task.script_id)
-            if not script:
-                task.status = "failed"
-                session.add(task)
-                session.commit()
-                return {"success": False, "error": "Script not found"}
+            service = ScriptExecutorService(session)
+            loop.run_until_complete(service.execute_task(script_task_id))
 
-            logger.info(f"Executing script {script.id} for task {script_task_id}")
-
-            task.status = "completed"
-            session.add(task)
-            session.commit()
-
-            return {"success": True, "task_id": script_task_id}
+            # Refresh task to get final status set by executor
+            session.refresh(task)
+            logger.info(f"Script task {script_task_id} finished with status: {task.status}")
+            return {"success": task.status == "completed", "task_id": script_task_id}
 
         except SoftTimeLimitExceeded:
             logger.error(f"Script task {script_task_id} timed out")
+            session.refresh(task)
             task.status = "failed"
             session.add(task)
             session.commit()
             return {"success": False, "error": "Task timed out", "task_id": script_task_id}
         except Exception as e:
             logger.error(f"Script task {script_task_id} failed: {e}")
+            session.refresh(task)
             task.status = "failed"
             session.add(task)
             session.commit()
             return {"success": False, "error": str(e)}
+        finally:
+            loop.close()

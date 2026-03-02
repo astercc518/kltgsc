@@ -17,6 +17,7 @@ import {
   Row,
   Col,
   Radio,
+  DatePicker,
 } from 'antd';
 import {
   PlusOutlined,
@@ -27,7 +28,10 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   CloudSyncOutlined,
+  ClockCircleOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
+import dayjs from 'dayjs';
 import {
   getProxies,
   getProxyCount,
@@ -37,7 +41,11 @@ import {
   checkProxy,
   checkProxiesBatch,
   deleteProxiesBatch,
+  deleteAbnormalProxies,
   syncIP2World,
+  setProxiesExpireBatch,
+  cleanupExpiredProxies,
+  getExpiredProxyCount,
   Proxy,
   ProxyCreate,
 } from '../services/api';
@@ -58,6 +66,12 @@ const ProxyList: React.FC = () => {
   const [stats, setStats] = useState({ total: 0, active: 0, dead: 0 });
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   
+  // Expire stats & modals
+  const [expireStats, setExpireStats] = useState({ expired_count: 0, expiring_soon_count: 0 });
+  const [isExpireModalVisible, setIsExpireModalVisible] = useState(false);
+  const [expireForm] = Form.useForm();
+  const [uploadExpireTime, setUploadExpireTime] = useState<dayjs.Dayjs | null>(null);
+
   // Upload Category
   const [uploadCategory, setUploadCategory] = useState<string>('static');
   const [uploadProviderType, setUploadProviderType] = useState<string>('datacenter');
@@ -112,17 +126,18 @@ const ProxyList: React.FC = () => {
 
   const fetchStats = async () => {
     try {
-      // 基础统计暂不带 filter，或者根据需求带上
-      const [totalRes, activeRes, deadRes] = await Promise.all([
+      const [totalRes, activeRes, deadRes, expireRes] = await Promise.all([
         getProxyCount(undefined, categoryFilter),
         getProxyCount('active', categoryFilter),
         getProxyCount('dead', categoryFilter),
+        getExpiredProxyCount(),
       ]);
       setStats({
         total: totalRes.total,
         active: activeRes.total,
         dead: deadRes.total,
       });
+      setExpireStats(expireRes);
     } catch (error) {
       console.error('获取统计信息失败', error);
     }
@@ -165,13 +180,15 @@ const ProxyList: React.FC = () => {
 
     try {
       const file = fileList[0].originFileObj;
-      const result = await uploadProxies(file, uploadCategory, uploadProviderType);
+      const expireTimeStr = uploadExpireTime ? uploadExpireTime.toISOString() : undefined;
+      const result = await uploadProxies(file, uploadCategory, uploadProviderType, expireTimeStr);
       message.success(`导入成功：${result.created} 个，跳过：${result.skipped} 个`);
       if (result.errors.length > 0) {
         message.warning(`有 ${result.errors.length} 个错误，请查看控制台`);
         console.error('导入错误:', result.errors);
       }
       setFileList([]);
+      setUploadExpireTime(null);
       uploadForm.resetFields();
       fetchProxies(pagination.current, pagination.pageSize);
       fetchStats();
@@ -233,6 +250,52 @@ const ProxyList: React.FC = () => {
       setSelectedRowKeys([]);
     } catch (error) {
       message.error('批量删除失败');
+    }
+  };
+
+  const handleBatchSetExpire = async (values: any) => {
+    const expireTime = values.expire_time ? values.expire_time.toISOString() : undefined;
+    try {
+      const result = await setProxiesExpireBatch(selectedRowKeys as number[], expireTime);
+      message.success(`成功更新 ${result.updated} 个代理的过期时间`);
+      setIsExpireModalVisible(false);
+      expireForm.resetFields();
+      setSelectedRowKeys([]);
+      fetchProxies(pagination.current, pagination.pageSize);
+      fetchStats();
+    } catch (error) {
+      message.error('设置过期时间失败');
+    }
+  };
+
+  const handleCleanupExpired = async () => {
+    try {
+      const result = await cleanupExpiredProxies();
+      message.success(
+        `清理完成：${result.expired_count} 个过期代理已标记失效，` +
+        `${result.migrated_count} 个账号已迁移，${result.unbound_count} 个账号已解绑`
+      );
+      fetchProxies(pagination.current, pagination.pageSize);
+      fetchStats();
+    } catch (error) {
+      message.error('清理过期代理失败');
+    }
+  };
+
+  const renderExpireTime = (text: string) => {
+    if (!text) return '-';
+    const now = dayjs();
+    const expire = dayjs(text);
+    const diffDays = expire.diff(now, 'day', true);
+
+    if (diffDays < 0) {
+      return <Tag color="red">已过期 {expire.format('YYYY-MM-DD')}</Tag>;
+    } else if (diffDays <= 3) {
+      const hours = Math.max(0, Math.floor(expire.diff(now, 'hour', true)));
+      const label = hours < 24 ? `${hours}小时` : `${Math.floor(diffDays)}天`;
+      return <Tag color="orange">即将过期({label}) {expire.format('YYYY-MM-DD')}</Tag>;
+    } else {
+      return <Tag color="blue">{Math.floor(diffDays)}天后过期 {expire.format('YYYY-MM-DD')}</Tag>;
     }
   };
 
@@ -342,7 +405,8 @@ const ProxyList: React.FC = () => {
       title: '过期时间',
       dataIndex: 'expire_time',
       key: 'expire_time',
-      render: (text: string) => text ? new Date(text).toLocaleString() : '-',
+      width: 200,
+      render: (text: string) => renderExpireTime(text),
     },
     {
       title: '最后检查',
@@ -383,16 +447,24 @@ const ProxyList: React.FC = () => {
     <div>
       <Card style={{ marginBottom: 16 }}>
         <Row gutter={16}>
-          <Col span={6}>
+          <Col span={5}>
             <Statistic title="总代理数" value={stats.total} />
           </Col>
-          <Col span={6}>
+          <Col span={5}>
             <Statistic title="活跃代理" value={stats.active} styles={{ content: { color: '#3f8600' } }} />
           </Col>
-          <Col span={6}>
+          <Col span={5}>
             <Statistic title="失效代理" value={stats.dead} styles={{ content: { color: '#cf1322' } }} />
           </Col>
-          <Col span={6}>
+          <Col span={5}>
+            <Statistic
+              title="过期/即将过期"
+              value={expireStats.expired_count}
+              suffix={`/ ${expireStats.expiring_soon_count}`}
+              styles={{ content: { color: expireStats.expired_count > 0 ? '#cf1322' : '#faad14' } }}
+            />
+          </Col>
+          <Col span={4}>
             <Statistic title="可用率" value={stats.total > 0 ? ((stats.active / stats.total) * 100).toFixed(1) : 0} suffix="%" />
           </Col>
         </Row>
@@ -441,9 +513,19 @@ const ProxyList: React.FC = () => {
             </div>
             
             {fileList.length > 0 && (
-              <Button type="primary" onClick={handleUpload}>
-                导入 {fileList.length} 个文件 ({uploadCategory === 'static' ? '长期' : '短期'})
-              </Button>
+              <>
+                <DatePicker
+                  showTime
+                  format="YYYY-MM-DD HH:mm"
+                  placeholder="过期时间（可选）"
+                  value={uploadExpireTime}
+                  onChange={(val) => setUploadExpireTime(val)}
+                  size="small"
+                />
+                <Button type="primary" onClick={handleUpload}>
+                  导入 {fileList.length} 个文件 ({uploadCategory === 'static' ? '长期' : '短期'})
+                </Button>
+              </>
             )}
             
             <Button
@@ -460,17 +542,60 @@ const ProxyList: React.FC = () => {
               {selectedRowKeys.length > 0 ? `检测选中 (${selectedRowKeys.length})` : '批量检测'}
             </Button>
             {selectedRowKeys.length > 0 && (
+              <>
+                <Popconfirm
+                  title={`确定要删除选中的 ${selectedRowKeys.length} 个代理吗？`}
+                  onConfirm={handleBatchDelete}
+                  okText="确定"
+                  cancelText="取消"
+                >
+                  <Button danger icon={<DeleteOutlined />}>
+                    批量删除 ({selectedRowKeys.length})
+                  </Button>
+                </Popconfirm>
+                <Button
+                  icon={<ClockCircleOutlined />}
+                  onClick={() => setIsExpireModalVisible(true)}
+                >
+                  设置过期时间 ({selectedRowKeys.length})
+                </Button>
+              </>
+            )}
+            {(expireStats.expired_count > 0) && (
               <Popconfirm
-                title={`确定要删除选中的 ${selectedRowKeys.length} 个代理吗？`}
-                onConfirm={handleBatchDelete}
-                okText="确定"
+                title="清理过期代理"
+                description={`将标记 ${expireStats.expired_count} 个过期代理为失效，并尝试迁移绑定的账号。`}
+                onConfirm={handleCleanupExpired}
+                okText="确认清理"
                 cancelText="取消"
+                okButtonProps={{ danger: true }}
               >
-                <Button danger icon={<DeleteOutlined />}>
-                  批量删除 ({selectedRowKeys.length})
+                <Button danger icon={<WarningOutlined />}>
+                  清理过期代理 ({expireStats.expired_count})
                 </Button>
               </Popconfirm>
             )}
+            <Popconfirm
+              title="一键删除异常代理"
+              description="确定要删除所有失效代理吗？此操作不可恢复。"
+              onConfirm={async () => {
+                try {
+                  const result = await deleteAbnormalProxies();
+                  message.success(result.message);
+                  fetchProxies(pagination.current, pagination.pageSize);
+                  fetchStats();
+                } catch (error) {
+                  message.error('删除异常代理失败');
+                }
+              }}
+              okText="确认删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+            >
+              <Button danger icon={<DeleteOutlined />}>
+                一键删除异常
+              </Button>
+            </Popconfirm>
             <Button icon={<ReloadOutlined />} onClick={() => fetchProxies(pagination.current, pagination.pageSize)}>
               刷新
             </Button>
@@ -603,6 +728,20 @@ const ProxyList: React.FC = () => {
               <Radio value="isp">家庭 (ISP)</Radio>
             </Radio.Group>
           </Form.Item>
+          <Form.Item
+            name="expire_time"
+            label="过期时间（可选）"
+            help="留空表示永不过期"
+            getValueProps={(value) => ({ value: value ? dayjs(value) : null })}
+            normalize={(value) => value ? value.toISOString() : null}
+          >
+            <DatePicker
+              showTime
+              format="YYYY-MM-DD HH:mm"
+              placeholder="选择过期时间"
+              style={{ width: '100%' }}
+            />
+          </Form.Item>
         </Form>
       </Modal>
       <Modal
@@ -640,6 +779,38 @@ const ProxyList: React.FC = () => {
           <br />
           如果留空，将使用后端配置文件中设置的默认 URL。
         </div>
+      </Modal>
+
+      <Modal
+        title="批量设置过期时间"
+        open={isExpireModalVisible}
+        onCancel={() => {
+          setIsExpireModalVisible(false);
+          expireForm.resetFields();
+        }}
+        onOk={() => expireForm.submit()}
+        okText="确定"
+        cancelText="取消"
+      >
+        <Form
+          form={expireForm}
+          layout="vertical"
+          onFinish={handleBatchSetExpire}
+        >
+          <p>已选择 {selectedRowKeys.length} 个代理</p>
+          <Form.Item
+            name="expire_time"
+            label="过期时间"
+            help="留空表示清除过期时间（永不过期）"
+          >
+            <DatePicker
+              showTime
+              format="YYYY-MM-DD HH:mm"
+              placeholder="选择过期时间（留空=永不过期）"
+              style={{ width: '100%' }}
+            />
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   );

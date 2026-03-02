@@ -2,17 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { Card, Form, Input, Button, Table, Space, message, Modal, List, Tag, Select, Steps, Divider } from 'antd';
 import { PlayCircleOutlined, PlusOutlined, RobotOutlined, UserOutlined, MinusOutlined } from '@ant-design/icons';
 import { AISelector } from '../components';
-import { 
-    createScript, 
-    getScripts, 
-    generateScriptLines, 
-    createScriptTask, 
-    getScriptTasks, 
+import {
+    createScript,
+    getScripts,
+    generateScriptLines,
+    createScriptTask,
+    getScriptTasks,
     getAccounts,
-    Script, 
-    ScriptTask, 
+    getCampaigns,
+    Script,
+    ScriptTask,
     Account,
-    Line
+    Line,
+    CampaignData,
 } from '../services/api';
 
 const { TextArea } = Input;
@@ -22,6 +24,7 @@ const ScriptPage: React.FC = () => {
     const [scripts, setScripts] = useState<Script[]>([]);
     const [tasks, setTasks] = useState<ScriptTask[]>([]);
     const [accounts, setAccounts] = useState<Account[]>([]);
+    const [campaigns, setCampaigns] = useState<CampaignData[]>([]);
     const [loading, setLoading] = useState(false);
     
     // Create Script Modal
@@ -33,6 +36,9 @@ const ScriptPage: React.FC = () => {
     const [generatingScriptId, setGeneratingScriptId] = useState<number | null>(null);
     const [generatedLines, setGeneratedLines] = useState<Line[]>([]);
     const [isGenerateModalVisible, setIsGenerateModalVisible] = useState(false);
+    const [generateCampaignId, setGenerateCampaignId] = useState<number | undefined>(undefined);
+    const [isGenerateConfigVisible, setIsGenerateConfigVisible] = useState(false);
+    const [pendingGenerateScript, setPendingGenerateScript] = useState<Script | null>(null);
 
     // Create Task Modal
     const [isTaskModalVisible, setIsTaskModalVisible] = useState(false);
@@ -43,6 +49,7 @@ const ScriptPage: React.FC = () => {
         fetchScripts();
         fetchTasks();
         fetchAccounts();
+        fetchCampaigns();
     }, []);
 
     const fetchScripts = async () => {
@@ -72,6 +79,15 @@ const ScriptPage: React.FC = () => {
         }
     };
 
+    const fetchCampaigns = async () => {
+        try {
+            const data = await getCampaigns('active');
+            setCampaigns(data);
+        } catch (e) {
+            // ignore
+        }
+    };
+
     const handleCreateScript = async (values: any) => {
         setLoading(true);
         try {
@@ -93,20 +109,29 @@ const ScriptPage: React.FC = () => {
         }
     };
 
-    const handleGenerate = async (script: Script) => {
-        setGeneratingScriptId(script.id);
+    const handleGenerate = (script: Script) => {
+        setPendingGenerateScript(script);
+        setGenerateCampaignId(undefined);
+        setIsGenerateConfigVisible(true);
+    };
+
+    const handleConfirmGenerate = async () => {
+        if (!pendingGenerateScript) return;
+        setIsGenerateConfigVisible(false);
+        setGeneratingScriptId(pendingGenerateScript.id);
         setLoading(true);
         try {
-            const res = await generateScriptLines(script.id);
+            const res = await generateScriptLines(pendingGenerateScript.id, generateCampaignId);
             setGeneratedLines(res.lines);
             message.success('内容生成成功');
-            fetchScripts(); // refresh to get updated lines_json if needed
+            fetchScripts();
             setIsGenerateModalVisible(true);
         } catch (error: any) {
-            message.error('生成失败: ' + error.response?.data?.detail);
+            message.error('生成失败: ' + (error.response?.data?.detail || error.message));
         } finally {
             setLoading(false);
             setGeneratingScriptId(null);
+            setPendingGenerateScript(null);
         }
     };
 
@@ -319,6 +344,28 @@ const ScriptPage: React.FC = () => {
                         </List.Item>
                     )}
                 />
+            </Modal>
+
+            {/* Generate Config Modal */}
+            <Modal
+                title="生成内容配置"
+                open={isGenerateConfigVisible}
+                onCancel={() => setIsGenerateConfigVisible(false)}
+                onOk={handleConfirmGenerate}
+                okText="开始生成"
+            >
+                <p>选择关联战役后，剧本将包含该战役关联知识库的专业知识。</p>
+                <Select
+                    allowClear
+                    placeholder="选择关联战役（可选）"
+                    style={{ width: '100%', marginBottom: 16 }}
+                    value={generateCampaignId}
+                    onChange={(val) => setGenerateCampaignId(val)}
+                >
+                    {campaigns.map(c => (
+                        <Option key={c.id} value={c.id}>{c.name}{c.description ? ` - ${c.description}` : ''}</Option>
+                    ))}
+                </Select>
             </Modal>
 
             {/* Create Task Modal */}

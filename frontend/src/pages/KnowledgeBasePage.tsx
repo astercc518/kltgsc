@@ -40,6 +40,7 @@ const KnowledgeBasePage: React.FC = () => {
   const [linkedCampaigns, setLinkedCampaigns] = useState<Campaign[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [generating, setGenerating] = useState(false);
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -82,11 +83,12 @@ const KnowledgeBasePage: React.FC = () => {
 
   const handleSubmit = async (values: any) => {
     try {
+      const { reference_material, ...payload } = values;
       if (editingKB) {
-        await api.put(`/knowledge-bases/${editingKB.id}`, values);
+        await api.put(`/knowledge-bases/${editingKB.id}`, payload);
         message.success('更新成功');
       } else {
-        await api.post('/knowledge-bases/', values);
+        await api.post('/knowledge-bases/', payload);
         message.success('创建成功');
       }
       setModalVisible(false);
@@ -149,6 +151,29 @@ const KnowledgeBasePage: React.FC = () => {
       setSearchResults(res.data);
     } catch (e) {
       message.error('搜索失败');
+    }
+  };
+
+  const handleGenerateContent = async () => {
+    const name = form.getFieldValue('name');
+    const description = form.getFieldValue('description');
+    if (!name || !description) {
+      message.warning('请先填写名称和描述');
+      return;
+    }
+    setGenerating(true);
+    try {
+      const res = await api.post('/knowledge-bases/generate-content', {
+        name,
+        description,
+        reference_material: form.getFieldValue('reference_material') || undefined,
+      });
+      form.setFieldsValue({ content: res.data.content });
+      message.success('内容生成成功');
+    } catch (e) {
+      message.error('AI 生成内容失败');
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -354,13 +379,38 @@ const KnowledgeBasePage: React.FC = () => {
             </Col>
           </Row>
 
-          <Form.Item name="description" label="描述">
+          <Form.Item
+            name="description"
+            label="描述"
+            rules={[{ required: true, message: '请输入描述' }]}
+          >
             <Input placeholder="简短描述知识库内容" />
+          </Form.Item>
+
+          <Form.Item name="reference_material" label="参考资料（可选）">
+            <TextArea
+              rows={4}
+              placeholder="可粘贴网页内容、产品文档、FAQ 等参考资料，AI 将基于这些资料生成结构化内容"
+            />
           </Form.Item>
 
           <Form.Item
             name="content"
-            label="知识内容 (Markdown)"
+            label={
+              <Space>
+                <span>知识内容 (Markdown)</span>
+                <Button
+                  type="primary"
+                  ghost
+                  size="small"
+                  icon={<RobotOutlined />}
+                  loading={generating}
+                  onClick={handleGenerateContent}
+                >
+                  AI 生成内容
+                </Button>
+              </Space>
+            }
             rules={[{ required: true, message: '请输入内容' }]}
           >
             <TextArea

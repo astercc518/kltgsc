@@ -33,6 +33,7 @@ import {
 import {
   deleteAccount,
   deleteAccountsBatch,
+  deleteAbnormalAccounts,
   uploadAccountSessionsBatch,
   checkAccountStatus,
   checkAccountsBatch,
@@ -441,6 +442,30 @@ const AccountTable: React.FC<AccountTableProps> = ({
                 disabled={selectedRowKeys.length === 0}
               >
                 批量删除 {selectedRowKeys.length > 0 ? `(${selectedRowKeys.length})` : ''}
+              </Button>
+            </Popconfirm>
+            <Popconfirm
+              title="一键删除异常账号"
+              description="确定要删除所有异常账号（已封禁、限制、错误）吗？此操作不可恢复。"
+              onConfirm={async () => {
+                try {
+                  const result = await deleteAbnormalAccounts();
+                  message.success(result.message);
+                  fetchAccounts(pagination.current, pagination.pageSize);
+                  fetchStats();
+                } catch (error) {
+                  message.error('删除异常账号失败');
+                }
+              }}
+              okText="确认删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+            >
+              <Button
+                icon={<DeleteOutlined />}
+                danger
+              >
+                一键删除异常
               </Button>
             </Popconfirm>
             <Button

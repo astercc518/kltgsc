@@ -5,6 +5,7 @@
 from app.tasks.account_tasks import (
     check_account_status,
     import_mega_accounts,
+    import_tdata_archive,
     create_warmup_after_imports,
 )
 from app.tasks.marketing_tasks import (
@@ -19,6 +20,7 @@ from app.tasks.scraping_tasks import (
 )
 from app.tasks.proxy_tasks import (
     check_proxies_batch_task,
+    rebalance_proxy_accounts,
 )
 from app.tasks.monitor_tasks import (
     execute_shill_conversation,
@@ -32,6 +34,7 @@ __all__ = [
     # Account tasks
     "check_account_status",
     "import_mega_accounts",
+    "import_tdata_archive",
     "create_warmup_after_imports",
     # Marketing tasks
     "execute_send_task",
@@ -43,6 +46,7 @@ __all__ = [
     "scrape_members_batch_task",
     # Proxy tasks
     "check_proxies_batch_task",
+    "rebalance_proxy_accounts",
     # Monitor tasks
     "execute_shill_conversation",
     # Invite tasks

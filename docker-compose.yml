@@ -63,6 +63,20 @@ services:
       - tgsc_internal
     restart: unless-stopped
 
+  beat:
+    build: ./backend
+    command: celery -A app.worker.celery_app beat --loglevel=info
+    volumes:
+      - ./backend:/app
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - redis
+      - backend
+    networks:
+      - tgsc_internal
+    restart: unless-stopped
+
   redis:
     image: redis:alpine
     # 不暴露端口到外网，仅内部网络可访问
