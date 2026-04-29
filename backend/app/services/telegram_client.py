@@ -99,12 +99,16 @@ def get_proxy_dict(proxy: Optional[Proxy]) -> Optional[dict]:
     """将 Proxy 模型转换为 Pyrogram 可用的代理字典"""
     if not proxy:
         return None
-    
-    proxy_url = f"{proxy.protocol}://"
-    if proxy.username and proxy.password:
-        proxy_url += f"{proxy.username}:{proxy.password}@"
-    proxy_url += f"{proxy.ip}:{proxy.port}"
-    
+
+    if proxy.protocol == "mtproto":
+        # MTProto 代理：Pyrogram 通过 scheme="mtproto" + secret 直连 TG DC
+        return {
+            "scheme": "mtproto",
+            "hostname": proxy.ip,
+            "port": proxy.port,
+            "secret": proxy.password,  # password 字段存储 MTProto secret
+        }
+
     return {
         "scheme": proxy.protocol,
         "hostname": proxy.ip,
@@ -152,44 +156,46 @@ async def send_message_with_client(account: Account, username: str, message: str
                 "ipv6": use_ipv6
             }
             
-            if account.session_file_path and os.path.exists(account.session_file_path):
-                # 确保是 Pyrogram 格式
-                if is_telethon_session(account.session_file_path):
-                    if not convert_telethon_to_pyrogram(account.session_file_path):
-                        return False, "Failed to convert Telethon session"
-                
-                session_name = os.path.splitext(os.path.basename(account.session_file_path))[0]
-                client = Client(
-                    name=session_name,
-                    workdir="sessions",
-                    **client_params
-                )
+            if account.session_file_path:
+                sfp = account.session_file_path
+                if not os.path.exists(sfp):
+                    dirname = os.path.dirname(sfp)
+                    basename = os.path.basename(sfp)
+                    if basename.startswith('+'):
+                        alt = os.path.join(dirname, basename[1:])
+                        if os.path.exists(alt):
+                            sfp = alt
+                if not os.path.exists(sfp):
+                    return False, "No session file"
+
+                with decrypted_session_file(sfp) as (actual_path, session_dir):
+                    if is_telethon_session(actual_path):
+                        if not convert_telethon_to_pyrogram(actual_path):
+                            return False, "Failed to convert Telethon session"
+
+                    session_name = os.path.splitext(os.path.basename(actual_path))[0]
+                    client = Client(
+                        name=session_name,
+                        workdir=session_dir or os.path.dirname(os.path.abspath(actual_path)),
+                        **client_params
+                    )
+
+                    # 连接并发送（在 decrypted_session_file 上下文内，确保临时解密文件存在）
+                    await client.connect()
+                    try:
+                        await asyncio.sleep(random.uniform(1.0, 3.0))
+                        try:
+                            await client.send_chat_action(username, enums.ChatAction.TYPING)
+                            await asyncio.sleep(random.uniform(2.0, 5.0))
+                        except Exception:
+                            pass
+                        await client.send_message(username, message)
+                        return True, "Message sent"
+                    finally:
+                        if client.is_connected:
+                            await client.disconnect()
             else:
                 return False, "No session file"
-
-            # 连接并发送
-            await client.connect()
-            
-            try:
-                # 模拟真人行为
-                
-                # 1. 随机延迟 (1-3秒)
-                await asyncio.sleep(random.uniform(1.0, 3.0))
-
-                # 2. 模拟打字状态 (Typing Action)
-                try:
-                    await client.send_chat_action(username, enums.ChatAction.TYPING)
-                    # 假装打字 2-5 秒
-                    await asyncio.sleep(random.uniform(2.0, 5.0)) 
-                except Exception:
-                    # 某些情况下（如没有权限）可能失败，忽略
-                    pass
-
-                sent_msg = await client.send_message(username, message)
-                return True, "Message sent"
-            finally:
-                if client.is_connected:
-                    await client.disconnect()
                     
         except FloodWait as e:
             if db_session:
@@ -220,6 +226,8 @@ async def send_message_with_client(account: Account, username: str, message: str
             error_str = str(e)
             if any(x in error_str for x in ["Connection refused", "0x05", "Network is unreachable", "OSError", "[Errno 111]"]):
                 raise e # 抛出异常以触发重试
+            if "database is locked" in error_str.lower() or "AUTH_KEY_DUPLICATED" in error_str:
+                return False, f"session_busy: {error_str}"
             return False, f"Failed: {error_str}"
         finally:
             if client and client.is_connected:
@@ -280,36 +288,45 @@ async def _create_client_and_run(account: Account, operation, *args, db_session:
                 "ipv6": use_ipv6
             }
             
-            if account.session_file_path and os.path.exists(account.session_file_path):
-                if is_telethon_session(account.session_file_path):
-                    if not convert_telethon_to_pyrogram(account.session_file_path):
-                        return False, "Failed to convert Telethon session"
-                
-                session_name = os.path.splitext(os.path.basename(account.session_file_path))[0]
-                client = Client(
-                    name=session_name,
-                    workdir="sessions",
-                    **client_params
-                )
+            if account.session_file_path:
+                sfp = account.session_file_path
+                if not os.path.exists(sfp):
+                    dirname = os.path.dirname(sfp)
+                    basename = os.path.basename(sfp)
+                    if basename.startswith('+'):
+                        alt = os.path.join(dirname, basename[1:])
+                        if os.path.exists(alt):
+                            sfp = alt
+                if not os.path.exists(sfp):
+                    return False, "No session file"
+
+                with decrypted_session_file(sfp) as (actual_path, session_dir):
+                    if is_telethon_session(actual_path):
+                        if not convert_telethon_to_pyrogram(actual_path):
+                            return False, "Failed to convert Telethon session"
+
+                    session_name = os.path.splitext(os.path.basename(actual_path))[0]
+                    client = Client(
+                        name=session_name,
+                        workdir=session_dir or os.path.dirname(os.path.abspath(actual_path)),
+                        **client_params
+                    )
+
+                    # 连接（在 decrypted_session_file 上下文内，确保临时解密文件存在）
+                    await client.connect()
+                    if not client.me:
+                        try:
+                            client.me = await client.get_me()
+                        except Exception:
+                            pass
+                    try:
+                        result = await operation(client, *args, **kwargs)
+                        return True, result
+                    finally:
+                        if client.is_connected:
+                            await client.disconnect()
             else:
                 return False, "No session file"
-
-            # 连接
-            await client.connect()
-            # 初始化 self.me（save_file 等方法需要 me.is_premium）
-            # 注意：connect() 不会设置 self.me，必须手动赋值
-            if not client.me:
-                try:
-                    client.me = await client.get_me()
-                except Exception:
-                    pass
-            try:
-                # 执行操作
-                result = await operation(client, *args, **kwargs)
-                return True, result
-            finally:
-                if client.is_connected:
-                    await client.disconnect()
                     
         except FloodWait as e:
             if db_session:
@@ -338,6 +355,8 @@ async def _create_client_and_run(account: Account, operation, *args, db_session:
             error_str = str(e)
             if any(x in error_str for x in ["Connection refused", "0x05", "Network is unreachable", "OSError", "[Errno 111]"]):
                 raise e # 抛出异常以触发重试
+            if "database is locked" in error_str.lower() or "AUTH_KEY_DUPLICATED" in error_str:
+                return False, f"session_busy: {error_str}"
             return False, f"Failed: {error_str}"
         finally:
             if client and client.is_connected:
@@ -422,17 +441,22 @@ async def join_group_with_client(account: Account, invite_link: str, db_session:
             logger.info(f"Joining chat with identifier: {chat_identifier} (original: {link})")
             
             # 先检查是否已经在群里
+            # get_chat 对私有邀请链接返回 ChatPreview（未加入），对已加入的群返回 Chat
             try:
                 existing_chat = await client.get_chat(chat_identifier)
-                logger.info(f"Already in chat: {existing_chat.title} (ID: {existing_chat.id})")
-                return f"Already in group: {existing_chat.title}"
+                if hasattr(existing_chat, 'members_count'):
+                    # 真正的 Chat 对象，说明已在群里
+                    title = getattr(existing_chat, 'title', chat_identifier)
+                    logger.info(f"Already in chat: {title}")
+                    return f"Already in group: {title}"
+                # ChatPreview = 能预览但未加入，继续执行 join
             except Exception as check_e:
                 logger.info(f"Not in chat yet, attempting to join... (check error: {check_e})")
-            
+
             result = await client.join_chat(chat_identifier)
             logger.info(f"Join result: {result.title if hasattr(result, 'title') else result}")
             return f"Joined successfully: {result.title if hasattr(result, 'title') else chat_identifier}"
-            
+
         except InviteHashExpired:
             return "Invite link expired"
         except InviteHashInvalid:
@@ -452,6 +476,8 @@ async def join_group_with_client(account: Account, invite_link: str, db_session:
                 return f"Invalid username: {link}"
             if "USERNAME_NOT_OCCUPIED" in error_str:
                 return f"Username not found: {link}"
+            if "PEER_ID_INVALID" in error_str:
+                return "账号过新无法加入私有群（需先养号）"
             raise e
             
     return await _create_client_and_run(account, op, invite_link, db_session=db_session)
@@ -597,20 +623,60 @@ async def check_account_with_client(
                 in_memory=True,
                 **client_params
             )
-        elif account.session_file_path and os.path.exists(account.session_file_path):
-            # 使用 session 文件
-            # 检查是否为 Telethon 格式，如果是则转换
-            if is_telethon_session(account.session_file_path):
-                if not convert_telethon_to_pyrogram(account.session_file_path):
-                    return "error", "Failed to convert Telethon session", None, None
-            
-            # 从文件路径提取 session name（去掉路径和扩展名）
-            session_name = os.path.splitext(os.path.basename(account.session_file_path))[0]
-            client = Client(
-                name=session_name,
-                workdir="sessions",
-                **client_params
-            )
+        elif account.session_file_path:
+            # Resolve the session file: try as-is, then without '+' prefix (encryption renames)
+            sfp = account.session_file_path
+            if not os.path.exists(sfp):
+                # Try dropping the '+' prefix from the filename (e.g. sessions/+phone.session → sessions/phone.session)
+                dirname = os.path.dirname(sfp)
+                basename = os.path.basename(sfp)
+                if basename.startswith('+'):
+                    alt = os.path.join(dirname, basename[1:])
+                    if os.path.exists(alt):
+                        sfp = alt
+            if not os.path.exists(sfp):
+                return "error", "No session data available", None, None
+
+            with decrypted_session_file(sfp) as (actual_path, session_dir):
+                if is_telethon_session(actual_path):
+                    if not convert_telethon_to_pyrogram(actual_path):
+                        return "error", "Failed to convert Telethon session", None, None
+
+                session_name = os.path.splitext(os.path.basename(actual_path))[0]
+                client = Client(
+                    name=session_name,
+                    workdir=session_dir or os.path.dirname(os.path.abspath(actual_path)),
+                    **client_params
+                )
+
+                # 连接并检查（在 decrypted_session_file 上下文内）
+                await client.connect()
+                try:
+                    me = await client.get_me()
+                    if mode == "full":
+                        try:
+                            test_msg = await client.send_message("me", "TGSC Status Check")
+                            await test_msg.delete()
+                        except Exception as e:
+                            error_str = str(e)
+                            if "PEER_ID_INVALID" in error_str:
+                                return "banned", "账号已注销: 无法执行任何操作", None, None
+                            elif "USER_DEACTIVATED" in error_str or "AUTH_KEY_UNREGISTERED" in error_str:
+                                return "banned", f"账号已注销: {error_str}", None, None
+
+                        try:
+                            await client.get_users("Telegram")
+                        except Exception as e:
+                            error_str = str(e)
+                            if "USERNAME_NOT_OCCUPIED" in error_str or "USERNAME_INVALID" in error_str:
+                                return "spam_block", "账号受限: 无法搜索用户 (Search Ban)", datetime.utcnow(), device_info
+                finally:
+                    if client.is_connected:
+                        await client.disconnect()
+
+            if me is None:
+                return "error", "get_me returned None", None, None
+            return "active", None, datetime.utcnow(), device_info
         else:
             return "error", "No session data available", None, None
         
@@ -681,6 +747,12 @@ async def check_account_with_client(
         
     except Exception as e:
         error_msg = str(e)
+        # Session SQLite 被其他进程持有（如养号/发送任务正在运行）
+        if "database is locked" in error_msg.lower():
+            return "unknown", f"账号正忙（session 被占用）: {error_msg}", None, None
+        # AUTH_KEY_DUPLICATED: session 被同时在两处使用，不等于封号，等任务结束后重试
+        if "AUTH_KEY_DUPLICATED" in error_msg:
+            return "unknown", f"Session 并发冲突，请稍后重试: {error_msg}", None, None
         # 检查是否是代理相关错误
         if any(x in error_msg.lower() for x in ["proxy", "connection", "eof", "time out", "timed out"]):
             return "proxy_error", f"网络/代理连接失败: {error_msg}", None, None

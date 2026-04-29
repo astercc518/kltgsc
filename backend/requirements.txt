@@ -9,6 +9,7 @@ sqlmodel>=0.0.14
 asyncpg>=0.29.0
 psycopg2-binary>=2.9.9
 greenlet>=3.0.3
+alembic>=1.13.0
 
 # Validation & Settings
 pydantic>=2.5.0

@@ -31,6 +31,7 @@ class BatchDeleteRequest(BaseModel):
 class BatchUploadRequest(BaseModel):
     proxies: Optional[List[str]] = None
     proxies_text: Optional[str] = None
+    protocol: Optional[str] = None  # 强制指定协议，为空时自动检测
     category: str = "static"
     provider_type: Optional[str] = None
     expire_time: Optional[datetime] = None
@@ -89,63 +90,121 @@ def create_proxy(
     return db_proxy
 
 
+def _parse_proxy_line(proxy_str: str, force_protocol: Optional[str] = None) -> dict:
+    """
+    解析代理字符串，自动识别协议。
+
+    支持格式：
+      SOCKS5/HTTP:  host:port  |  host:port:user:pass
+      MTProto:      host:port:secret  |  host:port:client_id:secret
+        - client_id 为纯数字时自动识别为 MTProto 格式
+        - secret 为 base64url 或 hex 长字符串 (≥20字符)
+
+    示例 MTProto 行：
+      45.86.246.136:443:6669869:7vwj9LI4n-y0UyIEqfmEwyF3aWxkYmVycmllcy5ydQ
+    """
+    import re
+
+    parts = proxy_str.strip().split(':')
+    if len(parts) < 2:
+        raise ValueError("格式错误：至少需要 host:port")
+
+    ip = parts[0]
+    port = int(parts[1])
+
+    # 如果调用方强制指定了协议，跳过自动检测
+    if force_protocol:
+        if force_protocol == "mtproto":
+            # host:port:secret 或 host:port:client_id:secret
+            if len(parts) == 3:
+                return {"ip": ip, "port": port, "protocol": "mtproto",
+                        "username": None, "password": parts[2]}
+            elif len(parts) >= 4:
+                return {"ip": ip, "port": port, "protocol": "mtproto",
+                        "username": parts[2], "password": parts[3]}
+            raise ValueError("MTProto 格式需要 secret 字段")
+        else:
+            username = parts[2] if len(parts) > 2 else None
+            password = parts[3] if len(parts) > 3 else None
+            return {"ip": ip, "port": port, "protocol": force_protocol,
+                    "username": username, "password": password}
+
+    # --- 自动检测 ---
+    # 规则 1：4段，第3段为纯数字（client_id），第4段为长字符串 → MTProto
+    if len(parts) == 4 and parts[2].isdigit():
+        secret_candidate = parts[3]
+        if len(secret_candidate) >= 20 and re.fullmatch(r'[A-Za-z0-9+/=_\-]+', secret_candidate):
+            return {"ip": ip, "port": port, "protocol": "mtproto",
+                    "username": parts[2], "password": secret_candidate}
+
+    # 规则 2：3段，第3段为长 base64url/hex 字符串 → MTProto（无 client_id）
+    if len(parts) == 3:
+        secret_candidate = parts[2]
+        is_base64url = len(secret_candidate) >= 20 and re.fullmatch(r'[A-Za-z0-9+/=_\-]+', secret_candidate)
+        is_hex = len(secret_candidate) >= 32 and re.fullmatch(r'[0-9a-fA-F]+', secret_candidate) and len(secret_candidate) % 2 == 0
+        if is_base64url or is_hex:
+            return {"ip": ip, "port": port, "protocol": "mtproto",
+                    "username": None, "password": secret_candidate}
+
+    # 默认：SOCKS5
+    username = parts[2] if len(parts) > 2 else None
+    password = parts[3] if len(parts) > 3 else None
+    return {"ip": ip, "port": port, "protocol": "socks5",
+            "username": username, "password": password}
+
+
 @router.post("/batch/upload")
 def upload_proxies_batch(
     request: BatchUploadRequest,
     session: Session = Depends(get_session)
 ):
-    """批量上传代理"""
+    """批量上传代理。
+
+    支持 SOCKS5/HTTP 格式：  host:port  |  host:port:user:pass
+    支持 MTProto 格式：       host:port:secret  |  host:port:client_id:secret
+    可通过 protocol 字段强制指定协议（"socks5"/"http"/"mtproto"）。
+    """
     created = 0
     errors = []
-    
-    # 支持两种格式：proxies 数组或 proxies_text 文本
+
     proxy_list = request.proxies or []
     if request.proxies_text:
         proxy_list = [line.strip() for line in request.proxies_text.strip().split('\n') if line.strip()]
-    
+
     for proxy_str in proxy_list:
         try:
-            # 解析代理字符串: host:port:username:password 或 host:port
-            parts = proxy_str.strip().split(':')
-            if len(parts) < 2:
-                errors.append(f"Invalid format: {proxy_str}")
-                continue
-            
-            ip = parts[0]
-            port = int(parts[1])
-            username = parts[2] if len(parts) > 2 else None
-            password = parts[3] if len(parts) > 3 else None
-            
-            # 检查是否已存在
+            parsed = _parse_proxy_line(proxy_str, force_protocol=request.protocol)
+
             existing = session.exec(
                 select(Proxy).where(
-                    Proxy.ip == ip,
-                    Proxy.port == port
+                    Proxy.ip == parsed["ip"],
+                    Proxy.port == parsed["port"]
                 )
             ).first()
-            
             if existing:
                 continue
-            
+
+            # MTProto 无法用 HTTP 验证，供应商数据可信，直接 active
+            initial_status = "active" if parsed["protocol"] == "mtproto" else "unknown"
             proxy = Proxy(
-                ip=ip,
-                port=port,
-                username=username,
-                password=password,
-                protocol="socks5",
+                ip=parsed["ip"],
+                port=parsed["port"],
+                username=parsed["username"],
+                password=parsed["password"],
+                protocol=parsed["protocol"],
                 category=request.category,
-                provider_type=request.provider_type,
-                status="unknown",
+                provider_type=request.provider_type or ("datacenter" if parsed["protocol"] == "mtproto" else None),
+                status=initial_status,
                 expire_time=request.expire_time,
             )
             session.add(proxy)
             created += 1
-            
+
         except Exception as e:
             errors.append(f"{proxy_str}: {str(e)}")
-    
+
     session.commit()
-    
+
     return {
         "message": f"Created {created} proxies",
         "created": created,
@@ -376,24 +435,30 @@ async def check_proxy(
     if is_alive:
         proxy.status = "active"
         proxy.fail_count = 0
-        
-        # 更新 IP 信息
+
+        # SOCKS5/HTTP 检测会返回 details，MTProto 不返回（无需处理）
         if details:
             if details.get('country'):
                 proxy.country = details.get('country')
-            
-            # 自动识别类型
+
             hosting = details.get('hosting', False)
             isp = details.get('isp', '')
-            
             if hosting:
                 proxy.provider_type = "datacenter"
             elif isp:
                 proxy.provider_type = "isp"
-                
+
     else:
-        proxy.status = "dead"
-        proxy.fail_count = (proxy.fail_count or 0) + 1
+        if proxy.protocol == "mtproto":
+            # MTProto 的 TCP 测试不可靠（服务端会因无握手包断连）
+            # 失败不视为"死亡"，保留当前状态，只增加失败计数
+            proxy.fail_count = (proxy.fail_count or 0) + 1
+            if proxy.fail_count >= 5:
+                # 连续失败 5 次再标 dead
+                proxy.status = "dead"
+        else:
+            proxy.status = "dead"
+            proxy.fail_count = (proxy.fail_count or 0) + 1
     
     session.add(proxy)
     session.commit()

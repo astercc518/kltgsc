@@ -44,11 +44,8 @@ def join_groups_batch_task(
         "total_groups": len(group_links)
     }
     
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     
     try:
         # Get valid accounts - load in chunks to avoid memory issues with large lists
@@ -126,6 +123,11 @@ def join_groups_batch_task(
         return {"error": str(e), **results}
     finally:
         db_session.close()
+        try:
+            loop.close()
+        except Exception:
+            pass
+        asyncio.set_event_loop(None)
 
 
 @celery_app.task(bind=True, max_retries=2, soft_time_limit=3600, time_limit=7200)
@@ -153,11 +155,8 @@ def scrape_members_batch_task(
         "filter_config": filter_config
     }
     
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     
     try:
         # Get valid accounts - load in chunks to avoid memory issues with large lists
@@ -255,6 +254,11 @@ def scrape_members_batch_task(
         return {"error": str(e), **results}
     finally:
         db_session.close()
+        try:
+            loop.close()
+        except Exception:
+            pass
+        asyncio.set_event_loop(None)
 
 
 def _update_scraping_task_status(

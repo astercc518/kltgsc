@@ -696,38 +696,37 @@ async def send_message_batch(
 ):
     """批量发送测试消息"""
     results = []
-    
-    # 简单的直接发送实现 (同步等待，仅用于测试)
-    # 生产环境应该使用 Celery 任务
     from app.services.telegram_client import send_message_with_client
-    
+
     for account_id in request.account_ids:
         account = session.get(Account, account_id)
-        if account:
-            try:
-                # 尝试直接发送
-                success, msg = await send_message_with_client(account, request.username, request.message, db_session=session)
-                results.append({
-                    "account_id": account_id,
-                    "status": "success" if success else "failed",
-                    "detail": msg
-                })
-            except Exception as e:
-                results.append({
-                    "account_id": account_id,
-                    "status": "failed", 
-                    "detail": str(e)
-                })
-        else:
-             results.append({
+        if not account:
+            results.append({"account_id": account_id, "status": "error", "message": "Account not found"})
+            continue
+
+        # 替换 [Phone Number] 占位符
+        text = request.message.replace("[Phone Number]", account.phone_number or "")
+
+        try:
+            success, detail = await send_message_with_client(
+                account, request.username, text, db_session=session
+            )
+            results.append({
                 "account_id": account_id,
-                "status": "failed",
-                "detail": "Account not found"
+                "status": "success" if success else "error",
+                "message": detail,
             })
-            
+        except Exception as e:
+            results.append({"account_id": account_id, "status": "error", "message": str(e)})
+
+    success_count = sum(1 for r in results if r["status"] == "success")
+    fail_count = len(results) - success_count
+
     return {
         "message": f"已处理 {len(results)} 个发送请求",
-        "results": results
+        "success_count": success_count,
+        "fail_count": fail_count,
+        "results": results,
     }
 
 @router.post("/{account_id}/update_profile")

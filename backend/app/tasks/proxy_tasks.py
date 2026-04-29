@@ -69,9 +69,18 @@ def check_proxies_batch_task(self, proxy_ids: List[int]):
                                 proxy.provider_type = "isp"
 
                     else:
-                        proxy.status = "dead"
-                        proxy.fail_count = (proxy.fail_count or 0) + 1
-                        results["failed"] += 1
+                        if proxy.protocol == "mtproto":
+                            # MTProto TCP 测试不可靠，连续失败 5 次才标 dead
+                            proxy.fail_count = (proxy.fail_count or 0) + 1
+                            if proxy.fail_count >= 5:
+                                proxy.status = "dead"
+                                results["failed"] += 1
+                            else:
+                                results["success"] += 1  # 计入成功，不打死
+                        else:
+                            proxy.status = "dead"
+                            proxy.fail_count = (proxy.fail_count or 0) + 1
+                            results["failed"] += 1
 
                     session.add(proxy)
                     session.commit()

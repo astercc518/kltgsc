@@ -127,7 +127,7 @@ const AccountActions: React.FC<AccountActionsProps> = ({
       if (result.fail_count > 0) {
         const errors = result.results
           .filter((r: any) => r.status === 'error')
-          .map((r: any) => `ID ${r.id}: ${r.message}`)
+          .map((r: any) => `ID ${r.account_id}: ${r.message}`)
           .join('; ');
 
         if (result.success_count === 0) {

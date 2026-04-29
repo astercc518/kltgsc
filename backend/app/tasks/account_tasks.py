@@ -74,8 +74,9 @@ def check_account_status(self, account_id: int):
             if status == "spam_block":
                 _schedule_auto_warmup(session, account_id, account.phone_number)
 
-            # Update account status
-            account.status = status
+            # "unknown" 表示 session 正被其他任务占用，不覆盖现有状态
+            if status != "unknown":
+                account.status = status
             if last_active:
                 account.last_active = last_active
             if device_info and not account.device_model:
@@ -112,6 +113,7 @@ def check_account_status(self, account_id: int):
         finally:
             try:
                 loop.close()
+                asyncio.set_event_loop(None)
             except Exception:
                 pass
 
@@ -338,7 +340,7 @@ def _process_downloaded_files(temp_dir: str, task, mega_url: str):
 
 def _convert_and_import_tdata(tdata_path, phone, imported_account_ids, errors, task, source_label):
     """转换并导入 tdata"""
-    sessions_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'sessions')
+    sessions_dir = os.path.join(os.getcwd(), 'sessions')
     os.makedirs(sessions_dir, exist_ok=True)
     output_path_base = os.path.join(sessions_dir, phone)
 
@@ -360,9 +362,19 @@ def _convert_and_import_tdata(tdata_path, phone, imported_account_ids, errors, t
             )
         finally:
             loop.close()
+            asyncio.set_event_loop(None)
 
         if telethon_session_path and os.path.exists(telethon_session_path):
             if convert_telethon_to_pyrogram(telethon_session_path):
+                # Encrypt the converted session file
+                pyrogram_path = os.path.splitext(telethon_session_path)[0] + '.session'
+                if not pyrogram_path.endswith('.telethon') and os.path.exists(pyrogram_path):
+                    try:
+                        from app.services.session_encryption_service import encrypt_new_session_file
+                        encrypt_new_session_file(pyrogram_path)
+                    except Exception as e:
+                        logger.warning(f"Failed to encrypt tdata session: {e}")
+
                 with Session(engine) as db_session:
                     existing = db_session.exec(
                         select(Account).where(Account.phone_number == phone)
@@ -371,8 +383,11 @@ def _convert_and_import_tdata(tdata_path, phone, imported_account_ids, errors, t
                     if existing:
                         errors.append(f"Account {phone} already exists")
                     else:
-                        # Store relative path (consistent with other endpoints)
-                        rel_session_path = os.path.join('sessions', os.path.basename(telethon_session_path))
+                        # Use the pyrogram session path (strip .telethon suffix if present)
+                        basename = os.path.basename(telethon_session_path)
+                        if basename.endswith('.telethon'):
+                            basename = basename[:-len('.telethon')]
+                        rel_session_path = os.path.join('sessions', basename)
                         account = Account(
                             phone_number=phone,
                             status="init",
@@ -579,7 +594,8 @@ def create_warmup_after_imports(
                     )
                 finally:
                     loop.close()
-                
+                    asyncio.set_event_loop(None)
+
                 account.status = status
                 if last_active:
                     account.last_active = last_active
@@ -666,6 +682,7 @@ def update_account_photo_task(self, account_id: int, photo_path: str):
         return {"success": False, "account_id": account_id, "error": str(e)}
     finally:
         loop.close()
+        asyncio.set_event_loop(None)
         # 清理临时文件
         try:
             if os.path.exists(photo_path):
@@ -802,6 +819,7 @@ def batch_update_photos_random(self, account_ids: List[int], avatar_style: str =
             fail_count += 1
         finally:
             loop.close()
+            asyncio.set_event_loop(None)
 
     logger.info(f"Batch photo update done. Success: {success_count}, Fail: {fail_count}")
     return {
@@ -960,6 +978,7 @@ def batch_auto_update(self, account_ids: List[int], options: dict):
             fail_count += 1
         finally:
             loop.close()
+            asyncio.set_event_loop(None)
 
     logger.info(f"Batch auto-update done. Success: {success_count}, Fail: {fail_count}")
     return {
@@ -1003,6 +1022,7 @@ def update_single_profile_task(self, account_id: int, first_name: str = None, la
         return {"success": False, "account_id": account_id, "error": str(e)}
     finally:
         loop.close()
+        asyncio.set_event_loop(None)
 
 
 @celery_app.task(bind=True, max_retries=1, soft_time_limit=600, time_limit=900)
@@ -1024,6 +1044,7 @@ def update_single_username_task(self, account_id: int, username: str):
         return {"success": False, "account_id": account_id, "error": str(e)}
     finally:
         loop.close()
+        asyncio.set_event_loop(None)
 
 
 @celery_app.task(bind=True, max_retries=1, soft_time_limit=600, time_limit=900)
@@ -1045,3 +1066,4 @@ def update_single_2fa_task(self, account_id: int, password: str, current_passwor
         return {"success": False, "account_id": account_id, "error": str(e)}
     finally:
         loop.close()
+        asyncio.set_event_loop(None)

@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 # Safe channels to browse
 DEFAULT_CHANNELS = [
     "telegram", "durov", "contest", "designers", "bloomberg",
-    "bbcnews", "nytimes", "techcrunch", "androidchannel", "nasa"
+    "nytimes", "bbcbreaking", "cnn", "business", "reuters"
 ]
 
 class WarmupService:

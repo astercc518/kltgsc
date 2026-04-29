@@ -27,16 +27,39 @@ except ImportError:
 
 import socket
 
+async def _check_mtproto_tcp(proxy: Proxy) -> Tuple[bool, Optional[str], None]:
+    """MTProto 代理：TCP 握手检测（MTProto 不转发 HTTP，只能验证端口可达）"""
+    try:
+        _, writer = await asyncio.wait_for(
+            asyncio.open_connection(proxy.ip, proxy.port),
+            timeout=10
+        )
+        writer.close()
+        try:
+            await writer.wait_closed()
+        except Exception:
+            pass
+        return True, None, None
+    except asyncio.TimeoutError:
+        return False, "TCP connect timeout", None
+    except Exception as e:
+        return False, str(e), None
+
+
 async def check_proxy_connectivity_async(proxy: Proxy, fetch_details: bool = False) -> Tuple[bool, Optional[str], Optional[Dict[str, Any]]]:
     """异步检测代理连通性"""
+    # MTProto 代理不转发 HTTP，走专用 TCP 检测
+    if proxy.protocol == "mtproto":
+        return await _check_mtproto_tcp(proxy)
+
     if not HAS_AIOHTTP:
         # 如果没有 aiohttp，使用同步方法
         return check_proxy_connectivity(proxy, fetch_details)
-    
+
     try:
         timeout = aiohttp.ClientTimeout(total=20) # 增加超时时间以容纳详细信息查询
         details = None
-        
+
         # 处理 SOCKS5 代理
         if proxy.protocol.lower() in ['socks5', 'socks4', 'socks4a']:
             if HAS_AIOHTTP_SOCKS:
@@ -142,6 +165,19 @@ async def check_proxy_connectivity_async(proxy: Proxy, fetch_details: bool = Fal
 
 def check_proxy_connectivity(proxy: Proxy, fetch_details: bool = False) -> Tuple[bool, Optional[str], Optional[Dict[str, Any]]]:
     """同步检测代理连通性（使用 requests 或 socket）"""
+    # MTProto：直接走裸 socket TCP 检测
+    if proxy.protocol == "mtproto":
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(10)
+            result = sock.connect_ex((proxy.ip, proxy.port))
+            sock.close()
+            if result == 0:
+                return True, None, None
+            return False, f"TCP connect failed (errno {result})", None
+        except Exception as e:
+            return False, str(e), None
+
     if HAS_AIOHTTP:
         # 如果有 aiohttp，使用异步版本
         # 始终创建新的事件循环，避免在 Celery worker 中出现 "Event loop is closed" 错误
