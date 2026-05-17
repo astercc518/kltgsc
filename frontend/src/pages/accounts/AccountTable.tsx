@@ -29,6 +29,7 @@ import {
   CloudDownloadOutlined,
   LoadingOutlined,
   CoffeeOutlined,
+  IdcardOutlined,
 } from '@ant-design/icons';
 import {
   deleteAccount,
@@ -39,6 +40,7 @@ import {
   checkAccountsBatch,
   getProxies,
   updateAccountProxy,
+  applyPersonaProfile,
   Account,
   Proxy,
 } from '../../services/api';
@@ -60,7 +62,7 @@ interface AccountTableProps {
   onShowUploadModal: () => void;
   onShowMessageModal: () => void;
   onShowAttrModal: () => void;
-  onShowRoleModal: () => void;
+  onShowRoleModal?: () => void;  // deprecated, kept for backward compat
   onShowCombatRoleModal: () => void;
   onShowAIModal: () => void;
   onShowWarmupModal: () => void;
@@ -88,7 +90,7 @@ const AccountTable: React.FC<AccountTableProps> = ({
   onShowUploadModal,
   onShowMessageModal,
   onShowAttrModal,
-  onShowRoleModal,
+  onShowRoleModal: _onShowRoleModal,  // deprecated
   onShowCombatRoleModal,
   onShowAIModal,
   onShowWarmupModal,
@@ -103,6 +105,7 @@ const AccountTable: React.FC<AccountTableProps> = ({
   setTierFilter,
 }) => {
   const [checking, setChecking] = useState<number[]>([]);
+  const [syncing, setSyncing] = useState(false);
   const [fileList, setFileList] = useState<UploadFile[]>([]);
 
   // Proxy modal state (inline in table for the "swap proxy" button)
@@ -125,6 +128,26 @@ const AccountTable: React.FC<AccountTableProps> = ({
     } catch (error) {
       message.error('启动检查任务失败');
       setChecking(prev => prev.filter(aid => aid !== id));
+    }
+  };
+
+  const handleApplyPersonaProfile = async () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择账号');
+      return;
+    }
+    setSyncing(true);
+    try {
+      const result = await applyPersonaProfile(selectedRowKeys as number[]);
+      if (result.queued > 0) {
+        message.success(`已触发 ${result.queued} 个账号同步人设资料，约 30 秒后生效`);
+      } else {
+        message.warning(`${result.skipped} 个账号未绑定人设，请先在「角色管理」中分配`);
+      }
+    } catch (e) {
+      message.error('同步人设资料失败');
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -286,6 +309,22 @@ const AccountTable: React.FC<AccountTableProps> = ({
         };
         const c = config[role] || { color: 'default', label: role || 'cannon' };
         return <Tag color={c.color}>{c.label}</Tag>;
+      },
+    },
+    {
+      title: 'AI 人设',
+      dataIndex: 'ai_persona_id',
+      key: 'ai_persona_id',
+      width: 110,
+      render: (_: any, record: Account) => {
+        if (!record.ai_persona_id) {
+          return <span style={{ color: '#bfbfbf', fontSize: 12 }}>未绑定</span>;
+        }
+        return (
+          <Tag icon={<RobotOutlined />} color="cyan" style={{ fontSize: 11 }}>
+            #{record.ai_persona_id}
+          </Tag>
+        );
       },
     },
     {
@@ -483,17 +522,20 @@ const AccountTable: React.FC<AccountTableProps> = ({
               属性管理
             </Button>
             <Button
-              onClick={onShowRoleModal}
-              disabled={selectedRowKeys.length === 0}
-            >
-              设置角色
-            </Button>
-            <Button
               onClick={onShowCombatRoleModal}
               disabled={selectedRowKeys.length === 0}
               style={{ backgroundColor: '#722ed1', borderColor: '#722ed1', color: '#fff' }}
             >
-              战斗角色
+              角色管理
+            </Button>
+            <Button
+              icon={<IdcardOutlined />}
+              onClick={handleApplyPersonaProfile}
+              loading={syncing}
+              disabled={selectedRowKeys.length === 0}
+              style={{ backgroundColor: '#13c2c2', borderColor: '#13c2c2', color: '#fff' }}
+            >
+              同步人设资料 {selectedRowKeys.length > 0 ? `(${selectedRowKeys.length})` : ''}
             </Button>
             <Button
               icon={<RobotOutlined />}

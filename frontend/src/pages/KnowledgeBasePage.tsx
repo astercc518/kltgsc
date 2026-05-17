@@ -1,13 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Card, Table, Button, Modal, Form, Input, Select, Tag, Space,
-  Tabs, Statistic, Row, Col, message, Popconfirm, Switch, List, Typography
+  Tabs, Statistic, Row, Col, message, Popconfirm, Switch, List, Typography,
+  Upload
 } from 'antd';
+import type { UploadFile } from 'antd/es/upload/interface';
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, BookOutlined,
-  LinkOutlined, SearchOutlined, RobotOutlined
+  LinkOutlined, SearchOutlined, RobotOutlined, CloudDownloadOutlined,
+  ThunderboltOutlined, ReloadOutlined, InboxOutlined, FilePdfOutlined
 } from '@ant-design/icons';
-import api from '../services/api';
+import api, {
+  triggerScrapeAccountGroups, getScrapeStatus, getScrapedMessagesStats,
+  triggerExtractQA, ScrapeStatus, ChatMessageStat,
+  importKnowledgeFile, getKnowledgeImportStatus, KnowledgeImportStatus
+} from '../services/api';
 
 const { TextArea } = Input;
 const { Text, Paragraph } = Typography;
@@ -42,6 +49,161 @@ const KnowledgeBasePage: React.FC = () => {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [generating, setGenerating] = useState(false);
   const [form] = Form.useForm();
+
+  // ── 群组采集 / Q&A 抽取 ──
+  const [scrapeModalVisible, setScrapeModalVisible] = useState(false);
+  const [scrapeForm] = Form.useForm();
+  const [accounts, setAccounts] = useState<{ id: number; phone_number: string; status: string }[]>([]);
+  const [scrapeStatus, setScrapeStatus] = useState<ScrapeStatus | null>(null);
+  const [scrapeStatusId, setScrapeStatusId] = useState<number | null>(null);
+  const [chatStats, setChatStats] = useState<ChatMessageStat[]>([]);
+
+  // ── 文档批量导入 ──
+  const [importFileList, setImportFileList] = useState<UploadFile[]>([]);
+  const [importCategory, setImportCategory] = useState<string>('');
+  const [importing, setImporting] = useState(false);
+  const [importJobs, setImportJobs] = useState<Record<string, KnowledgeImportStatus & { filename: string }>>({});
+  const importPollRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    api.get('/accounts/').then(r => {
+      setAccounts((r.data || []).filter((a: any) => a.status === 'active'));
+    }).catch(() => {});
+    refreshChatStats();
+  }, []);
+
+  // 轮询采集进度
+  useEffect(() => {
+    if (!scrapeStatusId) return;
+    const tick = async () => {
+      try {
+        const s = await getScrapeStatus(scrapeStatusId);
+        setScrapeStatus(s);
+        if (s.status === 'completed' || s.status === 'failed') {
+          refreshChatStats();
+          if (s.status === 'completed') {
+            message.success(`任务完成：处理 ${s.progress.processed_chats || s.progress.windows_processed || 0} 项`);
+          } else {
+            message.error(`任务失败：${s.error_message}`);
+          }
+          setScrapeStatusId(null);
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+    const id = setInterval(tick, 3000);
+    tick();
+    return () => clearInterval(id);
+  }, [scrapeStatusId]);
+
+  // 轮询导入任务进度（活动中的任务才轮询）
+  useEffect(() => {
+    const activeJobs = Object.values(importJobs).filter(j => !j.ready);
+    if (activeJobs.length === 0) {
+      if (importPollRef.current) {
+        clearInterval(importPollRef.current);
+        importPollRef.current = null;
+      }
+      return;
+    }
+    if (importPollRef.current) return;
+    importPollRef.current = window.setInterval(async () => {
+      const pending = Object.values(importJobs).filter(j => !j.ready);
+      for (const job of pending) {
+        try {
+          const status = await getKnowledgeImportStatus(job.task_id);
+          setImportJobs(prev => ({
+            ...prev,
+            [job.task_id]: { ...status, filename: job.filename },
+          }));
+          if (status.ready) {
+            const res = status.result || {};
+            if (res.ok) {
+              message.success(`${job.filename} 导入完成，共写入 ${res.chunks} 个 chunk`);
+              fetchKnowledgeBases();
+            } else if (res.error) {
+              message.error(`${job.filename} 导入失败：${res.error}${res.hint ? '（' + res.hint + '）' : ''}`);
+            }
+          }
+        } catch (e) {
+          // ignore single tick error
+        }
+      }
+    }, 3000);
+    return () => {
+      if (importPollRef.current) {
+        clearInterval(importPollRef.current);
+        importPollRef.current = null;
+      }
+    };
+  }, [importJobs]);
+
+  const handleImportSubmit = async () => {
+    if (importFileList.length === 0) {
+      message.warning('请先选择 PDF 文件');
+      return;
+    }
+    setImporting(true);
+    try {
+      for (const fileWrapper of importFileList) {
+        const file = fileWrapper.originFileObj as File | undefined;
+        if (!file) continue;
+        try {
+          const res = await importKnowledgeFile(file, importCategory || undefined);
+          setImportJobs(prev => ({
+            ...prev,
+            [res.task_id]: {
+              task_id: res.task_id,
+              state: 'PENDING',
+              ready: false,
+              filename: res.filename,
+            },
+          }));
+          message.success(`已提交：${res.filename}（task=${res.task_id.slice(0, 8)}...）`);
+        } catch (e: any) {
+          message.error(`${file.name} 提交失败：${e?.response?.data?.detail || e.message}`);
+        }
+      }
+      setImportFileList([]);
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const refreshChatStats = async () => {
+    try {
+      const stats = await getScrapedMessagesStats();
+      setChatStats(stats);
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const handleScrapeSubmit = async (values: any) => {
+    try {
+      const res = await triggerScrapeAccountGroups(values.account_id, {
+        include_private: values.include_private,
+        limit_per_chat: values.limit_per_chat || null,
+        chat_sleep_sec: values.chat_sleep_sec || 2.0,
+      });
+      message.success(`采集任务已启动（ID: ${res.scraping_task_id}）`);
+      setScrapeStatusId(res.scraping_task_id);
+      setScrapeModalVisible(false);
+    } catch (e: any) {
+      message.error(`启动失败：${e?.response?.data?.detail || e.message}`);
+    }
+  };
+
+  const handleExtractQA = async () => {
+    try {
+      const res = await triggerExtractQA({ window_size: 50, concurrency: 3 });
+      message.success(`Q&A 抽取任务已启动（ID: ${res.scraping_task_id}）`);
+      setScrapeStatusId(res.scraping_task_id);
+    } catch (e: any) {
+      message.error(`启动失败：${e?.response?.data?.detail || e.message}`);
+    }
+  };
 
   useEffect(() => {
     fetchKnowledgeBases();
@@ -337,6 +499,165 @@ const KnowledgeBasePage: React.FC = () => {
         </Col>
       </Row>
 
+      {/* ── 群组采集 + Q&A 抽取 ── */}
+      <Card
+        title="📥 群组消息采集 → Q&A 抽取（喂养 AI 知识库）"
+        style={{ marginBottom: 16 }}
+        extra={
+          <Space>
+            <Button icon={<CloudDownloadOutlined />} onClick={() => setScrapeModalVisible(true)}>
+              采集群组消息
+            </Button>
+            <Button type="primary" icon={<ThunderboltOutlined />} onClick={handleExtractQA}>
+              抽取 Q&A 入库
+            </Button>
+            <Button icon={<ReloadOutlined />} onClick={refreshChatStats} />
+          </Space>
+        }
+      >
+        {scrapeStatus && scrapeStatus.status === 'running' && (
+          <div style={{ marginBottom: 12, padding: 8, background: '#e6f4ff', borderRadius: 4 }}>
+            <Text strong>任务运行中：</Text>{' '}
+            {scrapeStatus.progress.processed_chats !== undefined ? (
+              <>
+                进度 {scrapeStatus.progress.processed_chats}/{scrapeStatus.progress.total_chats} 个 chat，
+                已采集 {scrapeStatus.progress.total_messages} 条消息
+                {scrapeStatus.progress.current_chat && (
+                  <>，当前：<Text code>{scrapeStatus.progress.current_chat}</Text></>
+                )}
+              </>
+            ) : (
+              <>
+                抽取窗口 {scrapeStatus.progress.windows_processed || 0}，已生成 Q&A {scrapeStatus.progress.qa_extracted || 0} 条
+              </>
+            )}
+          </div>
+        )}
+        <Row gutter={16}>
+          <Col span={6}>
+            <Statistic title="已采群/聊数" value={chatStats.length} />
+          </Col>
+          <Col span={6}>
+            <Statistic title="总消息数" value={chatStats.reduce((s, c) => s + c.message_count, 0)} />
+          </Col>
+          <Col span={6}>
+            <Statistic title="已抽 Q&A 消息" value={chatStats.reduce((s, c) => s + c.qa_extracted, 0)} />
+          </Col>
+          <Col span={6}>
+            <Statistic
+              title="待抽消息"
+              value={chatStats.reduce((s, c) => s + (c.message_count - c.qa_extracted), 0)}
+              valueStyle={{ color: '#fa8c16' }}
+            />
+          </Col>
+        </Row>
+        {chatStats.length > 0 && (
+          <Table
+            size="small"
+            style={{ marginTop: 12 }}
+            dataSource={chatStats}
+            rowKey="chat_id"
+            pagination={{ pageSize: 8 }}
+            columns={[
+              { title: '群/聊名称', dataIndex: 'chat_title', ellipsis: true },
+              { title: '类型', dataIndex: 'chat_type', width: 100, render: (t: string) => (
+                <Tag color={t === 'private' ? 'blue' : t === 'supergroup' ? 'green' : 'default'}>{t}</Tag>
+              ) },
+              { title: '消息数', dataIndex: 'message_count', width: 100, sorter: (a: any, b: any) => a.message_count - b.message_count },
+              { title: '已抽 Q&A', dataIndex: 'qa_extracted', width: 100 },
+            ]}
+          />
+        )}
+      </Card>
+
+      {/* ── 文档批量导入 (PDF) ── */}
+      <Card
+        title="📄 文档批量导入（PDF）"
+        style={{ marginBottom: 16 }}
+      >
+        <Row gutter={16}>
+          <Col span={14}>
+            <Upload.Dragger
+              fileList={importFileList}
+              beforeUpload={() => false}
+              onChange={({ fileList }) => setImportFileList(fileList)}
+              multiple
+              accept=".pdf"
+              disabled={importing}
+            >
+              <p className="ant-upload-drag-icon"><InboxOutlined /></p>
+              <p className="ant-upload-text">点击或拖拽 PDF 文件到此处上传</p>
+              <p className="ant-upload-hint">
+                每个文件单独成一份文档；后端按段落切片、向量化后写入知识库。单文件最大 50 MB。
+              </p>
+            </Upload.Dragger>
+          </Col>
+          <Col span={10}>
+            <div style={{ padding: '8px 16px' }}>
+              <Form layout="vertical">
+                <Form.Item label="分类标签（可选）">
+                  <Input
+                    placeholder="如：产品手册 / 报价单 / FAQ"
+                    value={importCategory}
+                    onChange={e => setImportCategory(e.target.value)}
+                  />
+                </Form.Item>
+                <Button
+                  type="primary"
+                  icon={<FilePdfOutlined />}
+                  onClick={handleImportSubmit}
+                  loading={importing}
+                  disabled={importFileList.length === 0}
+                  block
+                >
+                  开始导入（{importFileList.length} 个文件）
+                </Button>
+                <div style={{ marginTop: 12, fontSize: 12, color: '#888' }}>
+                  导入后端用 Gemini text-embedding-004（768 维）做向量化。MVP 不支持 OCR；扫描件需先 OCR 转可选文本 PDF。
+                </div>
+              </Form>
+            </div>
+          </Col>
+        </Row>
+
+        {Object.keys(importJobs).length > 0 && (
+          <div style={{ marginTop: 16 }}>
+            <Typography.Text strong>导入任务：</Typography.Text>
+            <List
+              size="small"
+              dataSource={Object.values(importJobs).sort((a, b) => a.task_id.localeCompare(b.task_id))}
+              renderItem={(job) => {
+                const res = job.result || {};
+                let status: string;
+                let color: 'default' | 'processing' | 'success' | 'error' = 'default';
+                if (!job.ready) {
+                  status = job.state || 'PENDING';
+                  color = 'processing';
+                } else if (res.ok) {
+                  status = `完成 · ${res.chunks} chunks`;
+                  color = 'success';
+                } else {
+                  status = `失败 · ${res.error || job.error || 'unknown'}`;
+                  color = 'error';
+                }
+                return (
+                  <List.Item>
+                    <Space>
+                      <FilePdfOutlined />
+                      <Typography.Text>{job.filename}</Typography.Text>
+                      <Tag color={color}>{status}</Tag>
+                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                        {job.task_id.slice(0, 8)}...
+                      </Typography.Text>
+                    </Space>
+                  </List.Item>
+                );
+              }}
+            />
+          </div>
+        )}
+      </Card>
+
       <Card
         title="知识库管理"
         extra={
@@ -516,6 +837,52 @@ const KnowledgeBasePage: React.FC = () => {
             ]}
           />
         )}
+      </Modal>
+
+      {/* 群组采集弹窗 */}
+      <Modal
+        title="📥 采集账号下所有群组/私聊消息"
+        open={scrapeModalVisible}
+        onCancel={() => setScrapeModalVisible(false)}
+        onOk={() => scrapeForm.submit()}
+        width={560}
+      >
+        <Form
+          form={scrapeForm}
+          layout="vertical"
+          onFinish={handleScrapeSubmit}
+          initialValues={{ include_private: true, limit_per_chat: null, chat_sleep_sec: 2.0 }}
+        >
+          <Form.Item
+            name="account_id"
+            label="使用哪个账号采集"
+            rules={[{ required: true, message: '请选择账号' }]}
+          >
+            <Select
+              placeholder="选择活跃账号"
+              showSearch
+              optionFilterProp="label"
+              options={accounts.map(a => ({
+                value: a.id,
+                label: `${a.phone_number}（ID:${a.id}）`,
+              }))}
+            />
+          </Form.Item>
+          <Form.Item name="include_private" label="包含私聊" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+          <Form.Item name="limit_per_chat" label="每个 chat 最多采多少条（留空 = 全量历史）">
+            <Input type="number" placeholder="留空采全部" />
+          </Form.Item>
+          <Form.Item name="chat_sleep_sec" label="chat 之间停顿秒数（防 FloodWait）">
+            <Input type="number" step="0.5" />
+          </Form.Item>
+          <div style={{ background: '#fff7e6', padding: 8, borderRadius: 4 }}>
+            <Text type="warning">
+              ⚠ 全量采集 50-300 群预计耗时 4-12 小时。任务支持断点续采（重复触发只采新消息）。
+            </Text>
+          </div>
+        </Form>
       </Modal>
     </div>
   );

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Table,
   Card,
@@ -32,13 +33,14 @@ import {
   StarOutlined,
   FireOutlined
 } from '@ant-design/icons';
-import { getLeads, getLead, updateLead, sendLeadMessage, Lead, LeadInteraction } from '../services/api';
+import { getLeads, getLead, updateLead, sendLeadMessage, claimLead, Lead, LeadInteraction } from '../services/api';
 
 const { Option } = Select;
 const { TextArea } = Input;
 const { Text, Title } = Typography;
 
 const CRM: React.FC = () => {
+  const navigate = useNavigate();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
@@ -218,17 +220,33 @@ const CRM: React.FC = () => {
       render: (text: string) => new Date(text).toLocaleString(),
     },
     {
+      title: '接管',
+      key: 'takeover',
+      width: 140,
+      render: (_: any, record: Lead) => {
+        const claimed = record.assigned_to_user_id != null;
+        return claimed ? (
+          <Tag color="processing" icon={<CheckCircleOutlined />}>
+            接管中
+          </Tag>
+        ) : (
+          <Tag color="default">AI 自动</Tag>
+        );
+      },
+    },
+    {
       title: '操作',
       key: 'action',
-      width: 200,
+      width: 280,
       render: (_: any, record: Lead) => (
         <Space>
           <Button
             size="small"
+            type="primary"
             icon={<MessageOutlined />}
-            onClick={() => handleShowMessageModal(record)}
+            onClick={() => handleClaimAndOpen(record)}
           >
-            发消息
+            接管对话
           </Button>
           <Button
             size="small"
@@ -247,6 +265,24 @@ const CRM: React.FC = () => {
       ),
     },
   ];
+
+  const handleClaimAndOpen = async (lead: Lead) => {
+    try {
+      // 未被认领 → 先认领；已被自己认领 → 直接跳；已被他人认领 → 后端会 409，提示
+      if (!lead.assigned_to_user_id) {
+        await claimLead(lead.id);
+        message.success('认领成功，进入对话');
+      }
+      navigate(`/inbox?leadId=${lead.id}`);
+    } catch (e: any) {
+      const detail = e?.response?.data?.detail;
+      if (e?.response?.status === 409) {
+        message.warning(detail || '该线索已被他人认领');
+      } else {
+        message.error(detail || '认领失败');
+      }
+    }
+  };
 
   return (
     <div>

@@ -9,6 +9,8 @@ import {
     getScripts, Script,
     getCampaigns, CampaignData,
     getPersonas, PersonaData,
+    getAccounts, Account,
+    triggerFreeChat,
 } from '../services/api';
 import api from '../services/api';
 
@@ -46,6 +48,12 @@ const MonitorPage: React.FC = () => {
     const [suggestLoading, setSuggestLoading] = useState(false);
     const [suggestions, setSuggestions] = useState<string[]>([]);
 
+    // 自由发言状态
+    const [freeChatVisible, setFreeChatVisible] = useState(false);
+    const [freeChatLoading, setFreeChatLoading] = useState(false);
+    const [freeChatAccounts, setFreeChatAccounts] = useState<Account[]>([]);
+    const [freeChatForm] = Form.useForm();
+
     const fetchData = async () => {
         setLoading(true);
         try {
@@ -63,6 +71,37 @@ const MonitorPage: React.FC = () => {
             message.error('加载数据失败');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleFreeChat = async () => {
+        try {
+            const accs = await getAccounts(0, 100, 'active');
+            setFreeChatAccounts(accs.filter((a: Account) => a.ai_persona_id));
+        } catch {
+            setFreeChatAccounts([]);
+        }
+        freeChatForm.resetFields();
+        freeChatForm.setFieldsValue({ turns_per_account: 1 });
+        setFreeChatVisible(true);
+    };
+
+    const handleFreeChatSubmit = async () => {
+        const values = await freeChatForm.validateFields();
+        setFreeChatLoading(true);
+        try {
+            const result = await triggerFreeChat({
+                chat_id: values.chat_id,
+                topic: values.topic,
+                account_ids: values.account_ids?.length ? values.account_ids : undefined,
+                turns_per_account: values.turns_per_account ?? 1,
+            });
+            message.success(result.message || `已调度 ${result.account_ids?.length ?? 0} 个账号发言`);
+            setFreeChatVisible(false);
+        } catch (err: any) {
+            message.error(err?.response?.data?.detail || '调度失败');
+        } finally {
+            setFreeChatLoading(false);
         }
     };
 
@@ -185,6 +224,7 @@ const MonitorPage: React.FC = () => {
             case 'notify': return <Tag icon={<BellOutlined />} color="gold">通知</Tag>;
             case 'trigger_script': return <Tag icon={<RobotOutlined />} color="purple">剧本</Tag>;
             case 'auto_reply': return <Tag icon={<MessageOutlined />} color="blue">AI回复</Tag>;
+            case 'trigger_ai': return <Tag icon={<FireOutlined />} color="volcano">AI炒群</Tag>;
             default: return <Tag>{type}</Tag>;
         }
     };
@@ -324,9 +364,14 @@ const MonitorPage: React.FC = () => {
             children: (
                 <>
                     <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-                        <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-                            创建监控规则
-                        </Button>
+                        <Space>
+                            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+                                创建监控规则
+                            </Button>
+                            <Button icon={<SendOutlined />} onClick={handleFreeChat}>
+                                🎙️ 自由发言
+                            </Button>
+                        </Space>
                         <Button icon={<ReloadOutlined />} onClick={fetchData}>刷新</Button>
                     </div>
                     <Table columns={columns} dataSource={monitors} rowKey="id" loading={loading} size="small" />
@@ -512,6 +557,7 @@ const MonitorPage: React.FC = () => {
                                 <Option value="notify">仅通知 (记录日志，不回复)</Option>
                                 <Option value="auto_reply">AI 智能回复</Option>
                                 <Option value="trigger_script">触发剧本</Option>
+                                <Option value="trigger_ai">🎭 AI 炒群 (导演-演员模式)</Option>
                             </Select>
                         </Form.Item>
 
@@ -588,6 +634,54 @@ const MonitorPage: React.FC = () => {
                                 </Select>
                             </Form.Item>
                         )}
+
+                        {actionType === 'trigger_ai' && (
+                            <>
+                                <Alert
+                                    message="AI 炒群模式：触发后自动挑选 2 个 tier2 账号，A 提问 B 解答，分时发送，带打字模拟。"
+                                    type="info"
+                                    showIcon
+                                    style={{ marginBottom: 12 }}
+                                />
+                                <Form.Item
+                                    name="ai_persona_id"
+                                    label="AI 人设"
+                                    help="决定两个演员的语气风格（tone）"
+                                >
+                                    <Select allowClear placeholder="选择 AI 人设（可选，不选则默认友好语气）">
+                                        {personas.map(p => (
+                                            <Option key={p.id} value={p.id}>{p.name} — {p.description || p.tone}</Option>
+                                        ))}
+                                    </Select>
+                                </Form.Item>
+                                <Form.Item
+                                    name="campaign_id"
+                                    label="关联战役"
+                                    help="AI 回复时注入该战役的知识库内容"
+                                >
+                                    <Select
+                                        allowClear
+                                        placeholder="选择战役（可选）"
+                                        onChange={(val) => {
+                                            if (val) fetchCampaignKBs(val);
+                                            else setCampaignKBs([]);
+                                        }}
+                                    >
+                                        {campaigns.map(c => (
+                                            <Option key={c.id} value={c.id}>{c.name}</Option>
+                                        ))}
+                                    </Select>
+                                </Form.Item>
+                                {campaignKBs.length > 0 && (
+                                    <Alert
+                                        message={`已关联 ${campaignKBs.length} 个知识库：${campaignKBs.map(kb => kb.name).join('、')}`}
+                                        type="success"
+                                        showIcon
+                                        style={{ marginBottom: 12 }}
+                                    />
+                                )}
+                            </>
+                        )}
                     </Card>
 
                     {/* ========== 主动营销配置 ========== */}
@@ -656,6 +750,47 @@ const MonitorPage: React.FC = () => {
 
                     <Form.Item name="description" label="备注">
                         <Input placeholder="规则说明 (可选)" />
+                    </Form.Item>
+                </Form>
+            </Modal>
+
+            {/* 自由发言 Modal */}
+            <Modal
+                title="🎙️ 多账号自由发言"
+                open={freeChatVisible}
+                onOk={handleFreeChatSubmit}
+                onCancel={() => setFreeChatVisible(false)}
+                okText="开始发言"
+                confirmLoading={freeChatLoading}
+                width={560}
+            >
+                <Alert
+                    message="AI 将为每个账号按其人设生成消息，以随机间隔（30-90s）发送到目标群。"
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                />
+                <Form form={freeChatForm} layout="vertical">
+                    <Form.Item name="chat_id" label="目标群 Chat ID" rules={[{ required: true, message: '请输入群 ID' }]}>
+                        <Input placeholder="-5276158188" />
+                    </Form.Item>
+                    <Form.Item name="topic" label="话题" rules={[{ required: true, message: '请输入话题' }]}>
+                        <Input.TextArea rows={2} placeholder="例：出海获客和私域流量运营经验分享" />
+                    </Form.Item>
+                    <Form.Item name="turns_per_account" label="每账号发言轮数">
+                        <InputNumber min={1} max={3} defaultValue={1} style={{ width: '100%' }} />
+                    </Form.Item>
+                    <Form.Item name="account_ids" label={`选择账号（空选 = 全部有人设的账号，共 ${freeChatAccounts.length} 个）`}>
+                        <Select
+                            mode="multiple"
+                            allowClear
+                            placeholder="默认全选有人设的活跃账号"
+                            optionFilterProp="label"
+                            options={freeChatAccounts.map(a => ({
+                                value: a.id,
+                                label: `${a.phone_number} (${(a as any).combat_role || a.role})`,
+                            }))}
+                        />
                     </Form.Item>
                 </Form>
             </Modal>

@@ -14,7 +14,8 @@ import {
   ScheduleOutlined,
   CoffeeOutlined,
   TeamOutlined,
-  LogoutOutlined
+  LogoutOutlined,
+  RadarChartOutlined,
 } from '@ant-design/icons';
 import Dashboard from './pages/Dashboard';
 import AccountList from './pages/AccountList';
@@ -38,6 +39,7 @@ import PersonaPage from './pages/PersonaPage';
 import FunnelGroupPage from './pages/FunnelGroupPage';
 import KnowledgeBasePage from './pages/KnowledgeBasePage';
 import AutoRegister from './pages/AutoRegister';
+import MonitoringDashboard from './pages/MonitoringDashboard';
 
 // 检查用户是否已登录
 const isAuthenticated = (): boolean => {
@@ -67,6 +69,11 @@ const menuItems: MenuProps['items'] = [
     key: '1',
     icon: <DashboardOutlined />,
     label: <Link to="/">Dashboard</Link>,
+  },
+  {
+    key: 'monitoring',
+    icon: <RadarChartOutlined />,
+    label: <Link to="/monitoring">实时监控</Link>,
   },
   {
     key: 'resources',
@@ -221,6 +228,7 @@ const AppContent: React.FC = () => {
         '/funnel-groups': '营销群管理',
         '/knowledge-bases': '知识库',
         '/auto-register': '自动注册',
+        '/monitoring': '实时监控',
     };
 
     const pathSnippets = location.pathname.split('/').filter(i => i);
@@ -266,6 +274,7 @@ const AppContent: React.FC = () => {
                     <Route path="/funnel-groups" element={<FunnelGroupPage />} />
                     <Route path="/knowledge-bases" element={<KnowledgeBasePage />} />
                     <Route path="/auto-register" element={<AutoRegister />} />
+                    <Route path="/monitoring" element={<MonitoringDashboard />} />
                 </Routes>
             </div>
         </Content>

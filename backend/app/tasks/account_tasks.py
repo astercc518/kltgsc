@@ -4,6 +4,8 @@
 - MEGA 导入
 - 养号汇总
 - 头像/资料批量更新
+- 心跳健康检测（每 5min，纯 SQL）
+- 深度批量检测（每 6h，真实 Pyrogram 连接）
 """
 import os
 import json
@@ -14,6 +16,8 @@ import zipfile
 import shutil
 import subprocess
 from typing import List, Optional
+from datetime import datetime, timedelta
+from collections import Counter
 
 from celery.exceptions import SoftTimeLimitExceeded
 from sqlmodel import Session, select
@@ -83,6 +87,12 @@ def check_account_status(self, account_id: int):
                 account.device_model = device_info.get("device_model")
                 account.system_version = device_info.get("system_version")
                 account.app_version = device_info.get("app_version")
+
+            # Update placeholder phone number from tdata imports
+            if device_info and device_info.get('_phone') and account.phone_number.startswith('imported_'):
+                real_phone = '+' + device_info['_phone']
+                logger.info(f"Resolving placeholder phone {account.phone_number} -> {real_phone} for account {account_id}")
+                account.phone_number = real_phone
 
             # Release proxy for banned accounts
             if status == "banned" and account.proxy_id:
@@ -264,6 +274,14 @@ def _import_session_file(filepath: str, filename: str, imported_account_ids: lis
             db_session.commit()
             db_session.refresh(account)
             imported_account_ids.append(account.id)
+
+            # 兜底：确保 combat_role 已设置
+            try:
+                from app.services.account_assignment import auto_assign_imported
+                auto_assign_imported(db_session, [account.id])
+            except Exception as e:
+                logger.warning(f"auto_assign_imported failed: {e}")
+
             return True
     except Exception as e:
         errors.append(f"Failed to import {filename}: {e}")
@@ -406,10 +424,27 @@ def _convert_and_import_tdata(tdata_path, phone, imported_account_ids, errors, t
                         from app.services.proxy_assigner import auto_assign_proxy
                         auto_assign_proxy(db_session, account)
 
+                        # 兜底：确保 combat_role 已设置
+                        try:
+                            from app.services.account_assignment import auto_assign_imported
+                            auto_assign_imported(db_session, [account.id])
+                        except Exception as e:
+                            logger.warning(f"auto_assign_imported failed: {e}")
+
                         imported_account_ids.append(account.id)
             else:
                 errors.append(f"Failed to convert Telethon to Pyrogram for {phone}")
         else:
+            # Save failed tdata for debugging
+            debug_dir = f"/tmp/tdata_debug_{phone}"
+            try:
+                import shutil as _shutil
+                if os.path.isdir(tdata_path):
+                    _shutil.copytree(tdata_path, debug_dir, dirs_exist_ok=True)
+                    logger.error(f"tdata conversion failed, saved to {debug_dir} for debugging")
+                    logger.error(f"Files: {os.listdir(debug_dir)}")
+            except Exception:
+                pass
             errors.append(f"Failed to convert tdata for {phone}")
     except Exception as e:
         errors.append(f"tdata conversion error: {e}")
@@ -467,23 +502,62 @@ def import_tdata_archive(self, file_path: str, filename: str):
                 'source_label': filename
             })
 
-            # Find and process tdata directories
-            for root, dirs, files in os.walk(extract_dir):
-                if 'tdata' in dirs:
-                    tdata_path = os.path.join(root, 'tdata')
-                    parent_name = os.path.basename(root)
-                    phone = None
-                    match = regex.search(r'\+?\d{7,15}', parent_name)
-                    if match:
-                        phone = match.group(0)
-                    if phone and not phone.startswith('+'):
-                        phone = '+' + phone
-                    if not phone:
-                        phone = f"imported_{os.urandom(4).hex()}"
+            # Helper: detect if a directory looks like tdata content
+            # (contains hex-named subdirs like D877F783E5D8A72F, or key_datas/settings.db)
+            _HEX_RE = regex.compile(r'^[0-9A-Fa-f]{15,17}$')
+            _TDATA_MARKERS = {'settings.db', 'key_datas', 'usertag.json', 'emoji', 'D877F783E5D8A72F'}
 
-                    _convert_and_import_tdata(
-                        tdata_path, phone, imported_account_ids, errors, self, filename
-                    )
+            def _looks_like_tdata(path):
+                try:
+                    entries = set(os.listdir(path))
+                    if entries & _TDATA_MARKERS:
+                        return True
+                    return any(_HEX_RE.match(e) and os.path.isdir(os.path.join(path, e)) for e in entries)
+                except Exception:
+                    return False
+
+            # Collect tdata paths already processed to avoid duplicates
+            processed_tdata = set()
+
+            def _try_import_tdata(tdata_path, name_hint):
+                real = os.path.realpath(tdata_path)
+                if real in processed_tdata:
+                    return
+                processed_tdata.add(real)
+                phone = None
+                match = regex.search(r'\+?\d{7,15}', name_hint)
+                if match:
+                    phone = match.group(0)
+                    if not phone.startswith('+'):
+                        phone = '+' + phone
+                if not phone:
+                    phone = f"imported_{os.urandom(4).hex()}"
+                _convert_and_import_tdata(tdata_path, phone, imported_account_ids, errors, self, filename)
+
+            # Log the top-level structure to aid debugging
+            top_entries = os.listdir(extract_dir)
+            logger.info(f"Extracted entries in {filename}: {top_entries[:20]}")
+
+            # Case 1: extract_dir itself IS tdata content (user zipped tdata folder contents directly)
+            if _looks_like_tdata(extract_dir):
+                logger.info(f"Root of zip looks like tdata content, importing directly")
+                _try_import_tdata(extract_dir, filename)
+            else:
+                # Walk and find tdata directories (case-insensitive name match OR content detection)
+                for root, dirs, files in os.walk(extract_dir):
+                    for d in list(dirs):
+                        if d.lower() == 'tdata':
+                            tdata_path = os.path.join(root, d)
+                            name_hint = os.path.basename(root)
+                            logger.info(f"Found tdata dir: {tdata_path}")
+                            _try_import_tdata(tdata_path, name_hint)
+                            dirs.remove(d)  # don't recurse into tdata itself
+                        else:
+                            # Check if sub-directory looks like tdata content (tdata folder renamed)
+                            sub_path = os.path.join(root, d)
+                            if _looks_like_tdata(sub_path):
+                                logger.info(f"Dir '{d}' looks like tdata content")
+                                _try_import_tdata(sub_path, d)
 
             # Also check for loose .session files
             for root, dirs, files in os.walk(extract_dir):
@@ -493,6 +567,8 @@ def import_tdata_archive(self, file_path: str, filename: str):
                         _import_session_file(
                             filepath, f, imported_account_ids, errors, self, filename
                         )
+
+            logger.info(f"Import complete: {len(imported_account_ids)} accounts, {len(errors)} errors")
 
             self.update_state(state='PROGRESS', meta={
                 'status': 'saving',
@@ -1064,6 +1140,224 @@ def update_single_2fa_task(self, account_id: int, password: str, current_passwor
             return {"success": ok, "account_id": account_id, "message": msg}
     except Exception as e:
         return {"success": False, "account_id": account_id, "error": str(e)}
+    finally:
+        loop.close()
+        asyncio.set_event_loop(None)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 账号健康监控（心跳 + 深度检测）
+# ─────────────────────────────────────────────────────────────────────────────
+
+@celery_app.task(soft_time_limit=60, time_limit=90, max_retries=0)
+def batch_heartbeat_check():
+    """
+    每 5 分钟：纯 SQL 心跳检测，无需 TG 连接。
+    超过 48h 未活跃的 active 账号标为 stale。
+    """
+    threshold = datetime.utcnow() - timedelta(hours=48)
+    with Session(engine) as session:
+        stale_accounts = session.exec(
+            select(Account).where(
+                Account.status == "active",
+                Account.last_active != None,
+                Account.last_active < threshold,
+            )
+        ).all()
+        for acc in stale_accounts:
+            acc.status = "stale"
+            session.add(acc)
+        session.commit()
+
+        all_accounts = session.exec(select(Account)).all()
+        stats = dict(Counter(a.status for a in all_accounts))
+        logger.info(f"Heartbeat: {len(stale_accounts)} marked stale. Stats={stats}")
+        return {"stale_marked": len(stale_accounts), "stats": stats}
+
+
+@celery_app.task(soft_time_limit=30, time_limit=60, max_retries=0)
+def batch_deep_check():
+    """
+    每 6 小时：将所有账号拆成 50 个一批分发到 check_account_batch 并发执行。
+    """
+    with Session(engine) as session:
+        all_ids = [row for row in session.exec(select(Account.id)).all()]
+
+    batch_size = 50
+    batches = [all_ids[i:i + batch_size] for i in range(0, len(all_ids), batch_size)]
+    for batch in batches:
+        check_account_batch.delay(list(batch))
+
+    logger.info(f"Deep check: dispatched {len(batches)} batches for {len(all_ids)} accounts")
+    return {"dispatched_batches": len(batches), "total_accounts": len(all_ids)}
+
+
+@celery_app.task(bind=True, max_retries=1, soft_time_limit=300, time_limit=360)
+def check_account_batch(self, account_ids: List[int]):
+    """
+    批量账号深度检测子任务（10 并发 TG 连接）。
+    被 batch_deep_check 分发。
+    """
+    from app.models.proxy import Proxy
+
+    async def _run_all():
+        sem = asyncio.Semaphore(10)
+
+        async def _check_one(account_id: int) -> dict:
+            async with sem:
+                try:
+                    with Session(engine) as s:
+                        account = s.get(Account, account_id)
+                        if not account:
+                            return {"account_id": account_id, "skipped": True}
+                        proxy = s.get(Proxy, account.proxy_id) if account.proxy_id else None
+
+                    old_status = account.status
+                    status, error_msg, last_active, device_info = await check_account_with_client(
+                        account, proxy, mode="safe"
+                    )
+
+                    with Session(engine) as s:
+                        acc = s.get(Account, account_id)
+                        if acc:
+                            if status != "unknown":
+                                acc.status = status
+                            if last_active:
+                                acc.last_active = last_active
+                            s.add(acc)
+                            s.commit()
+
+                    return {"account_id": account_id, "status": status, "changed": old_status != status}
+                except Exception as e:
+                    logger.warning(f"check_account_batch: account {account_id} error: {e}")
+                    return {"account_id": account_id, "error": str(e)}
+
+        return await asyncio.gather(*[_check_one(aid) for aid in account_ids])
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        results = loop.run_until_complete(_run_all())
+    finally:
+        loop.close()
+        asyncio.set_event_loop(None)
+
+    success = sum(1 for r in results if "status" in r)
+    logger.info(f"check_account_batch: {success}/{len(account_ids)} checked OK")
+    return {"checked": len(account_ids), "success": success}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 人设资料同步任务
+# ─────────────────────────────────────────────────────────────────────────────
+
+@celery_app.task(bind=True, max_retries=3, soft_time_limit=120, time_limit=180,
+                 default_retry_delay=60)
+def apply_persona_profile_task(self, account_id: int, persona_id: int):
+    """
+    将 AI 人设的姓名/简介写入 TG 账号资料。
+    - first_name / last_name 来自人设 [人类档案] 姓名字段
+    - about (bio) 来自 工作经历 + 爱好，或角色设定首句
+    导入时由 auto_assign_imported 以 countdown=30 触发，也可手动/批量调用。
+    """
+    from app.models.ai_persona import AIPersona
+    from app.models.proxy import Proxy
+    from app.services.persona_profile import extract_tg_profile
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        with Session(engine) as session:
+            account = session.get(Account, account_id)
+            if not account:
+                return {"success": False, "error": f"Account {account_id} not found"}
+            if account.status == "banned":
+                return {"success": False, "skipped": True, "reason": "banned"}
+
+            persona = session.get(AIPersona, persona_id)
+            if not persona:
+                return {"success": False, "error": f"Persona {persona_id} not found"}
+
+            # 在 session 内提前加载 proxy，避免 detached instance lazy-load 错误
+            proxy = session.get(Proxy, account.proxy_id) if account.proxy_id else None
+            session.expunge(account)  # 显式分离，带走已加载的标量字段
+
+        profile = extract_tg_profile(persona, seed_fallback=account_id)
+        first_name = profile["first_name"]
+        last_name = profile["last_name"] or None
+        about = profile["about"] or None
+
+        # proxy 单独传入，update_profile_with_client 通过 account.proxy_id + 独立 proxy 对象工作
+        ok, msg = loop.run_until_complete(
+            update_profile_with_client(account, first_name, last_name, about)
+        )
+
+        if ok:
+            logger.info(
+                f"apply_persona_profile: account {account_id} → "
+                f"name='{first_name} {last_name}' bio='{about}'"
+            )
+        else:
+            logger.warning(f"apply_persona_profile: account {account_id} failed: {msg}")
+            # 可重试的连接失败
+            if any(kw in (msg or "").lower() for kw in ("timeout", "connect", "flood", "proxy")):
+                raise self.retry(exc=Exception(msg))
+
+        return {"success": ok, "account_id": account_id, "persona_id": persona_id,
+                "first_name": first_name, "last_name": last_name, "about": about,
+                "message": msg}
+    except Exception as exc:
+        if self.request.retries < self.max_retries:
+            raise self.retry(exc=exc)
+        logger.error(f"apply_persona_profile_task: account {account_id} final failure: {exc}")
+        return {"success": False, "account_id": account_id, "error": str(exc)}
+    finally:
+        loop.close()
+        asyncio.set_event_loop(None)
+
+
+# ── 主动发言定时任务 ────────────────────────────────────────────────────────────
+
+@celery_app.task(bind=True, max_retries=0, soft_time_limit=120, time_limit=180)
+def proactive_speaker_check(self):
+    """
+    每 30 分钟触发一次：从最近活跃的 live-chat 群里随机挑一个，
+    让一个账号主动发起话题。
+    """
+    import random
+    from app.core.concurrency import redis_client
+    from app.services.conversation_director import ConversationDirector
+
+    director = ConversationDirector()
+    live_groups = director.list_groups()
+
+    if not live_groups:
+        logger.debug("proactive_speaker_check: no live-chat groups registered")
+        return {"skipped": True, "reason": "no_live_groups"}
+
+    # 只选最近 2h 内有活动的群
+    active = []
+    import time
+    for gid in live_groups:
+        score = redis_client.zscore("dir_active_groups", gid)
+        if score and time.time() - score < 7200:
+            active.append(gid)
+
+    if not active:
+        logger.debug("proactive_speaker_check: no recently active groups")
+        return {"skipped": True, "reason": "no_active_groups"}
+
+    group_id = random.choice(active)
+    logger.info(f"proactive_speaker_check: targeting group {group_id}")
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(director.proactive_speak(group_id))
+        return {"success": True, "group_id": group_id}
+    except Exception as e:
+        logger.error(f"proactive_speaker_check failed: {e}")
+        return {"success": False, "error": str(e)}
     finally:
         loop.close()
         asyncio.set_event_loop(None)

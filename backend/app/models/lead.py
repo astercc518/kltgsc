@@ -15,6 +15,14 @@ class LeadBase(SQLModel):
     last_interaction_at: datetime = Field(default_factory=datetime.utcnow)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+    # ── 销售接管 / AI 副驾驶 ──
+    assigned_to_user_id: Optional[int] = Field(
+        default=None, foreign_key="user.id", index=True
+    )
+    ai_enabled: bool = Field(default=True)
+    ai_draft: Optional[str] = None  # 最新一条 AI 建议草稿（接管后才生成）
+    claimed_at: Optional[datetime] = None
+
 class Lead(LeadBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     interactions: List["LeadInteraction"] = Relationship(back_populates="lead")

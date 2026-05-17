@@ -6,16 +6,20 @@ import {
     createScript,
     getScripts,
     generateScriptLines,
+    generateScriptFromPersonas,
     createScriptTask,
     getScriptTasks,
     getAccounts,
     getCampaigns,
+    getPersonas,
     Script,
     ScriptTask,
     Account,
     Line,
     CampaignData,
+    PersonaData,
 } from '../services/api';
+import { ThunderboltOutlined } from '@ant-design/icons';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -45,12 +49,52 @@ const ScriptPage: React.FC = () => {
     const [selectedScript, setSelectedScript] = useState<Script | null>(null);
     const [taskForm] = Form.useForm();
 
+    // 从人设库一键生成
+    const [isPersonaModalVisible, setIsPersonaModalVisible] = useState(false);
+    const [personas, setPersonas] = useState<PersonaData[]>([]);
+    const [personaForm] = Form.useForm();
+    const [personaGenerating, setPersonaGenerating] = useState(false);
+
     useEffect(() => {
         fetchScripts();
         fetchTasks();
         fetchAccounts();
         fetchCampaigns();
+        fetchPersonas();
     }, []);
+
+    const fetchPersonas = async () => {
+        try {
+            const data = await getPersonas();
+            setPersonas(data);
+        } catch (e) {
+            // ignore
+        }
+    };
+
+    const handleGenerateFromPersonas = async () => {
+        try {
+            const values = await personaForm.validateFields();
+            setPersonaGenerating(true);
+            await generateScriptFromPersonas({
+                name: values.name,
+                description: values.description,
+                topic: values.topic,
+                persona_ids: values.persona_ids,
+                duration_minutes: values.duration_minutes || 5,
+                campaign_id: values.campaign_id,
+            });
+            message.success('剧本已生成');
+            setIsPersonaModalVisible(false);
+            personaForm.resetFields();
+            await fetchScripts();
+        } catch (e: any) {
+            const msg = e?.response?.data?.detail || e?.message || '生成失败';
+            message.error(`生成失败: ${msg}`);
+        } finally {
+            setPersonaGenerating(false);
+        }
+    };
 
     const fetchScripts = async () => {
         try {
@@ -244,7 +288,20 @@ const ScriptPage: React.FC = () => {
         <div style={{ padding: 20 }}>
             <Card 
                 title="炒群脚本管理" 
-                extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => setIsCreateModalVisible(true)}>新建剧本</Button>}
+                extra={
+                    <Space>
+                        <Button
+                            type="primary"
+                            icon={<ThunderboltOutlined />}
+                            onClick={() => setIsPersonaModalVisible(true)}
+                        >
+                            从 AI 人设库一键生成
+                        </Button>
+                        <Button icon={<PlusOutlined />} onClick={() => setIsCreateModalVisible(true)}>
+                            新建剧本（手动）
+                        </Button>
+                    </Space>
+                }
                 style={{ marginBottom: 20 }}
             >
                 <Table 
@@ -413,6 +470,85 @@ const ScriptPage: React.FC = () => {
                         </Button>
                     </Form>
                 )}
+            </Modal>
+
+            {/* 从 AI 人设库一键生成 Modal */}
+            <Modal
+                title="✨ 从 AI 人设库一键生成剧本"
+                open={isPersonaModalVisible}
+                onCancel={() => setIsPersonaModalVisible(false)}
+                onOk={handleGenerateFromPersonas}
+                confirmLoading={personaGenerating}
+                okText="生成"
+                width={680}
+            >
+                <Form form={personaForm} layout="vertical" initialValues={{ duration_minutes: 5 }}>
+                    <Form.Item
+                        name="name"
+                        label="剧本名称"
+                        rules={[{ required: true, message: '请输入剧本名称' }]}
+                    >
+                        <Input placeholder="例如：SMS 通道选型 - 老周 + 七七" />
+                    </Form.Item>
+                    <Form.Item name="description" label="备注（可选）">
+                        <Input placeholder="本剧本用于哪个监控规则/战役" />
+                    </Form.Item>
+                    <Form.Item
+                        name="topic"
+                        label="话题"
+                        rules={[{ required: true, message: '请输入话题' }]}
+                    >
+                        <TextArea
+                            rows={2}
+                            placeholder="例如：群里讨论国际短信通道，最近被运营商屏蔽问题严重，引导讨论 SMPP 直连"
+                        />
+                    </Form.Item>
+                    <Form.Item
+                        name="persona_ids"
+                        label="选择 2-5 个 AI 人设作为角色"
+                        rules={[
+                            { required: true, message: '至少选 2 个角色' },
+                            {
+                                validator: async (_, value) => {
+                                    if (!value || value.length < 2) {
+                                        throw new Error('至少 2 个角色');
+                                    }
+                                    if (value.length > 5) {
+                                        throw new Error('最多 5 个角色');
+                                    }
+                                },
+                            },
+                        ]}
+                    >
+                        <Select
+                            mode="multiple"
+                            showSearch
+                            placeholder="搜索人设名称..."
+                            optionFilterProp="label"
+                            maxTagCount="responsive"
+                            options={personas.map((p) => ({
+                                value: p.id,
+                                label: `${p.name} (${p.tone || 'casual'})`,
+                            }))}
+                        />
+                    </Form.Item>
+                    <Form.Item name="duration_minutes" label="剧本时长（分钟）">
+                        <Select>
+                            <Option value={3}>3 分钟（短）</Option>
+                            <Option value={5}>5 分钟（标准）</Option>
+                            <Option value={10}>10 分钟（长）</Option>
+                        </Select>
+                    </Form.Item>
+                    <Form.Item name="campaign_id" label="关联战役（可选，注入知识库）">
+                        <Select allowClear placeholder="选择战役（可选）">
+                            {campaigns.map((c) => (
+                                <Option key={c.id} value={c.id}>
+                                    {c.name}
+                                </Option>
+                            ))}
+                        </Select>
+                    </Form.Item>
+                </Form>
             </Modal>
         </div>
     );

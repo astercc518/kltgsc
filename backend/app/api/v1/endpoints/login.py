@@ -155,7 +155,7 @@ def login_access_token(
 @router.post("/logout", response_model=LogoutResponse)
 def logout(
     token: str = Depends(_oauth2_scheme),
-    current_user: str = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Revoke the current JWT so it can no longer be used.
@@ -193,7 +193,7 @@ def logout(
 @router.post("/auth/setup-2fa", response_model=Setup2FAResponse)
 def setup_2fa(
     session: Session = Depends(get_session),
-    current_user: str = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Generate a new TOTP secret for the authenticated user.
@@ -202,14 +202,7 @@ def setup_2fa(
     QR code by the frontend.  2FA is **not** activated until the user
     verifies a code via ``/auth/verify-2fa``.
     """
-    user = session.exec(
-        select(User).where(User.username == current_user)
-    ).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
+    user = current_user
 
     # Generate a fresh TOTP secret
     secret = pyotp.random_base32()
@@ -242,7 +235,7 @@ def setup_2fa(
 def verify_2fa(
     data: TOTPVerify,
     session: Session = Depends(get_session),
-    current_user: str = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Verify a TOTP code and activate 2FA for the user.
@@ -251,14 +244,7 @@ def verify_2fa(
     secret.  After successful verification the ``totp_enabled`` flag is
     set to ``True`` and all future logins will require a TOTP code.
     """
-    user = session.exec(
-        select(User).where(User.username == current_user)
-    ).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
+    user = current_user
 
     if not user.totp_secret:
         raise HTTPException(

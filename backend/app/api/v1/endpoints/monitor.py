@@ -1,8 +1,8 @@
 import logging
 import json
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
-from sqlmodel import Session
+from sqlmodel import Session, select
 from pydantic import BaseModel
 from app.core.db import get_session
 from app.models.keyword_monitor import KeywordMonitor, KeywordMonitorCreate, KeywordMonitorRead, KeywordMonitorUpdate, KeywordHit, KeywordHitRead
@@ -285,4 +285,84 @@ async def test_intercept(
             "bio": test_bio
         },
         "result": result
+    }
+
+
+# ============================================================
+# 自由发言 API
+# ============================================================
+
+# ============================================================
+# Live-Chat 群管理 API（ConversationDirector）
+# ============================================================
+
+class LiveChatGroupRequest(BaseModel):
+    group_id: str   # Telegram chat_id，如 "-5276158188"
+
+
+@router.post("/live-chat/groups")
+def enable_live_chat_group(request: LiveChatGroupRequest):
+    """为指定群启用 ConversationDirector 动态对话模式。"""
+    from app.services.conversation_director import ConversationDirector
+    ConversationDirector().enable_group(request.group_id)
+    return {"success": True, "group_id": request.group_id, "action": "enabled"}
+
+
+@router.delete("/live-chat/groups/{group_id:path}")
+def disable_live_chat_group(group_id: str):
+    """关闭指定群的动态对话模式。"""
+    from app.services.conversation_director import ConversationDirector
+    ConversationDirector().disable_group(group_id)
+    return {"success": True, "group_id": group_id, "action": "disabled"}
+
+
+@router.get("/live-chat/groups")
+def list_live_chat_groups():
+    """列出已启用动态对话的群。"""
+    from app.services.conversation_director import ConversationDirector
+    groups = ConversationDirector().list_groups()
+    return {"groups": groups, "count": len(groups)}
+
+
+class FreeChatRequest(BaseModel):
+    chat_id: str                          # 目标群 chat_id（如 "-5276158188"）
+    topic: str                            # 话题，给 AI 生成内容用
+    account_ids: Optional[List[int]] = None  # None = 全部 active 账号
+    turns_per_account: int = 1           # 每个账号发几轮
+
+
+@router.post("/free-chat")
+def trigger_free_chat(
+    request: FreeChatRequest,
+    session: Session = Depends(get_session),
+):
+    """
+    触发多账号自由发言：所有指定账号按 AI 人设生成消息，随机间隔发送到目标群。
+    """
+    from app.models.account import Account
+    from app.tasks.monitor_tasks import execute_free_conversation
+
+    if request.account_ids:
+        account_ids = request.account_ids
+    else:
+        accounts = session.exec(
+            select(Account).where(Account.status == "active")
+        ).all()
+        account_ids = [a.id for a in accounts if a.ai_persona_id is not None]
+
+    if not account_ids:
+        raise HTTPException(status_code=400, detail="No active accounts with personas found")
+
+    execute_free_conversation.delay(
+        account_ids,
+        request.chat_id,
+        request.topic,
+        request.turns_per_account,
+    )
+
+    return {
+        "success": True,
+        "message": f"已调度 {len(account_ids)} 个账号发言，话题：{request.topic}",
+        "account_ids": account_ids,
+        "turns_per_account": request.turns_per_account,
     }

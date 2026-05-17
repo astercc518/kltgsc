@@ -9,13 +9,16 @@ if settings.DATABASE_URL.startswith("sqlite"):
     engine = create_engine(settings.DATABASE_URL, echo=False, connect_args=connect_args)
 else:
     # PostgreSQL - 使用连接池
+    # 1000+ 账号规模下，进程数 ≈ 14 (4 gunicorn + 8 celery worker + 1 beat + 1 listener)。
+    # 每进程 10+10 = 20 连接，理论上限 14*20 = 280，PG 侧 max_connections=500 留余量。
     engine = create_engine(
-        settings.DATABASE_URL, 
+        settings.DATABASE_URL,
         echo=False,
-        pool_size=20,           # 连接池大小
-        max_overflow=30,        # 超出 pool_size 后最多可创建的连接数
-        pool_pre_ping=True,     # 自动检测失效连接
-        pool_recycle=3600       # 1小时回收连接
+        pool_size=10,
+        max_overflow=10,
+        pool_pre_ping=True,
+        pool_recycle=3600,
+        pool_timeout=30,
     )
 
 def init_db():

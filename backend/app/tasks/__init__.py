@@ -29,6 +29,13 @@ from app.tasks.invite_tasks import (
     execute_invite_task,
     check_recurring_tasks,
 )
+from app.tasks.knowledge_tasks import (
+    scrape_account_groups,
+    extract_qa_from_messages,
+)
+from app.tasks.import_tasks import (
+    import_pdf_to_kb,
+)
 
 __all__ = [
     # Account tasks
@@ -52,4 +59,9 @@ __all__ = [
     # Invite tasks
     "execute_invite_task",
     "check_recurring_tasks",
+    # Knowledge tasks
+    "scrape_account_groups",
+    "extract_qa_from_messages",
+    # Import tasks
+    "import_pdf_to_kb",
 ]

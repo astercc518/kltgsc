@@ -31,7 +31,12 @@ celery_app.conf.update(
     
     # 启动时重试连接 broker
     broker_connection_retry_on_startup=True,
-    
+
+    # Redis broker: 增大 visibility_timeout 防止长任务（如 Q&A 抽取）被误判失败重派
+    # 默认 1h 太短，长跑任务会被克隆出多个实例并行跑（浪费 LLM token）
+    broker_transport_options={"visibility_timeout": 28800},  # 8h
+    result_backend_transport_options={"visibility_timeout": 28800},
+
     # ==================== 性能配置 ====================
     # Worker 预取倍数 (每次从队列获取的任务数)
     worker_prefetch_multiplier=4,
@@ -39,8 +44,8 @@ celery_app.conf.update(
     # 禁用心跳 (使用 Redis 时可以禁用以减少连接)
     broker_heartbeat=0,
     
-    # 连接池大小
-    broker_pool_limit=10,
+    # 连接池大小：1000+ 账号 + 多 worker 副本时需要更大，避免 broker 连接成为瓶颈
+    broker_pool_limit=30,
     
     # ==================== 队列配置 ====================
     task_queues=(
@@ -53,9 +58,38 @@ celery_app.conf.update(
     
     # ==================== 定时调度 (Beat) ====================
     beat_schedule={
+        # ── 代理监控 ──────────────────────────────────────────
+        "fast-proxy-ping": {
+            "task": "app.tasks.proxy_tasks.check_all_proxies_fast",
+            "schedule": 30.0,           # 每 30 秒：TCP ping 全量
+            "options": {"queue": "high_priority"},
+        },
+        "deep-proxy-check": {
+            "task": "app.tasks.proxy_tasks.check_proxies_batch_task",
+            "schedule": 3600.0,         # 每 1 小时：含 geo 的完整检测
+            "args": [[]],               # 空列表 = 全量
+            "options": {"queue": "low_priority"},
+        },
         "rebalance-proxy-accounts": {
             "task": "app.tasks.proxy_tasks.rebalance_proxy_accounts",
-            "schedule": 300.0,  # 每 5 分钟
+            "schedule": 300.0,          # 每 5 分钟：均衡分配
+            "options": {"queue": "default"},
+        },
+        # ── 账号监控 ──────────────────────────────────────────
+        "account-heartbeat": {
+            "task": "app.tasks.account_tasks.batch_heartbeat_check",
+            "schedule": 300.0,          # 每 5 分钟：纯 SQL 心跳
+            "options": {"queue": "default"},
+        },
+        "account-deep-check": {
+            "task": "app.tasks.account_tasks.batch_deep_check",
+            "schedule": 21600.0,        # 每 6 小时：真实 Pyrogram 连接检测
+            "options": {"queue": "low_priority"},
+        },
+        # ── 主动发言 ──────────────────────────────────────────
+        "proactive-speaker": {
+            "task": "app.tasks.account_tasks.proactive_speaker_check",
+            "schedule": 1800.0,         # 每 30 分钟：随机让一个账号主动发话题
             "options": {"queue": "default"},
         },
     },
@@ -65,11 +99,17 @@ celery_app.conf.update(
         # 高优先级任务
         'app.tasks.account_tasks.check_account_status': {'queue': 'high_priority'},
         'app.tasks.monitor_tasks.execute_shill_conversation': {'queue': 'high_priority'},
+        'app.tasks.proxy_tasks.check_all_proxies_fast': {'queue': 'high_priority'},
+
+        # 默认优先级
+        'app.tasks.account_tasks.batch_heartbeat_check': {'queue': 'default'},
+        'app.tasks.proxy_tasks.rebalance_proxy_accounts': {'queue': 'default'},
 
         # 低优先级任务
         'app.tasks.marketing_tasks.execute_warmup_task': {'queue': 'low_priority'},
         'app.tasks.proxy_tasks.check_proxies_batch_task': {'queue': 'low_priority'},
-        'app.tasks.proxy_tasks.rebalance_proxy_accounts': {'queue': 'default'},
+        'app.tasks.account_tasks.batch_deep_check': {'queue': 'low_priority'},
+        'app.tasks.account_tasks.check_account_batch': {'queue': 'low_priority'},
     },
 
     # ==================== 并发限制 ====================

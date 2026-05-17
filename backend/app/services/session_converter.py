@@ -123,12 +123,12 @@ def convert_telethon_to_pyrogram(file_path: str) -> bool:
         # 插入版本号 (Pyrogram current storage version is 3)
         cursor_py.execute("INSERT INTO version (number) VALUES (3)")
         
-        # 插入数据 (api_id, user_id 暂时填 0，Pyrogram 会在登录后更新)
-        # date 必须是有效的 Unix 时间戳，否则 Pyrogram 会报错
+        # user_id 必须为非零值，否则 Pyrogram connect() 返回 False 触发交互式登录
+        # 设为 1 作为占位符；Pyrogram 连接后调用 get_me() 会更新为真实 user_id
         import time
         cursor_py.execute(
             "INSERT INTO sessions (dc_id, api_id, test_mode, auth_key, date, user_id, is_bot) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (dc_id, 0, 0, auth_key, int(time.time()), 0, 0)
+            (dc_id, 0, 0, auth_key, int(time.time()), 1, 0)
         )
         
         conn_py.commit()

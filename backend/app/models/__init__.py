@@ -22,3 +22,4 @@ from .source_group import SourceGroup, SourceGroupCreate, SourceGroupUpdate, Sou
 from .funnel_group import FunnelGroup, FunnelGroupCreate, FunnelGroupUpdate, FunnelGroupRead
 from .ai_persona import AIPersona, AIPersonaCreate, AIPersonaUpdate, AIPersonaRead
 from .knowledge_base import KnowledgeBase, KnowledgeBaseCreate, KnowledgeBaseUpdate, KnowledgeBaseRead, CampaignKnowledgeLink
+from .group_message import GroupMessage, GroupMessageRead

@@ -79,6 +79,12 @@ node_modules/
 
 # ========== Cursor/AI Tools ==========
 .cursor/
+.claude/
+
+# ========== Database backups & migration artifacts (SENSITIVE!) ==========
+migration_backup/
+*.dump
+*.sql.gz
 
 # ========== Test files ==========
 backend/manual_test_session*.session

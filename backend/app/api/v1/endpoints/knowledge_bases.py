@@ -2,8 +2,13 @@
 AI 知识库管理 API
 用于 RAG 对话支持
 """
+import json
+import os
+import shutil
+import tempfile
+import logging
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from sqlmodel import Session, select
 from datetime import datetime
@@ -13,9 +18,250 @@ from app.models.knowledge_base import (
     KnowledgeBase, KnowledgeBaseCreate, KnowledgeBaseUpdate, KnowledgeBaseRead,
     CampaignKnowledgeLink
 )
+from app.models.account import Account
+from app.models.group_message import GroupMessage
+from app.models.scraping_task import ScrapingTask
 from app.services.ai_engine import AIEngine
+from sqlalchemy import func, Integer
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
+
+# 导入临时目录（容器内）
+IMPORT_TMP_DIR = "/tmp/kb_imports"
+ALLOWED_IMPORT_EXTS = {".pdf"}
+MAX_IMPORT_BYTES = 50 * 1024 * 1024  # 50 MB
+
+
+# ─────────── 群组采集（Phase 1）───────────
+class ScrapeGroupsRequest(BaseModel):
+    include_private: bool = True
+    limit_per_chat: Optional[int] = None  # None = 全量
+    chat_sleep_sec: float = 2.0
+
+
+@router.post("/scrape/{account_id}")
+def trigger_scrape_account_groups(
+    account_id: int,
+    body: ScrapeGroupsRequest,
+    session: Session = Depends(get_session),
+):
+    """
+    触发指定账号的群组+私聊消息全量采集。
+    返回 scraping_task_id，用 GET /scrape/status/{id} 查询进度。
+    """
+    account = session.get(Account, account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    if account.status not in ("active", "spam_block"):
+        raise HTTPException(status_code=400, detail=f"Account status is {account.status}, must be active")
+
+    # 创建 ScrapingTask 记录
+    st = ScrapingTask(
+        task_type="scrape_messages",
+        status="pending",
+        account_ids_json=json.dumps([account_id]),
+        group_links_json="[]",
+        result_json="{}",
+    )
+    session.add(st)
+    session.commit()
+    session.refresh(st)
+
+    # 派发 Celery 任务
+    from app.tasks.knowledge_tasks import scrape_account_groups
+    celery_result = scrape_account_groups.delay(
+        account_id=account_id,
+        scraping_task_id=st.id,
+        include_private=body.include_private,
+        limit_per_chat=body.limit_per_chat,
+        chat_sleep_sec=body.chat_sleep_sec,
+    )
+    st.celery_task_id = celery_result.id
+    session.add(st)
+    session.commit()
+
+    return {
+        "scraping_task_id": st.id,
+        "celery_task_id": celery_result.id,
+        "account_id": account_id,
+        "phone": account.phone_number,
+    }
+
+
+@router.get("/scrape/status/{scraping_task_id}")
+def get_scrape_status(
+    scraping_task_id: int,
+    session: Session = Depends(get_session),
+):
+    """查询采集任务进度"""
+    st = session.get(ScrapingTask, scraping_task_id)
+    if not st:
+        raise HTTPException(status_code=404, detail="Scraping task not found")
+    try:
+        progress = json.loads(st.result_json) if st.result_json else {}
+    except Exception:
+        progress = {}
+    return {
+        "id": st.id,
+        "status": st.status,
+        "celery_task_id": st.celery_task_id,
+        "created_at": st.created_at,
+        "completed_at": st.completed_at,
+        "error_message": st.error_message,
+        "progress": progress,
+    }
+
+
+# ─────────── Q&A 抽取（Phase 2）───────────
+class ExtractQARequest(BaseModel):
+    chat_ids: Optional[List[int]] = None  # None = 全部
+    window_size: int = 50
+    concurrency: int = 3
+    max_windows: Optional[int] = None  # None = 全量
+
+
+@router.post("/extract-qa")
+def trigger_extract_qa(
+    body: ExtractQARequest,
+    session: Session = Depends(get_session),
+):
+    """触发 Q&A 抽取任务，从 group_message 表抽 Q&A 写入 knowledge_base。"""
+    st = ScrapingTask(
+        task_type="extract_qa",
+        status="pending",
+        account_ids_json="[]",
+        group_links_json=json.dumps(body.chat_ids or []),
+        result_json="{}",
+    )
+    session.add(st)
+    session.commit()
+    session.refresh(st)
+
+    from app.tasks.knowledge_tasks import extract_qa_from_messages
+    celery_result = extract_qa_from_messages.delay(
+        chat_ids=body.chat_ids,
+        window_size=body.window_size,
+        concurrency=body.concurrency,
+        scraping_task_id=st.id,
+        max_windows=body.max_windows,
+    )
+    st.celery_task_id = celery_result.id
+    session.add(st)
+    session.commit()
+    return {"scraping_task_id": st.id, "celery_task_id": celery_result.id}
+
+
+# ─────────── 文件批量导入（Phase 3）───────────
+@router.post("/import/file")
+async def import_knowledge_file(
+    file: UploadFile = File(...),
+    category: Optional[str] = Form(None),
+    session: Session = Depends(get_session),
+):
+    """
+    上传文档文件（MVP 仅 PDF），异步解析 + chunk + embedding + 入库。
+    返回 Celery task_id；查询进度用 GET /import/status/{task_id}。
+    """
+    safe_filename = os.path.basename(file.filename or "")
+    if not safe_filename or safe_filename.startswith("."):
+        raise HTTPException(status_code=400, detail="无效的文件名")
+
+    ext = os.path.splitext(safe_filename)[1].lower()
+    if ext not in ALLOWED_IMPORT_EXTS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"不支持的文件类型 {ext}；MVP 仅支持 {sorted(ALLOWED_IMPORT_EXTS)}",
+        )
+
+    os.makedirs(IMPORT_TMP_DIR, exist_ok=True)
+    # 用 mkstemp 防文件名碰撞
+    fd, tmp_path = tempfile.mkstemp(
+        prefix="kb_", suffix=ext, dir=IMPORT_TMP_DIR
+    )
+    try:
+        with os.fdopen(fd, "wb") as out:
+            total = 0
+            while True:
+                chunk = await file.read(1024 * 1024)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > MAX_IMPORT_BYTES:
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"文件超过 {MAX_IMPORT_BYTES // 1024 // 1024} MB 上限",
+                    )
+                out.write(chunk)
+    except HTTPException:
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+        raise
+
+    from app.tasks.import_tasks import import_pdf_to_kb
+    result = import_pdf_to_kb.delay(
+        file_path=tmp_path,
+        category=category,
+        source_filename=safe_filename,
+    )
+
+    return {
+        "task_id": result.id,
+        "filename": safe_filename,
+        "category": category,
+        "queued": True,
+    }
+
+
+@router.get("/import/status/{task_id}")
+def get_import_status(task_id: str):
+    """查询 PDF 导入任务进度。"""
+    from app.core.celery_app import celery_app
+    async_result = celery_app.AsyncResult(task_id)
+    payload = {
+        "task_id": task_id,
+        "state": async_result.state,
+        "ready": async_result.ready(),
+    }
+    if async_result.ready():
+        try:
+            payload["result"] = async_result.result
+        except Exception as e:
+            payload["error"] = str(e)
+    return payload
+
+
+@router.get("/scrape/messages/stats")
+def get_scraped_messages_stats(
+    account_id: Optional[int] = None,
+    session: Session = Depends(get_session),
+):
+    """采集到的消息统计：按 chat 聚合"""
+    q = select(
+        GroupMessage.chat_id,
+        GroupMessage.chat_title,
+        GroupMessage.chat_type,
+        func.count(GroupMessage.id).label("msg_count"),
+        func.sum(func.cast(GroupMessage.qa_extracted, Integer)).label("extracted"),
+    ).group_by(GroupMessage.chat_id, GroupMessage.chat_title, GroupMessage.chat_type)
+    if account_id:
+        q = q.where(GroupMessage.account_id == account_id)
+    rows = session.exec(q).all()
+    return [
+        {
+            "chat_id": r[0],
+            "chat_title": r[1],
+            "chat_type": r[2],
+            "message_count": r[3],
+            "qa_extracted": int(r[4] or 0),
+        }
+        for r in rows
+    ]
+
+
+
 
 
 class GenerateContentRequest(BaseModel):

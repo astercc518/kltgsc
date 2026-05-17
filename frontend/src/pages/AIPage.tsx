@@ -53,13 +53,15 @@ const AIPage: React.FC = () => {
 
   const handleEdit = (config: AIConfigData) => {
     setEditingConfig(config);
+    const vertexFields = unpackVertexConfig(config);
     form.setFieldsValue({
       name: config.name,
       provider: config.provider,
       base_url: config.base_url,
       model: config.model,
       is_default: config.is_default,
-      api_key: '', // 不回显 API Key
+      api_key: '',
+      ...vertexFields,
     });
     setModalVisible(true);
   };
@@ -103,28 +105,37 @@ const AIPage: React.FC = () => {
   const handleSubmit = async (values: any) => {
     setLoading(true);
     try {
+      // Pack Vertex AI fields into api_key / base_url
+      let packedApiKey = values.api_key;
+      let packedBaseUrl = values.base_url || '';
+      if (values.provider === 'vertex') {
+        packedBaseUrl = JSON.stringify({
+          project_id: values.gcp_project_id || '',
+          location: values.gcp_location || 'us-central1',
+        });
+        // api_key holds the SA JSON string for vertex
+        packedApiKey = values.api_key || '';
+      }
+
       if (editingConfig) {
-        // 更新
         const updateData: AIConfigUpdate = {
           name: values.name,
           provider: values.provider,
-          base_url: values.base_url,
+          base_url: packedBaseUrl,
           model: values.model,
           is_default: values.is_default,
         };
-        // 只有填写了新的 API Key 才更新
-        if (values.api_key) {
-          updateData.api_key = values.api_key;
+        if (packedApiKey) {
+          updateData.api_key = packedApiKey;
         }
         await updateAIConfig(editingConfig.id, updateData);
         message.success('更新成功');
       } else {
-        // 创建
         const createData: AIConfigCreate = {
           name: values.name,
           provider: values.provider,
-          api_key: values.api_key,
-          base_url: values.base_url || '',
+          api_key: packedApiKey,
+          base_url: packedBaseUrl,
           model: values.model,
           is_default: values.is_default || false,
         };
@@ -144,6 +155,7 @@ const AIPage: React.FC = () => {
     const defaultUrls: Record<string, string> = {
       openai: 'https://api.openai.com/v1',
       gemini: '',
+      vertex: '',
       anthropic: 'https://api.anthropic.com/v1',
       deepseek: 'https://api.deepseek.com/v1',
       qwen: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
@@ -156,6 +168,7 @@ const AIPage: React.FC = () => {
     const defaultModels: Record<string, string> = {
       openai: 'gpt-4o',
       gemini: 'gemini-2.5-flash',
+      vertex: 'gemini-2.5-flash',
       anthropic: 'claude-sonnet-4-20250514',
       deepseek: 'deepseek-chat',
       qwen: 'qwen-plus',
@@ -168,12 +181,28 @@ const AIPage: React.FC = () => {
     form.setFieldsValue({
       base_url: defaultUrls[value] || '',
       model: defaultModels[value] || '',
+      gcp_location: 'us-central1',
     });
+  };
+
+  // 编辑时解析 Vertex AI 的 base_url JSON 为独立字段
+  const unpackVertexConfig = (config: AIConfigData) => {
+    if (config.provider !== 'vertex') return {};
+    try {
+      const parsed = JSON.parse(config.base_url || '{}');
+      return {
+        gcp_project_id: parsed.project_id || '',
+        gcp_location: parsed.location || 'us-central1',
+      };
+    } catch {
+      return { gcp_project_id: config.base_url || '', gcp_location: 'us-central1' };
+    }
   };
 
   const providerOptions = [
     { value: 'openai', label: 'OpenAI' },
-    { value: 'gemini', label: 'Google Gemini' },
+    { value: 'gemini', label: 'Google Gemini (AI Studio)' },
+    { value: 'vertex', label: 'Google Vertex AI ☁️' },
     { value: 'anthropic', label: 'Anthropic Claude' },
     { value: 'deepseek', label: 'DeepSeek 深度求索' },
     { value: 'qwen', label: '阿里通义千问' },
@@ -187,6 +216,7 @@ const AIPage: React.FC = () => {
   const modelsByProvider: Record<string, string[]> = {
     openai: ['gpt-4.1', 'gpt-4.1-mini', 'gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo', 'o3-mini', 'o1'],
     gemini: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-1.5-pro'],
+    vertex: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-1.5-pro'],
     anthropic: ['claude-sonnet-4-20250514', 'claude-opus-4-20250514', 'claude-3-5-sonnet-20241022', 'claude-3-opus-20240229'],
     deepseek: ['deepseek-chat', 'deepseek-reasoner'],
     qwen: ['qwen-max', 'qwen-plus', 'qwen-turbo', 'qwen-long'],
@@ -374,24 +404,58 @@ const AIPage: React.FC = () => {
             </Col>
           </Row>
 
-          {selectedProvider !== 'gemini' && (
-            <Form.Item 
-              name="base_url" 
-              label="API Base URL"
-              help="Gemini 使用原生 SDK，无需填写"
-            >
-              <Input placeholder="https://api.openai.com/v1" />
-            </Form.Item>
+          {selectedProvider === 'vertex' ? (
+            <>
+              <Form.Item
+                name="gcp_project_id"
+                label="GCP 项目 ID"
+                rules={[{ required: true, message: '请输入 GCP 项目 ID' }]}
+              >
+                <Input placeholder="my-project-123456" />
+              </Form.Item>
+              <Form.Item name="gcp_location" label="区域">
+                <Select options={[
+                  { value: 'us-central1', label: 'us-central1（美国中部）' },
+                  { value: 'us-east4', label: 'us-east4（美国东部）' },
+                  { value: 'us-west1', label: 'us-west1（美国西部）' },
+                  { value: 'europe-west4', label: 'europe-west4（荷兰）' },
+                  { value: 'asia-east1', label: 'asia-east1（台湾）' },
+                  { value: 'asia-northeast1', label: 'asia-northeast1（东京）' },
+                  { value: 'asia-southeast1', label: 'asia-southeast1（新加坡）' },
+                ]} />
+              </Form.Item>
+              <Form.Item
+                name="api_key"
+                label="Service Account JSON（可选）"
+                help="已配置 ADC (gcloud auth application-default login) 时可留空"
+              >
+                <Input.TextArea
+                  rows={4}
+                  placeholder={'留空 = 使用服务器 ADC 凭证\n或粘贴 {"type":"service_account",...} JSON'}
+                />
+              </Form.Item>
+            </>
+          ) : (
+            <>
+              {selectedProvider !== 'gemini' && (
+                <Form.Item
+                  name="base_url"
+                  label="API Base URL"
+                  help="Gemini 使用原生 SDK，无需填写"
+                >
+                  <Input placeholder="https://api.openai.com/v1" />
+                </Form.Item>
+              )}
+              <Form.Item
+                name="api_key"
+                label="API Key"
+                rules={editingConfig ? [] : [{ required: true, message: '请输入 API Key' }]}
+                help={editingConfig ? '留空表示不修改现有 API Key' : ''}
+              >
+                <Input.Password placeholder={editingConfig ? '留空不修改' : '输入 API Key'} />
+              </Form.Item>
+            </>
           )}
-
-          <Form.Item 
-            name="api_key" 
-            label="API Key"
-            rules={editingConfig ? [] : [{ required: true, message: '请输入 API Key' }]}
-            help={editingConfig ? '留空表示不修改现有 API Key' : ''}
-          >
-            <Input.Password placeholder={editingConfig ? '留空不修改' : '输入 API Key'} />
-          </Form.Item>
 
           <Form.Item name="is_default" valuePropName="checked">
             <label>

@@ -38,36 +38,70 @@ class ListenerService:
         self.client_accounts: Dict[str, Account] = {}  # client_name -> Account (用于账号轮询)
         self.monitors: List[KeywordMonitor] = []
         self.monitor_service: KeywordMonitorService = None
-        
+
         # 冷却时间记录: key = f"{monitor_id}_{chat_id}", value = last_trigger_timestamp
         self.cooldowns: Dict[str, float] = {}
-        
-        # 上下文缓存: key = chat_id, value = List of recent messages
+
+        # 上下文缓存: key = chat_id, value = List of recent messages (保留兼容)
         self.context_cache: Dict[int, List[str]] = {}
-        self.context_max_size = 10  # 每个群缓存最近10条消息
+        self.context_max_size = 10
+
+        # ConversationDirector — 动态对话引擎
+        from app.services.conversation_director import ConversationDirector
+        self.director = ConversationDirector()
+        self._our_tg_ids: set = set()   # 我们自己账号的 Telegram user_id
+
+        # active_monitors 内存缓存：避免每条消息打一次 DB。
+        # 1000+ 账号 × 群活跃度可能 ≥ 几千 QPS，按 30s TTL 刷新已足够。
+        self._monitors_cache: List[KeywordMonitor] = []
+        self._monitors_cache_ts: float = 0.0
+        self._monitors_cache_ttl: float = 30.0
+
+    def _get_active_monitors(self, session: Session) -> List[KeywordMonitor]:
+        """返回缓存的 active monitors；过期则刷新。"""
+        now = time.time()
+        if now - self._monitors_cache_ts > self._monitors_cache_ttl:
+            self._monitors_cache = list(session.exec(
+                select(KeywordMonitor).where(KeywordMonitor.is_active == True)
+            ).all())
+            self._monitors_cache_ts = now
+        return self._monitors_cache
 
     async def _handle_message(self, client: Client, message):
         """
-        消息处理核心逻辑 - 支持被动式(两级过滤)和主动式营销
+        消息处理核心逻辑 - 支持被动式(两级过滤)和主动式营销，以及动态对话
         """
         if not message.text:
             return
-        
-        # 缓存上下文消息
+
         chat_id = message.chat.id
+        user_id = message.from_user.id if message.from_user else 0
+        sender_name = (message.from_user.first_name if message.from_user else "") or str(user_id)
+
+        # 旧上下文缓存（兼容 dispatch_ai_shill）
         if chat_id not in self.context_cache:
             self.context_cache[chat_id] = []
         self.context_cache[chat_id].append(message.text)
         if len(self.context_cache[chat_id]) > self.context_max_size:
             self.context_cache[chat_id].pop(0)
 
+        # ── ConversationDirector：如果该群已开启 live-chat，异步处理 ──────────
+        group_id_str = str(chat_id)
+        if self.director.is_group_enabled(group_id_str):
+            asyncio.create_task(
+                self.director.handle_message(
+                    group_id=group_id_str,
+                    sender_id=str(user_id),
+                    sender_name=sender_name,
+                    text=message.text,
+                    msg_id=message.id,
+                )
+            )
+
         with Session(engine) as session:
-            active_monitors = session.exec(
-                select(KeywordMonitor).where(KeywordMonitor.is_active == True)
-            ).all()
-            
+            active_monitors = self._get_active_monitors(session)
+
             chat_title = message.chat.title or str(chat_id)
-            user_id = message.from_user.id if message.from_user else 0
             username = message.from_user.username if message.from_user else ""
             first_name = message.from_user.first_name if message.from_user else ""
             content = message.text
@@ -260,25 +294,30 @@ class ListenerService:
 
     def _check_circuit_breaker(self, monitor: KeywordMonitor, session: Session) -> bool:
         """
-        熔断机制检查：防止单规则回复过多
+        熔断机制检查：防止单规则回复过多。
+        monitor 可能来自 _monitors_cache（detached），需要 merge 到当前 session 才能 commit。
         """
         today = date.today().isoformat()
-        
-        # 检查是否需要重置计数
-        if monitor.last_reply_date != today:
-            monitor.daily_reply_count = 0
-            monitor.last_reply_date = today
-        
-        # 检查是否超限
-        max_replies = monitor.max_replies_per_day or 10
-        if monitor.daily_reply_count >= max_replies:
+
+        # 把缓存的 detached 实例 attach 到当前 session 并加载最新 DB 状态
+        db_monitor = session.merge(monitor)
+
+        if db_monitor.last_reply_date != today:
+            db_monitor.daily_reply_count = 0
+            db_monitor.last_reply_date = today
+
+        max_replies = db_monitor.max_replies_per_day or 10
+        if db_monitor.daily_reply_count >= max_replies:
             return False
-        
-        # 增加计数
-        monitor.daily_reply_count += 1
-        session.add(monitor)
+
+        db_monitor.daily_reply_count += 1
+        session.add(db_monitor)
         session.commit()
-        
+
+        # 把新值同步回缓存对象，保持 30s TTL 内的一致性
+        monitor.daily_reply_count = db_monitor.daily_reply_count
+        monitor.last_reply_date = db_monitor.last_reply_date
+
         return True
 
     async def _execute_passive_marketing(
@@ -303,11 +342,18 @@ class ListenerService:
                 str(message.chat.id), monitor.keyword, monitor.score_weight or 10
             )
         
-        # 3. 触发剧本 (被动模式下通常不主动回复，但可以触发后台任务)
+        # 3. 触发剧本 / AI 炒群 (被动模式下通常不主动回复，但可以触发后台任务)
         if monitor.action_type == "trigger_script" and monitor.reply_script_id:
             from app.services.shill_dispatcher import ShillDispatcher
             dispatcher = ShillDispatcher()
             await dispatcher.dispatch_shill(hit.id)
+
+        elif monitor.action_type == "trigger_ai":
+            from app.services.shill_dispatcher import ShillDispatcher
+            dispatcher = ShillDispatcher()
+            chat_id = message.chat.id
+            context_msgs = self.context_cache.get(chat_id, [])[-8:]
+            await dispatcher.dispatch_ai_shill(hit.id, context_msgs)
 
     async def _execute_active_marketing(
         self, client: Client, message, session: Session,
@@ -460,56 +506,146 @@ class ListenerService:
 
     async def start(self):
         """Start all listener clients"""
-        logger.info("Starting Listener Service...")
-        
-        with Session(engine) as session:
-            accounts = session.exec(
-                select(Account).where(Account.role.in_(["listener", "support"]))
-            ).all()
-            
-            if not accounts:
-                logger.warning("No listener accounts found!")
-                return
+        import tempfile, shutil, os
+        from app.services.telegram_client import decrypted_session_file
 
-            logger.info(f"Found {len(accounts)} listener accounts")
-
-            for account in accounts:
-                try:
-                    proxy = account.proxy
-                    proxy_dict = get_proxy_dict(proxy) if proxy else None
-                    api_id = account.api_id or 6
-                    api_hash = account.api_hash or "eb06d4abfb49dc3eeb1aeb98ae0f581e"
-                    
-                    if not account.session_file_path:
-                        logger.error(f"Account {account.phone_number} has no session file")
-                        continue
-                        
-                    session_name = account.session_file_path.split("/")[-1].replace(".session", "")
-                    
-                    client = Client(
-                        name=session_name,
-                        workdir="sessions",
-                        api_id=api_id,
-                        api_hash=api_hash,
-                        proxy=proxy_dict,
-                        device_model=account.device_model,
-                        system_version=account.system_version,
-                        app_version=account.app_version,
-                    )
-                    
-                    client.add_handler(MessageHandler(self._handle_message))
-                    
-                    self.clients.append(client)
-                    self.client_accounts[session_name] = account
-                    logger.info(f"Initialized client for {account.phone_number}")
-                    
-                except Exception as e:
-                    logger.error(f"Failed to init client for {account.phone_number}: {e}")
-
-        if not self.clients:
-            logger.warning("No clients initialized")
+        # 分片：1000+ 账号场景下，单进程 Pyrogram 客户端数有上限 (~200)。
+        # 通过 LISTENER_SHARD_TOTAL=N + LISTENER_SHARD_INDEX=0..N-1 把账号按 id % N 切分到 N 个进程。
+        # 默认 1/0 = 不分片，行为不变。
+        shard_total = max(1, int(os.getenv("LISTENER_SHARD_TOTAL", "1")))
+        shard_index = max(0, int(os.getenv("LISTENER_SHARD_INDEX", "0")))
+        if shard_index >= shard_total:
+            logger.error(f"LISTENER_SHARD_INDEX={shard_index} >= LISTENER_SHARD_TOTAL={shard_total}, exiting")
             return
 
-        logger.info("Connecting clients...")
-        from pyrogram import compose
-        await compose(self.clients)
+        logger.info(f"Starting Listener Service (shard {shard_index}/{shard_total})...")
+
+        # 创建统一的临时工作目录，存放解密后的 session 文件
+        temp_workdir = tempfile.mkdtemp(prefix="tgsc_listener_")
+        logger.info(f"Temp session workdir: {temp_workdir}")
+
+        try:
+            with Session(engine) as session:
+                all_accounts = session.exec(
+                    select(Account).where(Account.role.in_(["listener", "support"]))
+                ).all()
+
+                if not all_accounts:
+                    logger.warning("No listener accounts found!")
+                    return
+
+                # 按 id 取模做分片
+                accounts = [a for a in all_accounts if a.id % shard_total == shard_index]
+                logger.info(
+                    f"Shard {shard_index}/{shard_total}: handling {len(accounts)}/{len(all_accounts)} accounts"
+                )
+
+                if not accounts:
+                    logger.warning(f"Shard {shard_index} has no accounts, idling")
+
+                for account in accounts:
+                    try:
+                        proxy = account.proxy
+                        proxy_dict = get_proxy_dict(proxy) if proxy else None
+                        api_id = account.api_id or 6
+                        api_hash = account.api_hash or "eb06d4abfb49dc3eeb1aeb98ae0f581e"
+
+                        if not account.session_file_path:
+                            logger.error(f"Account {account.phone_number} has no session file")
+                            continue
+
+                        sfp = account.session_file_path
+                        if not os.path.exists(sfp):
+                            logger.error(f"Session file not found: {sfp}")
+                            continue
+
+                        # 解密 session 文件到临时目录
+                        try:
+                            from app.core.encryption import is_session_encrypted, get_encryption_service
+                            if is_session_encrypted(sfp):
+                                enc = get_encryption_service()
+                                decrypted = enc.decrypt_to_memory(sfp)
+                                fname = os.path.basename(sfp)
+                                dest = os.path.join(temp_workdir, fname)
+                                with open(dest, "wb") as f:
+                                    f.write(decrypted)
+                                actual_path = dest
+                            else:
+                                actual_path = sfp
+                        except Exception as dec_err:
+                            logger.warning(f"Decrypt failed for {sfp}: {dec_err}, using raw file")
+                            actual_path = sfp
+
+                        # 若是 Telethon 格式，转换为 Pyrogram 格式
+                        from app.services.session_converter import is_telethon_session, convert_telethon_to_pyrogram
+                        if is_telethon_session(actual_path):
+                            logger.info(f"Converting Telethon session → Pyrogram: {actual_path}")
+                            if not convert_telethon_to_pyrogram(actual_path):
+                                logger.error(f"Telethon conversion failed for {account.phone_number}, skipping")
+                                continue
+
+                        session_name = os.path.splitext(os.path.basename(actual_path))[0]
+                        workdir = os.path.dirname(os.path.abspath(actual_path))
+
+                        client = Client(
+                            name=session_name,
+                            workdir=workdir,
+                            api_id=api_id,
+                            api_hash=api_hash,
+                            proxy=proxy_dict,
+                            device_model=account.device_model,
+                            system_version=account.system_version,
+                            app_version=account.app_version,
+                        )
+
+                        client.add_handler(MessageHandler(self._handle_message))
+
+                        self.clients.append(client)
+                        self.client_accounts[session_name] = account
+                        logger.info(f"Initialized client for {account.phone_number}")
+
+                    except Exception as e:
+                        logger.error(f"Failed to init client for {account.phone_number}: {e}")
+
+            if not self.clients:
+                logger.warning("No clients initialized; idling to avoid container restart loop")
+                from pyrogram import idle
+                await idle()
+                return
+
+            logger.info("Connecting clients...")
+            # 逐个 start 以便连接后获取 Telegram user_id
+            for c in self.clients:
+                try:
+                    await c.start()
+                except Exception as e:
+                    logger.error(f"Client start failed: {e}")
+
+            # 收集我们自己账号的 Telegram user_id，避免 Director 自我回复
+            for c in self.clients:
+                try:
+                    me = await c.get_me()
+                    if me:
+                        self._our_tg_ids.add(str(me.id))
+                        logger.info(f"Listener account id={me.id} ({me.first_name}) registered")
+                except Exception:
+                    pass
+            self.director.our_tg_ids = self._our_tg_ids
+            logger.info(f"Director initialized, our_tg_ids={self._our_tg_ids}")
+
+            # 保持运行，直到进程退出
+            from pyrogram import idle
+            await idle()
+
+        finally:
+            # 清理临时解密文件
+            try:
+                shutil.rmtree(temp_workdir)
+            except Exception:
+                pass
+            # 关闭所有客户端
+            for c in self.clients:
+                try:
+                    await c.stop()
+                except Exception:
+                    pass

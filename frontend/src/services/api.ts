@@ -148,6 +148,11 @@ export interface Lead {
     notes?: string;
     last_interaction_at: string;
     created_at: string;
+    // 销售接管 / 副驾驶
+    assigned_to_user_id?: number | null;
+    ai_enabled?: boolean;
+    ai_draft?: string | null;
+    claimed_at?: string | null;
 }
 
 export interface LeadInteraction {
@@ -788,6 +793,50 @@ export const sendLeadMessage = async (leadId: number, content: string): Promise<
     return response.data;
 };
 
+// === 销售接管 / AI 副驾驶 ===
+
+export interface ClaimResponse {
+    lead: Lead;
+    assigned_to_username?: string;
+}
+
+export const claimLead = async (leadId: number): Promise<ClaimResponse> => {
+    const r = await api.post(`/crm/leads/${leadId}/claim`);
+    return r.data;
+};
+
+export const releaseLead = async (leadId: number): Promise<Lead> => {
+    const r = await api.post(`/crm/leads/${leadId}/release`);
+    return r.data;
+};
+
+export const setLeadAiEnabled = async (leadId: number, enabled: boolean): Promise<Lead> => {
+    const r = await api.put(`/crm/leads/${leadId}/ai-config`, { ai_enabled: enabled });
+    return r.data;
+};
+
+export const regenerateLeadDraft = async (leadId: number): Promise<Lead> => {
+    const r = await api.post(`/crm/leads/${leadId}/regenerate-draft`);
+    return r.data;
+};
+
+// === 用户管理（admin 创建销售账号）— UserInfo / getCurrentUser 已在下方声明 ===
+
+export const getUsers = async (): Promise<UserInfo[]> => {
+    const r = await api.get('/users/');
+    return r.data;
+};
+
+export const createUser = async (body: {
+    username: string;
+    password: string;
+    role?: 'admin' | 'sales';
+    is_active?: boolean;
+}): Promise<UserInfo> => {
+    const r = await api.post('/users/', body);
+    return r.data;
+};
+
 export const connectWebSocket = (onMessage: (data: any) => void): WebSocket | null => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -841,6 +890,63 @@ export const generateScriptLines = async (scriptId: number, campaignId?: number)
     const params: any = {};
     if (campaignId) params.campaign_id = campaignId;
     const response = await api.post(`/scripts/${scriptId}/generate`, null, { params });
+    return response.data;
+};
+
+export const generateScriptFromPersonas = async (data: {
+    name: string;
+    description?: string;
+    topic: string;
+    persona_ids: number[];
+    duration_minutes?: number;
+    campaign_id?: number;
+}): Promise<Script> => {
+    const response = await api.post('/scripts/generate-from-personas', data);
+    return response.data;
+};
+
+export const autoAssignAccounts = async (data: {
+    account_ids?: number[];
+    strategy: 'balanced' | 'quota';
+    quotas?: { listener?: number; actor?: number; cannon?: number };
+    persona_pool?: number[];
+    preview: boolean;
+    force_persona?: boolean;
+}): Promise<{
+    strategy: string;
+    total: number;
+    applied: boolean;
+    plan: Array<{
+        account_id: number;
+        phone: string;
+        tier: string;
+        role: string;
+        combat_role: string;
+        ai_persona_id: number | null;
+        persona_name: string | null;
+    }>;
+}> => {
+    const response = await api.post('/accounts/auto-assign', data);
+    return response.data;
+};
+
+export const bindPersona = async (accountId: number, aiPersonaId: number | null): Promise<any> => {
+    const response = await api.put(`/accounts/${accountId}/persona`, { ai_persona_id: aiPersonaId });
+    return response.data;
+};
+
+export const batchBindPersona = async (accountIds: number[], aiPersonaId: number): Promise<any> => {
+    const response = await api.post('/accounts/batch-persona', { account_ids: accountIds, ai_persona_id: aiPersonaId });
+    return response.data;
+};
+
+export const applyPersonaProfile = async (accountIds: number[], force = false): Promise<{ queued: number; skipped: number; message: string }> => {
+    const response = await api.post('/accounts/batch/apply-persona-profile', { account_ids: accountIds, force });
+    return response.data;
+};
+
+export const applyPersonaProfileSingle = async (accountId: number): Promise<any> => {
+    const response = await api.post(`/accounts/${accountId}/apply-persona-profile`);
     return response.data;
 };
 
@@ -1098,6 +1204,7 @@ export interface UserInfo {
     username: string;
     is_active: boolean;
     is_superuser: boolean;
+    role: string;
 }
 
 export const getCurrentUser = async (): Promise<UserInfo> => {
@@ -1174,10 +1281,157 @@ export const getKnowledgeBases = async (): Promise<KnowledgeBaseData[]> => {
     return response.data;
 };
 
+// === Knowledge Scrape (群组消息采集 + Q&A 抽取) ===
+
+export interface ScrapeProgress {
+    total_chats?: number;
+    processed_chats?: number;
+    total_messages?: number;
+    current_chat?: string | null;
+    errors?: any[];
+    windows_processed?: number;
+    qa_extracted?: number;
+    chats_touched?: number;
+}
+
+export interface ScrapeStatus {
+    id: number;
+    status: string;
+    celery_task_id?: string;
+    created_at: string;
+    completed_at?: string;
+    error_message?: string;
+    progress: ScrapeProgress;
+}
+
+export interface ChatMessageStat {
+    chat_id: number;
+    chat_title: string;
+    chat_type: string;
+    message_count: number;
+    qa_extracted: number;
+}
+
+export const triggerScrapeAccountGroups = async (
+    accountId: number,
+    body: { include_private: boolean; limit_per_chat?: number | null; chat_sleep_sec?: number }
+): Promise<{ scraping_task_id: number; celery_task_id: string }> => {
+    const r = await api.post(`/knowledge-bases/scrape/${accountId}`, body);
+    return r.data;
+};
+
+export const getScrapeStatus = async (scrapingTaskId: number): Promise<ScrapeStatus> => {
+    const r = await api.get(`/knowledge-bases/scrape/status/${scrapingTaskId}`);
+    return r.data;
+};
+
+export const getScrapedMessagesStats = async (accountId?: number): Promise<ChatMessageStat[]> => {
+    const params = accountId ? { account_id: accountId } : {};
+    const r = await api.get('/knowledge-bases/scrape/messages/stats', { params });
+    return r.data;
+};
+
+export const triggerExtractQA = async (body: {
+    chat_ids?: number[];
+    window_size?: number;
+    concurrency?: number;
+    max_windows?: number | null;
+}): Promise<{ scraping_task_id: number; celery_task_id: string }> => {
+    const r = await api.post('/knowledge-bases/extract-qa', body);
+    return r.data;
+};
+
+// === Knowledge File Import ===
+
+export interface KnowledgeImportResult {
+    task_id: string;
+    filename: string;
+    category: string | null;
+    queued: boolean;
+}
+
+export interface KnowledgeImportStatus {
+    task_id: string;
+    state: string;            // PENDING / STARTED / SUCCESS / FAILURE ...
+    ready: boolean;
+    result?: any;
+    error?: string;
+}
+
+export const importKnowledgeFile = async (
+    file: File,
+    category?: string,
+): Promise<KnowledgeImportResult> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (category) formData.append('category', category);
+    const r = await api.post('/knowledge-bases/import/file', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return r.data;
+};
+
+export const getKnowledgeImportStatus = async (
+    taskId: string,
+): Promise<KnowledgeImportStatus> => {
+    const r = await api.get(`/knowledge-bases/import/status/${taskId}`);
+    return r.data;
+};
+
 // === Campaign Knowledge Links ===
 
 export const getCampaignKnowledgeLinks = async (campaignId: number): Promise<{ campaign_id: number; knowledge_base_id: number }[]> => {
     const response = await api.get(`/campaigns/${campaignId}/knowledge-links`);
+    return response.data;
+};
+
+// === Monitoring ===
+
+export interface MonitoringStats {
+    timestamp: string;
+    accounts: {
+        total: number;
+        active: number;
+        banned: number;
+        spam_block: number;
+        stale: number;
+        error: number;
+        banned_1h: number;
+    };
+    proxies: {
+        total: number;
+        active: number;
+        dead: number;
+        active_rate: number;
+        top_countries: { country: string; count: number }[];
+    };
+    roles: {
+        listener: number;
+        actor: number;
+        cannon: number;
+        sniper: number;
+    };
+    warmup: { running: number };
+    alerts: { level: 'critical' | 'warning' | 'info'; msg: string }[];
+}
+
+export const getMonitoringStats = async (): Promise<MonitoringStats> => {
+    const response = await api.get('/monitoring/stats');
+    return response.data;
+};
+
+export const triggerManualCheck = async (): Promise<{ proxy_task_id: string; account_task_id: string; message: string }> => {
+    const response = await api.post('/monitoring/trigger-check');
+    return response.data;
+};
+
+export const triggerFreeChat = async (params: {
+    chat_id: string;
+    topic: string;
+    account_ids?: number[];
+    turns_per_account?: number;
+}): Promise<{ success: boolean; message: string; account_ids: number[]; turns_per_account: number }> => {
+    const response = await api.post('/monitors/free-chat', params);
     return response.data;
 };
 

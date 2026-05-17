@@ -439,20 +439,10 @@ async def join_group_with_client(account: Account, invite_link: str, db_session:
                 chat_identifier = chat_identifier[1:]
             
             logger.info(f"Joining chat with identifier: {chat_identifier} (original: {link})")
-            
-            # 先检查是否已经在群里
-            # get_chat 对私有邀请链接返回 ChatPreview（未加入），对已加入的群返回 Chat
-            try:
-                existing_chat = await client.get_chat(chat_identifier)
-                if hasattr(existing_chat, 'members_count'):
-                    # 真正的 Chat 对象，说明已在群里
-                    title = getattr(existing_chat, 'title', chat_identifier)
-                    logger.info(f"Already in chat: {title}")
-                    return f"Already in group: {title}"
-                # ChatPreview = 能预览但未加入，继续执行 join
-            except Exception as check_e:
-                logger.info(f"Not in chat yet, attempting to join... (check error: {check_e})")
 
+            # 直接调用 join_chat；USER_ALREADY_PARTICIPANT 异常表示已在群里
+            # 注意：get_chat(invite_link) 对未加入的群也能返回预览 Chat 对象，
+            # 不能用来判断成员身份，因此跳过预检。
             result = await client.join_chat(chat_identifier)
             logger.info(f"Join result: {result.title if hasattr(result, 'title') else result}")
             return f"Joined successfully: {result.title if hasattr(result, 'title') else chat_identifier}"
@@ -676,6 +666,9 @@ async def check_account_with_client(
 
             if me is None:
                 return "error", "get_me returned None", None, None
+            _phone = getattr(me, 'phone_number', None) or getattr(me, 'phone', None)
+            if _phone:
+                device_info['_phone'] = _phone
             return "active", None, datetime.utcnow(), device_info
         else:
             return "error", "No session data available", None, None
@@ -718,8 +711,11 @@ async def check_account_with_client(
                 await client.disconnect()
         
         # 如果成功连接，且使用了新的设备信息，返回这套信息以便更新到数据库
-        
-        # 成功（safe 模式只保证“能连 + 能 get_me”，不保证不受限）
+        if me:
+            _phone = getattr(me, 'phone_number', None) or getattr(me, 'phone', None)
+            if _phone:
+                device_info['_phone'] = _phone
+        # 成功（safe 模式只保证"能连 + 能 get_me"，不保证不受限）
         return "active", None, datetime.utcnow(), device_info
         
     except FloodWait as e:

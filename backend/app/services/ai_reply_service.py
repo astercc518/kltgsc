@@ -35,36 +35,65 @@ class AIReplyService:
             async for dialog in client.get_dialogs(limit=20):
                 if dialog.unread_messages_count > 0:
                     chat = dialog.chat
-                    
+
                     # Only reply to private chats for now
                     if chat.type != enums.ChatType.PRIVATE:
                         continue
-                        
+
                     # Get history to find the last message
                     history = []
                     async for msg in client.get_chat_history(chat.id, limit=dialog.unread_messages_count):
                         history.append(msg)
-                    
+
                     # Process from oldest to newest unread
                     for msg in reversed(history):
                         if not msg.text:
                             continue
-                            
+
                         # Double check if it's incoming
                         if msg.outgoing:
                             continue
-                            
-                        # Generate Reply
+
+                        # Generate Reply（每条都生成；分支决定是发还是只存草稿）
                         reply_text = await self._generate_reply(account, msg.text, chat.id, chat.first_name, chat.username)
-                        
-                        if reply_text:
-                            # Send reply
+
+                        if not reply_text:
+                            continue
+
+                        # 检查接管状态
+                        lead = self.session.exec(
+                            select(Lead).where(
+                                Lead.account_id == account.id,
+                                Lead.telegram_user_id == chat.id,
+                            )
+                        ).first()
+
+                        # 总是存客户来信 history
+                        self._save_history(account.id, chat.id, chat.username, "user", msg.text)
+
+                        if lead and not lead.ai_enabled:
+                            # —— 副驾驶模式：不发送，写草稿 + 推 WS ——
+                            lead.ai_draft = reply_text
+                            self.session.add(lead)
+                            self.session.commit()
+                            try:
+                                await ws_manager.broadcast({
+                                    "type": "ai_draft",
+                                    "lead_id": lead.id,
+                                    "draft": reply_text,
+                                })
+                            except Exception as e:
+                                logger.warning(f"WS ai_draft broadcast failed: {e}")
+                            # 标记已读，避免下次轮询又触发同一条
+                            try:
+                                await client.read_chat_history(chat.id)
+                            except Exception as e:
+                                logger.warning(f"read_chat_history failed: {e}")
+                        else:
+                            # —— 默认模式：直接发送 ——
                             await client.send_message(chat.id, reply_text)
-                            
-                            # Save to DB
-                            self._save_history(account.id, chat.id, chat.username, "user", msg.text)
                             self._save_history(account.id, chat.id, chat.username, "assistant", reply_text)
-                            
+
             return "Processed"
 
         try:
@@ -148,6 +177,16 @@ class AIReplyService:
         # Inject knowledge into system prompt if available
         if knowledge_context:
             system_prompt += f"\n\n参考知识（回答时可引用）：\n{knowledge_context}"
+
+        # RAG：向量召回业务知识库（含手填/PDF导入/群聊抽取）
+        try:
+            from app.services.kb_retrieval import retrieve_relevant_kb, format_kb_for_prompt
+            qa_items = await retrieve_relevant_kb(self.session, user_msg, top_k=4)
+            qa_block = format_kb_for_prompt(qa_items, max_chars=1200)
+            if qa_block:
+                system_prompt += f"\n\n[业务知识库召回 — 如客户提到相关内容请基于此回复]\n{qa_block}"
+        except Exception as e:
+            logger.warning(f"RAG retrieval failed: {e}")
 
         # 3. Call LLM for Reply
         response = await self.llm.get_response(

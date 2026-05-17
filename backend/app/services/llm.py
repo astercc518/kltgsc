@@ -3,6 +3,8 @@ import openai
 from typing import Optional, List, Dict
 import logging
 import json
+import os
+import tempfile
 from app.models.system_config import SystemConfig
 from app.models.ai_config import AIConfig
 from sqlmodel import Session, select
@@ -64,7 +66,9 @@ class LLMService:
             self.config_name = "Legacy Config"
         
         # 初始化客户端
-        if self.api_key:
+        if self.provider == "vertex" and GEMINI_AVAILABLE:
+            self._init_vertex()
+        elif self.api_key:
             if self.provider == "gemini" and GEMINI_AVAILABLE:
                 self._init_gemini()
             else:
@@ -128,24 +132,94 @@ class LLMService:
         logger.info(f"Async OpenAI-compatible client initialized for {self.provider} with model: {self.model}")
 
     def _init_gemini(self):
-        """Initialize Google Gemini client using new google-genai SDK"""
-        # Default to gemini-2.5-flash if not specified or using old model name
+        """Initialize Google Gemini client using new google-genai SDK (AI Studio)"""
         model_name = self.model
         if not model_name or model_name.startswith("gpt"):
             model_name = "gemini-2.5-flash"
         self.model = model_name
-        
-        # Create client with API key
         self.gemini_client = genai.Client(api_key=self.api_key)
         logger.info(f"Gemini client initialized with model: {model_name}")
 
+    def _init_vertex(self):
+        """Initialize Vertex AI client using google-genai SDK (no daily quota)"""
+        if not GEMINI_AVAILABLE:
+            logger.error("google-genai not installed, cannot use Vertex AI")
+            return
+
+        # Prefer fields from AIConfig: base_url holds JSON {project_id, location},
+        # api_key holds the Service Account JSON string.
+        # Fall back to legacy SystemConfig keys for backward compatibility.
+        project_id = None
+        location = "us-central1"
+        sa_json_str = None
+
+        if self.base_url:
+            try:
+                parsed = json.loads(self.base_url)
+                project_id = parsed.get("project_id")
+                location = parsed.get("location", "us-central1")
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        if self.api_key:
+            # Validate that api_key looks like SA JSON (starts with '{')
+            stripped = self.api_key.strip()
+            if stripped.startswith("{"):
+                sa_json_str = stripped
+
+        # Fall back to SystemConfig if AIConfig fields are empty
+        if not project_id:
+            project_id = self._get_system_config("gcp_project_id")
+        if not sa_json_str:
+            sa_json_str = self._get_system_config("gcp_service_account_json")
+        if location == "us-central1":
+            sys_loc = self._get_system_config("gcp_location")
+            if sys_loc:
+                location = sys_loc
+
+        if not project_id:
+            logger.error("Vertex AI: gcp_project_id not configured")
+            return
+
+        model_name = self.model
+        if not model_name or model_name.startswith("gpt"):
+            model_name = "gemini-2.5-flash"
+        self.model = model_name
+
+        try:
+            if sa_json_str:
+                # Service Account JSON: write to temp file
+                sa_data = json.loads(sa_json_str)
+                tf = tempfile.NamedTemporaryFile(
+                    mode="w", suffix=".json", delete=False, prefix="tgsc_sa_"
+                )
+                json.dump(sa_data, tf)
+                tf.close()
+                os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = tf.name
+                logger.info(f"Vertex AI using service account: {tf.name}")
+            else:
+                # Fall back to ADC (~/.config/gcloud/application_default_credentials.json)
+                logger.info("Vertex AI using Application Default Credentials (ADC)")
+
+            self.gemini_client = genai.Client(
+                vertexai=True,
+                project=project_id,
+                location=location,
+            )
+            logger.info(
+                f"Vertex AI client initialized: project={project_id} "
+                f"location={location} model={model_name}"
+            )
+        except Exception as e:
+            logger.error(f"Vertex AI init failed: {e}")
+
     def is_configured(self) -> bool:
-        if self.provider == "gemini":
+        if self.provider in ("gemini", "vertex"):
             return bool(self.gemini_client)
         return bool(self.client)
 
     async def test_connection(self) -> bool:
-        if self.provider == "gemini" and self.gemini_client:
+        if self.provider in ("gemini", "vertex") and self.gemini_client:
             return await self._test_gemini_connection()
         elif self.client:
             return await self._test_openai_connection()
@@ -172,12 +246,12 @@ class LLMService:
             return False
 
     async def get_response(
-        self, 
-        prompt: str, 
+        self,
+        prompt: str,
         system_prompt: str = "You are a helpful assistant.",
         history: List[Dict[str, str]] = None
     ) -> Optional[str]:
-        if self.provider == "gemini" and self.gemini_client:
+        if self.provider in ("gemini", "vertex") and self.gemini_client:
             return await self._get_gemini_response(prompt, system_prompt, history)
         elif self.client:
             return await self._get_openai_response(prompt, system_prompt, history)
@@ -215,37 +289,36 @@ class LLMService:
         system_prompt: str,
         history: List[Dict[str, str]] = None
     ) -> Optional[str]:
-        try:
-            # Build contents list for Gemini
-            contents = []
-            
-            # Add history if provided
-            if history:
-                for msg in history:
-                    role = "user" if msg["role"] == "user" else "model"
-                    contents.append({
-                        "role": role,
-                        "parts": [{"text": msg["content"]}]
-                    })
-            
-            # Combine system prompt with user prompt
-            # (Gemini uses system_instruction for system prompts in config)
-            full_prompt = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
-            contents.append({
-                "role": "user",
-                "parts": [{"text": full_prompt}]
-            })
-            
-            # Generate response using new SDK (via thread to avoid blocking)
-            response = await asyncio.to_thread(
-                self.gemini_client.models.generate_content,
-                model=self.model,
-                contents=contents
-            )
-            return response.text
-        except Exception as e:
-            logger.error(f"Gemini generation failed: {e}")
-            return None
+        # Build contents list for Gemini
+        contents = []
+        if history:
+            for msg in history:
+                role = "user" if msg["role"] == "user" else "model"
+                contents.append({
+                    "role": role,
+                    "parts": [{"text": msg["content"]}]
+                })
+        full_prompt = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
+        contents.append({"role": "user", "parts": [{"text": full_prompt}]})
+
+        # Retry once on 503 / transient errors
+        for attempt in range(2):
+            try:
+                response = await asyncio.to_thread(
+                    self.gemini_client.models.generate_content,
+                    model=self.model,
+                    contents=contents,
+                )
+                return response.text
+            except Exception as e:
+                err_str = str(e)
+                is_transient = "503" in err_str or "UNAVAILABLE" in err_str or "429" in err_str
+                if attempt == 0 and is_transient:
+                    logger.warning(f"Gemini transient error (attempt 1), retrying in 4s: {e}")
+                    await asyncio.sleep(4)
+                    continue
+                logger.error(f"Gemini generation failed: {e}")
+                return None
 
     async def generate(self, prompt: str, system_prompt: str = "You are a helpful assistant.") -> Optional[str]:
         """Convenience alias for get_response (used by AIEngine for content generation)"""

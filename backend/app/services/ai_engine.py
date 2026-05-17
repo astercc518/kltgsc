@@ -412,12 +412,12 @@ class AIEngine:
     ) -> List[Dict[str, Any]]:
         """
         生成炒群剧本
-        
+
         Args:
             topic: 话题
             roles: 角色列表 [{"name": "角色名", "personality": "性格描述"}]
             duration_minutes: 剧本时长
-            
+
         Returns:
             剧本消息列表
         """
@@ -425,13 +425,13 @@ class AIEngine:
             f"- {r['name']}: {r.get('personality', '普通群友')}"
             for r in roles
         ])
-        
+
         prompt = self.PROMPTS["shill_script"].format(
             roles=roles_text,
             topic=topic,
             duration=duration_minutes
         )
-        
+
         try:
             response = await self.llm.generate(prompt)
             script = json.loads(response)
@@ -439,6 +439,99 @@ class AIEngine:
         except Exception as e:
             logger.error(f"Script generation failed: {e}")
             return []
+
+    async def generate_script_from_personas(
+        self,
+        topic: str,
+        persona_ids: List[int],
+        duration_minutes: int = 5,
+        knowledge: Optional[str] = None,
+    ) -> Dict[str, str]:
+        """
+        基于现有 AIPersona 库生成炒群剧本。
+
+        Args:
+            topic: 话题
+            persona_ids: 选中的人设 ID 列表（建议 2-3 个）
+            duration_minutes: 剧本时长
+            knowledge: 可选注入的知识库内容
+
+        Returns:
+            {
+                "roles_json": str (JSON 字符串，可直接存 Script.roles_json),
+                "lines_json": str (JSON 字符串，可直接存 Script.lines_json),
+                "personas": [{"id": int, "name": str, "tone": str}]
+            }
+        """
+        if not self.session:
+            raise ValueError("generate_script_from_personas requires DB session")
+        if not persona_ids:
+            raise ValueError("persona_ids cannot be empty")
+
+        personas = self.session.exec(
+            select(AIPersona).where(AIPersona.id.in_(persona_ids))
+        ).all()
+
+        if len(personas) != len(persona_ids):
+            found = {p.id for p in personas}
+            missing = [pid for pid in persona_ids if pid not in found]
+            raise ValueError(f"AIPersona ids not found: {missing}")
+
+        # 把每个 persona 的 system_prompt 浓缩成 personality 短语
+        # 提取 [角色设定] 段首段 + tone，避免把整个 system_prompt 灌给 LLM
+        roles = []
+        for p in personas:
+            personality = self._extract_personality(p.system_prompt, p.tone)
+            roles.append({"name": p.name, "personality": personality})
+
+        # 在 topic 末尾追加知识库（若有）
+        if knowledge:
+            topic = f"{topic}\n\n[产品/知识背景，可自然融入]\n{knowledge[:1500]}"
+
+        lines = await self.generate_script(topic, roles, duration_minutes)
+
+        # 构造 roles_json 时注入完整 system_prompt（执行时 dispatcher 用得到）
+        roles_payload = [
+            {"name": p.name, "prompt": p.system_prompt, "persona_id": p.id, "tone": p.tone}
+            for p in personas
+        ]
+
+        return {
+            "roles_json": json.dumps(roles_payload, ensure_ascii=False),
+            "lines_json": json.dumps(lines, ensure_ascii=False),
+            "personas": [{"id": p.id, "name": p.name, "tone": p.tone} for p in personas],
+        }
+
+    @staticmethod
+    def _extract_personality(system_prompt: str, tone: str) -> str:
+        """
+        从 system_prompt 提取一段简短性格描述（给 generate_script 当 personality 短语）。
+
+        策略：
+        1. 优先抓取 [角色设定] 段首段
+        2. 截断到 200 字以内
+        3. 兜底用 tone
+        """
+        if not system_prompt:
+            return tone or "普通群友"
+
+        import re as _re
+        # 抓 [角色设定] 段
+        m = _re.search(
+            r"\[角色设定\]\s*(.+?)(?=\n\s*\[|\Z)",
+            system_prompt,
+            _re.DOTALL,
+        )
+        if m:
+            text = m.group(1).strip()
+            # 取前 1-2 句
+            first_sentences = _re.split(r"(?<=[。！？\.\!\?])", text)
+            blob = "".join(first_sentences[:2]).strip()
+            if blob:
+                return blob[:200]
+
+        # 兜底：取 system_prompt 前 200 字
+        return system_prompt.strip()[:200] or (tone or "普通群友")
     
     async def rewrite_content(
         self,

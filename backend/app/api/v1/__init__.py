@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends
 from app.api.v1.endpoints import (
-    accounts, proxies, registration, login, system, tasks, scraping, marketing, 
+    accounts, proxies, registration, login, system, tasks, scraping, marketing,
     warmup, ai, script, ws, crm, logs, monitor, invite, users,
-    campaigns, source_groups, funnel_groups, personas, knowledge_bases, workflow
+    campaigns, source_groups, funnel_groups, personas, knowledge_bases, workflow,
+    monitoring
 )
 from app.api.deps import get_current_user
 from app.core.config import settings
@@ -156,8 +157,14 @@ router.include_router(
     dependencies=auth_deps
 )
 router.include_router(
-    workflow.router, 
-    prefix="/workflow", 
+    workflow.router,
+    prefix="/workflow",
     tags=["workflow"],
+    dependencies=auth_deps
+)
+router.include_router(
+    monitoring.router,
+    prefix="/monitoring",
+    tags=["monitoring"],
     dependencies=auth_deps
 )

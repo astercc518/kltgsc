@@ -34,6 +34,9 @@ class AccountBase(SQLModel):
     daily_action_count: int = Field(default=0)  # 今日操作次数
     last_error_type: Optional[str] = None  # 最后错误类型
 
+    # AI 人设绑定（用于 trigger_ai 炒群、自动回复）
+    ai_persona_id: Optional[int] = Field(default=None, foreign_key="ai_persona.id", index=True)
+
 
 class Account(AccountBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)

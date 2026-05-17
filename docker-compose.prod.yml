@@ -10,9 +10,24 @@ version: '3.8'
 
 services:
   # ========== 数据库层 ==========
+  # ⚠️ pg14 → pg16 是 major 版本升级，数据卷不兼容。
+  # 切换镜像前必须执行 pg_dump 备份并迁移数据到新卷（参考 backend/scripts/migrate_pg14_to_pgvector.md）
   db:
-    image: postgres:14-alpine
+    image: pgvector/pgvector:pg16
     container_name: tgsc_postgres
+    # 1000+ 账号容量参数。max_connections=500 给 ~14 进程 * 20 连接预留余量。
+    command:
+      - postgres
+      - -c
+      - max_connections=500
+      - -c
+      - shared_buffers=2GB
+      - -c
+      - effective_cache_size=6GB
+      - -c
+      - work_mem=16MB
+      - -c
+      - maintenance_work_mem=256MB
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -33,7 +48,8 @@ services:
   redis:
     image: redis:7-alpine
     container_name: tgsc_redis
-    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes --maxmemory 2gb --maxmemory-policy allkeys-lru
+    # noeviction 防止 Celery 队列里的任务被 LRU 误淘汰；缓存类数据应自带 EXPIRE。
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes --maxmemory 4gb --maxmemory-policy noeviction
     volumes:
       - redis_data:/data
     expose:
@@ -68,13 +84,17 @@ services:
       - tgsc_internal
     restart: unless-stopped
 
-  # Celery Worker - 处理后台任务 (多进程)
+  # Celery Worker - 处理后台任务
+  # 单 worker 容器: --concurrency=8 = 8 并发任务。
+  # 3 副本 = 24 总并发，足够 1000+ 账号场景下的 burst (深度检测/AI 回复)。
+  # --max-tasks-per-child=200 防止 Pyrogram/Telethon 长跑泄漏内存。
+  # ⚠️ container_name 与 replicas 互斥；扩容时改用 `docker-compose up -d --scale worker=3`，
+  #    或拆成 worker_0/1/2 三个服务（与 listener 同模式）。
   worker:
     build:
       context: ./backend
       dockerfile: Dockerfile.prod
-    container_name: tgsc_worker
-    command: celery -A app.worker.celery_app worker --loglevel=info --concurrency=8 -Q default,high_priority,low_priority
+    command: celery -A app.worker.celery_app worker --loglevel=info --concurrency=8 --max-tasks-per-child=200 -Q default,high_priority,low_priority
     volumes:
       - backend_sessions:/app/sessions
     environment:
@@ -84,6 +104,8 @@ services:
       - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@redis:6379/0
       - QT_QPA_PLATFORM=offscreen
       - QT_DEBUG_PLUGINS=0
+    deploy:
+      replicas: 3
     depends_on:
       db:
         condition: service_healthy
@@ -109,6 +131,73 @@ services:
     networks:
       - tgsc_internal
     restart: unless-stopped
+
+  # ========== Listener 分片 ==========
+  # 1000+ 账号场景：单 Pyrogram 进程稳定上限 ~200 客户端。
+  # 按 account.id % 5 切分到 5 个进程，每个进程 ~200 账号。
+  # 需要扩容时：调大 LISTENER_SHARD_TOTAL 并相应增加 listener_N 服务定义。
+  listener_0: &listener_base
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    container_name: tgsc_listener_0
+    command: python3 listener.py
+    volumes:
+      - backend_sessions:/app/sessions
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-tgsc_prod}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - SECRET_KEY=${SECRET_KEY}
+      - LISTENER_SHARD_TOTAL=5
+      - LISTENER_SHARD_INDEX=0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - tgsc_internal
+    restart: unless-stopped
+
+  listener_1:
+    <<: *listener_base
+    container_name: tgsc_listener_1
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-tgsc_prod}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - SECRET_KEY=${SECRET_KEY}
+      - LISTENER_SHARD_TOTAL=5
+      - LISTENER_SHARD_INDEX=1
+
+  listener_2:
+    <<: *listener_base
+    container_name: tgsc_listener_2
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-tgsc_prod}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - SECRET_KEY=${SECRET_KEY}
+      - LISTENER_SHARD_TOTAL=5
+      - LISTENER_SHARD_INDEX=2
+
+  listener_3:
+    <<: *listener_base
+    container_name: tgsc_listener_3
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-tgsc_prod}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - SECRET_KEY=${SECRET_KEY}
+      - LISTENER_SHARD_TOTAL=5
+      - LISTENER_SHARD_INDEX=3
+
+  listener_4:
+    <<: *listener_base
+    container_name: tgsc_listener_4
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-tgsc_prod}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - SECRET_KEY=${SECRET_KEY}
+      - LISTENER_SHARD_TOTAL=5
+      - LISTENER_SHARD_INDEX=4
 
   # ========== 前端层 ==========
   frontend:

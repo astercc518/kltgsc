@@ -4,6 +4,7 @@
 - 定时平衡代理-账号分配
 """
 import time
+import asyncio
 import logging
 from typing import List
 from datetime import datetime, timedelta
@@ -26,12 +27,95 @@ from app.services.proxy_assigner import (
 logger = logging.getLogger(__name__)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 快速 TCP Ping（每 30 秒，全量，异步并发）
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def _async_fast_ping_all(concurrency: int = 200, timeout: float = 5.0):
+    """异步并发 TCP ping 全部代理，返回存活统计"""
+    sem = asyncio.Semaphore(concurrency)
+
+    async def _ping_one(proxy_id: int, ip: str, port: int) -> tuple:
+        async with sem:
+            try:
+                _, writer = await asyncio.wait_for(
+                    asyncio.open_connection(ip, port), timeout=timeout
+                )
+                writer.close()
+                try:
+                    await writer.wait_closed()
+                except Exception:
+                    pass
+                return proxy_id, True
+            except Exception:
+                return proxy_id, False
+
+    with Session(engine) as session:
+        rows = session.exec(select(Proxy.id, Proxy.ip, Proxy.port, Proxy.protocol, Proxy.fail_count, Proxy.status)).all()
+
+    tasks = [_ping_one(r.id, r.ip, r.port) for r in rows]
+    raw = await asyncio.gather(*tasks, return_exceptions=True)
+
+    # proxy_id → (protocol, fail_count, old_status, alive)
+    meta = {r.id: (r.protocol, r.fail_count or 0, r.status) for r in rows}
+    alive_map: dict[int, bool] = {}
+    for item in raw:
+        if isinstance(item, tuple):
+            proxy_id, alive = item
+            alive_map[proxy_id] = alive
+
+    changed = 0
+    now = datetime.utcnow()
+    with Session(engine) as session:
+        for proxy_id, alive in alive_map.items():
+            proxy = session.get(Proxy, proxy_id)
+            if not proxy:
+                continue
+            protocol, fail_count, old_status = meta[proxy_id]
+            if alive:
+                proxy.fail_count = 0
+                new_status = "active"
+            else:
+                new_fail = fail_count + 1
+                proxy.fail_count = new_fail
+                # MTProto 需要连续 3 次失败才标 dead，其他 1 次
+                threshold = 3 if protocol == "mtproto" else 1
+                new_status = "dead" if new_fail >= threshold else old_status
+            proxy.status = new_status
+            proxy.last_checked = now
+            session.add(proxy)
+            if old_status != new_status:
+                changed += 1
+        session.commit()
+
+    total = len(alive_map)
+    alive_count = sum(1 for v in alive_map.values() if v)
+    logger.info(f"Fast proxy ping done: {alive_count}/{total} alive, {changed} status changes")
+    return {"total": total, "alive": alive_count, "dead": total - alive_count, "changed": changed}
+
+
+@celery_app.task(bind=True, soft_time_limit=90, time_limit=120, max_retries=0)
+def check_all_proxies_fast(self):
+    """每 30 秒：TCP ping 全量代理（异步并发，不调 ip-api，不限速）"""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        return loop.run_until_complete(_async_fast_ping_all())
+    except Exception as e:
+        logger.error(f"Fast proxy ping failed: {e}", exc_info=True)
+        return {"error": str(e)}
+    finally:
+        loop.close()
+        asyncio.set_event_loop(None)
+
+
 @celery_app.task(bind=True, max_retries=2, soft_time_limit=1800, time_limit=3600)
 def check_proxies_batch_task(self, proxy_ids: List[int]):
-    """
-    批量检测代理连通性
-    """
-    logger.info(f"Checking {len(proxy_ids)} proxies")
+    """批量检测代理连通性（含 geo），空列表表示全量"""
+    if not proxy_ids:
+        with Session(engine) as session:
+            proxy_ids = list(session.exec(select(Proxy.id)).all())
+    logger.info(f"Checking {len(proxy_ids)} proxies (deep check)")
     
     results = {"success": 0, "failed": 0, "errors": []}
     

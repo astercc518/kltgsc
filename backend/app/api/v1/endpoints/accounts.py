@@ -379,11 +379,18 @@ async def upload_session(
         session.add(account)
         session.commit()
         session.refresh(account)
-        
+
         # 自动分配代理
         if not account.proxy_id:
             auto_assign_proxy(session, account)
-        
+
+        # 兜底：确保 combat_role 已设置（默认 cannon）
+        try:
+            from app.services.account_assignment import auto_assign_imported
+            auto_assign_imported(session, [account.id])
+        except Exception as e:
+            logger.warning(f"auto_assign_imported failed for account {account.id}: {e}")
+
         return {"message": "账号已创建", "account_id": account.id, "encrypted": True}
 
 @router.post("/batch/upload")
@@ -493,12 +500,20 @@ def upload_sessions_batch(
             ).first()
             if account and not account.proxy_id:
                 auto_assign_proxy(session, account)
-            
+
+            # 兜底：确保 combat_role 已设置
+            if account:
+                try:
+                    from app.services.account_assignment import auto_assign_imported
+                    auto_assign_imported(session, [account.id])
+                except Exception as e:
+                    logger.warning(f"auto_assign_imported failed: {e}")
+
         except Exception as e:
             session.rollback()
             results["errors"].append(f"{file.filename}: {str(e)}")
             results["skipped"] += 1
-    
+
     security.create_log(
         session, "upload_sessions_batch", "system",
         f"Batch uploaded: {results['created']} created, {results['updated']} updated",
@@ -1078,4 +1093,158 @@ def demote_account(
         "old_role": old_role,
         "new_role": new_role,
         "message": f"降级完成: {COMBAT_ROLE_CONFIG[old_role]['display_name']} → {COMBAT_ROLE_CONFIG[new_role]['display_name']}"
+    }
+
+
+# ============================================
+# AI 智能分配 + AI 人设绑定 API
+# ============================================
+
+class AutoAssignRequest(BaseModel):
+    account_ids: Optional[List[int]] = None  # None = 全部 active 账号
+    strategy: str = "balanced"               # "balanced" | "quota"
+    quotas: Optional[dict] = None            # {"listener": 1, "actor": 5, "cannon": 14}
+    persona_pool: Optional[List[int]] = None # 候选人设 ID 列表
+    preview: bool = True                     # True 仅预览，False 应用
+    force_persona: bool = False              # True 时覆盖已有 ai_persona_id
+
+
+class PersonaBindRequest(BaseModel):
+    ai_persona_id: Optional[int] = None      # null 解绑
+
+
+class BatchPersonaRequest(BaseModel):
+    account_ids: List[int]
+    ai_persona_id: int
+
+
+@router.post("/auto-assign")
+def auto_assign_accounts(
+    request: AutoAssignRequest,
+    session: Session = Depends(get_session),
+):
+    """
+    AI 智能分配账号角色 + 人设。
+
+    - balanced: 按 last_active 自动分桶 (5% listener / 25% actor / 余下 cannon)
+    - quota: 按用户传入数量分配
+    - preview=True: 仅返回计划不写库
+    """
+    from app.services.account_assignment import auto_assign as svc_auto_assign
+
+    try:
+        result = svc_auto_assign(
+            session=session,
+            account_ids=request.account_ids,
+            strategy=request.strategy,
+            quotas=request.quotas,
+            persona_pool=request.persona_pool,
+            preview=request.preview,
+            force_persona=request.force_persona,
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.put("/{account_id}/persona")
+def bind_persona(
+    account_id: int,
+    request: PersonaBindRequest,
+    session: Session = Depends(get_session),
+):
+    """单账号绑定/解绑 AI 人设"""
+    from app.services.account_assignment import assign_persona_to_account
+    try:
+        acct = assign_persona_to_account(session, account_id, request.ai_persona_id)
+        return {
+            "success": True,
+            "account_id": acct.id,
+            "ai_persona_id": acct.ai_persona_id,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/batch-persona")
+def batch_bind_persona(
+    request: BatchPersonaRequest,
+    session: Session = Depends(get_session),
+):
+    """批量给一组账号绑定同一个 AI 人设"""
+    from app.services.account_assignment import batch_assign_persona
+    try:
+        n = batch_assign_persona(session, request.account_ids, request.ai_persona_id)
+        return {
+            "success": True,
+            "updated": n,
+            "ai_persona_id": request.ai_persona_id,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+class ApplyPersonaProfileRequest(BaseModel):
+    account_ids: List[int]
+    force: bool = False  # True = 即使已同步过也重新同步
+
+
+@router.post("/batch/apply-persona-profile")
+def batch_apply_persona_profile(
+    request: ApplyPersonaProfileRequest,
+    session: Session = Depends(get_session),
+):
+    """
+    批量将 AI 人设资料（姓名/简介）同步写入 TG 账号。
+    每个账号必须已绑定 ai_persona_id，否则跳过。
+    """
+    from app.tasks.account_tasks import apply_persona_profile_task
+
+    if not request.account_ids:
+        raise HTTPException(status_code=400, detail="account_ids cannot be empty")
+
+    accounts = session.exec(
+        select(Account).where(Account.id.in_(request.account_ids))
+    ).all()
+
+    queued, skipped = 0, 0
+    for acct in accounts:
+        if acct.ai_persona_id is None:
+            skipped += 1
+            continue
+        if acct.status == "banned" and not request.force:
+            skipped += 1
+            continue
+        apply_persona_profile_task.delay(acct.id, acct.ai_persona_id)
+        queued += 1
+
+    return {
+        "success": True,
+        "queued": queued,
+        "skipped": skipped,
+        "message": f"已触发 {queued} 个账号资料同步任务",
+    }
+
+
+@router.post("/{account_id}/apply-persona-profile")
+def apply_single_persona_profile(
+    account_id: int,
+    session: Session = Depends(get_session),
+):
+    """立即同步单个账号的人设资料（需已绑定 ai_persona_id）"""
+    from app.tasks.account_tasks import apply_persona_profile_task
+
+    account = session.get(Account, account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    if account.ai_persona_id is None:
+        raise HTTPException(status_code=400, detail="账号未绑定 AI 人设，请先分配人设")
+
+    task = apply_persona_profile_task.delay(account_id, account.ai_persona_id)
+    return {
+        "success": True,
+        "task_id": task.id,
+        "account_id": account_id,
+        "persona_id": account.ai_persona_id,
+        "message": "资料同步任务已触发",
     }
