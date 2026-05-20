@@ -1,14 +1,13 @@
 from fastapi import APIRouter, Depends
 from app.api.v1.endpoints import (
-    accounts, proxies, registration, login, system, tasks, scraping, marketing,
+    accounts, proxies, registration, auth, system, tasks, scraping, marketing,
     warmup, ai, script, ws, crm, logs, monitor, invite, users,
     campaigns, source_groups, funnel_groups, personas, knowledge_bases, workflow,
     monitoring, ai_usage,
-    customer_auth, customer_resources, customer_billing, admin_billing,
+    customer_resources, customer_billing, admin_billing,
     webhooks, customer_kb, customer_main_account, admin_dashboard,
     customer_wallet, admin_features, customer_features,
     customer_bulk, admin_bulk,
-    unified_auth,
 )
 from app.api.deps import get_current_user
 from app.core.config import settings
@@ -29,10 +28,10 @@ def get_auth_dependencies():
     return []
 
 
-# 公开路由 (不需要认证)
-router.include_router(login.router, tags=["login"])
-# Unified login: single URL for customers + admin (POST /api/v1/auth/login)
-router.include_router(unified_auth.router, prefix="/auth", tags=["auth"])
+# 公开路由 (不需要认证) — see backend/app/api/v1/endpoints/auth.py for the
+# three router objects: admin OAuth2/2FA, customer register/me, unified SPA login.
+router.include_router(auth.admin_router, tags=["auth-admin"])
+router.include_router(auth.unified_router, prefix="/auth", tags=["auth-unified"])
 
 # 受保护路由 (需要认证)
 auth_deps = get_auth_dependencies()
@@ -183,12 +182,12 @@ router.include_router(
 )
 
 # ── TG1.AI 客户租户接口（独立鉴权，不走 admin auth_deps）──────────────────
-# customer_auth: 注册 / 登录 / me（公开，自身处理鉴权）
+# auth.customer_router: 注册 / 登录(legacy) / me（公开，自身处理鉴权）
 # customer_resources: 客户视角的资源列表（依赖 get_current_customer）
 router.include_router(
-    customer_auth.router,
+    auth.customer_router,
     prefix="/customer",
-    tags=["customer-auth"],
+    tags=["auth-customer"],
 )
 router.include_router(
     customer_resources.router,
