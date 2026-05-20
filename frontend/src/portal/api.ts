@@ -32,9 +32,9 @@ portalApi.interceptors.response.use(
     // 402 = subscription not active; let the page handle by redirecting to billing
     if (status === 401 || status === 403) {
       clearCustomerToken();
-      if (!window.location.pathname.startsWith('/portal/login')
+      if (window.location.pathname !== '/login'
           && !window.location.pathname.startsWith('/portal/register')) {
-        window.location.href = '/portal/login';
+        window.location.href = '/login';
       }
     }
     return Promise.reject(error);
@@ -141,7 +141,8 @@ export const billingApi = {
 export const resourcesApi = {
   quota: () => portalApi.get<QuotaInfo>('/customer/quota').then(r => r.data),
   accounts: () => portalApi.get<any[]>('/customer/accounts').then(r => r.data),
-  leads: () => portalApi.get<any[]>('/customer/leads').then(r => r.data),
+  leads: (params: { source?: string; bulk_batch_id?: number; status?: string; limit?: number } = {}) =>
+    portalApi.get<any[]>('/customer/leads', { params }).then(r => r.data),
   knowledgeBases: () => portalApi.get<any[]>('/customer/knowledge-bases').then(r => r.data),
 };
 
@@ -224,6 +225,105 @@ export const featureApi = {
     portalApi.post<EstimateResponse>(`/customer/features/${slug}/estimate`, { units }).then(r => r.data),
   usage: (days: number = 30) =>
     portalApi.get<FeatureUsageView[]>('/customer/features/usage', { params: { days } }).then(r => r.data),
+};
+
+// ─── Bulk Send W2 ────────────────────────────────────────────────────────
+
+export interface BulkBatch {
+  id: number;
+  customer_id: number;
+  name: string;
+  message_template: string;
+  status: string;
+  total_targets: number;
+  sent_count: number;
+  delivered_count: number;
+  failed_count: number;
+  replied_count: number;
+  skipped_count: number;
+  estimated_unit_price_cents: number;
+  estimated_total_cents: number;
+  min_delay_sec: number;
+  max_delay_sec: number;
+  started_at: string | null;
+  completed_at: string | null;
+  paused_at: string | null;
+  pause_reason: string | null;
+  created_at: string;
+}
+
+export interface BulkTarget {
+  id: number;
+  batch_id: number;
+  tg_user_id: number | null;
+  tg_username: string | null;
+  phone: string | null;
+  display_name: string | null;
+  country: string | null;
+  status: string;
+  assigned_account_id: number | null;
+  sent_at: string | null;
+  failed_reason: string | null;
+  created_at: string;
+}
+
+export interface BulkVariant {
+  id: number;
+  batch_id: number;
+  content: string;
+  weight: number;
+  use_count: number;
+  created_at: string;
+}
+
+export interface BulkBatchDetail extends BulkBatch {
+  variants: BulkVariant[];
+  targets_preview: BulkTarget[];
+}
+
+export interface CostPreview {
+  target_count: number;
+  current_tier_unit_cents: number;
+  total_cost_cents: number;
+  balance_cents: number;
+  balance_sufficient: boolean;
+  shortfall_cents: number;
+  breakdown: { count: number; unit_cents: number; subtotal_cents: number }[];
+}
+
+export interface CreateBatchRequest {
+  name: string;
+  message_template: string;
+  csv_text?: string;
+  variants?: string[];
+  min_delay_sec?: number;
+  max_delay_sec?: number;
+}
+
+export const bulkApi = {
+  previewCost: (target_count: number) =>
+    portalApi.post<CostPreview>('/customer/bulk/preview-cost', { target_count }).then(r => r.data),
+  createBatch: (data: CreateBatchRequest) =>
+    portalApi.post<BulkBatchDetail>('/customer/bulk/batches', data).then(r => r.data),
+  listBatches: (params: { status?: string; skip?: number; limit?: number } = {}) =>
+    portalApi.get<BulkBatch[]>('/customer/bulk/batches', { params }).then(r => r.data),
+  getBatch: (id: number) =>
+    portalApi.get<BulkBatchDetail>(`/customer/bulk/batches/${id}`).then(r => r.data),
+  cancelBatch: (id: number) =>
+    portalApi.delete<{ ok: boolean }>(`/customer/bulk/batches/${id}`).then(r => r.data),
+  startBatch: (id: number) =>
+    portalApi.post<BulkBatchDetail>(`/customer/bulk/batches/${id}/start`, {}).then(r => r.data),
+  pauseBatch: (id: number) =>
+    portalApi.post<BulkBatchDetail>(`/customer/bulk/batches/${id}/pause`, {}).then(r => r.data),
+  resumeBatch: (id: number) =>
+    portalApi.post<BulkBatchDetail>(`/customer/bulk/batches/${id}/resume`, {}).then(r => r.data),
+  addVariant: (batchId: number, content: string, weight: number = 1) =>
+    portalApi.post<BulkVariant>(`/customer/bulk/batches/${batchId}/variants`,
+      { content, weight }).then(r => r.data),
+  updateVariant: (variantId: number, payload: { content?: string; weight?: number }) =>
+    portalApi.put<BulkVariant>(`/customer/bulk/variants/${variantId}`, payload).then(r => r.data),
+  deleteVariant: (variantId: number) =>
+    portalApi.delete<{ ok: boolean }>(`/customer/bulk/variants/${variantId}`).then(r => r.data),
 };
 
 // Epic 4.1 — KB CRUD + upload

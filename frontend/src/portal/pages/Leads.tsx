@@ -13,7 +13,7 @@ const STATUS_COLOR: Record<string, string> = {
 const PortalLeads: React.FC = () => {
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ['portal', 'leads'],
-    queryFn: resourcesApi.leads,
+    queryFn: () => resourcesApi.leads(),
   });
 
   return (

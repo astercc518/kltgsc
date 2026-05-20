@@ -60,6 +60,10 @@ import PortalMainAccount from './portal/pages/MainAccount';
 import PortalSettings from './portal/pages/Settings';
 import PortalWallet from './portal/pages/Wallet';
 import PortalFeatures from './portal/pages/Features';
+import PortalBulk from './portal/pages/Bulk';
+import PortalBulkNew from './portal/pages/BulkNew';
+import PortalBulkDetail from './portal/pages/BulkDetail';
+import PortalBulkInbox from './portal/pages/BulkInbox';
 import { isCustomerAuthenticated } from './portal/auth';
 
 // 检查用户是否已登录
@@ -91,7 +95,7 @@ const AdminOnly: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     return <div style={{ padding: 48, textAlign: 'center' }}><Spin tip="检查权限中..." /></div>;
   }
   if (me?.role !== 'admin' && !me?.is_superuser) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
   return <>{children}</>;
 };
@@ -105,7 +109,7 @@ const buildMenuItems = (role?: string, isSuperuser?: boolean): MenuProps['items'
   {
     key: '1',
     icon: <DashboardOutlined />,
-    label: <Link to="/">Dashboard</Link>,
+    label: <Link to="/dashboard">Dashboard</Link>,
   },
   {
     key: 'monitoring',
@@ -289,7 +293,7 @@ const AppContent: React.FC = () => {
     const breadcrumbItems: BreadcrumbProps['items'] = [
         {
             key: 'home',
-            title: <Link to="/">Home</Link>,
+            title: <Link to="/dashboard">Home</Link>,
         },
         ...pathSnippets.map((_, index) => {
             const url = `/${pathSnippets.slice(0, index + 1).join('/')}`;
@@ -305,7 +309,8 @@ const AppContent: React.FC = () => {
             <Breadcrumb style={{ margin: '16px 0' }} items={breadcrumbItems} />
             <div style={{ padding: 24, minHeight: 360, background: '#fff' }}>
                 <Routes>
-                    <Route path="/" element={<Dashboard />} />
+                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/accounts" element={<AccountList />} />
                     <Route path="/proxies" element={<ProxyList />} />
                     <Route path="/ai" element={<AIPage />} />
@@ -367,14 +372,20 @@ const App: React.FC = () => {
   return (
     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Routes>
-        {/* ── Admin auth ─────────────────────────────────────────── */}
+        {/* ── Unified login ──────────────────────────────────────── */}
+        {/* Single entry for both customers (email) and admin/sales (username). */}
         <Route path="/login" element={
-          isAuthenticated() ? <Navigate to="/" replace /> : <Login />
+          isAuthenticated()
+            ? <Navigate to="/dashboard" replace />
+            : isCustomerAuthenticated()
+              ? <Navigate to="/portal/dashboard" replace />
+              : <Login />
         } />
-
-        {/* ── TG1.AI Customer Portal (公开页面，自带鉴权重定向) ── */}
+        {/* Legacy customer login URL → redirect to unified /login */}
         <Route path="/portal/login" element={
-          isCustomerAuthenticated() ? <Navigate to="/portal/dashboard" replace /> : <PortalLogin />
+          isCustomerAuthenticated()
+            ? <Navigate to="/portal/dashboard" replace />
+            : <Navigate to="/login" replace />
         } />
         <Route path="/portal/register" element={
           isCustomerAuthenticated() ? <Navigate to="/portal/dashboard" replace /> : <PortalRegister />
@@ -387,6 +398,10 @@ const App: React.FC = () => {
           <Route path="billing" element={<PortalBilling />} />
           <Route path="wallet" element={<PortalWallet />} />
           <Route path="features" element={<PortalFeatures />} />
+          <Route path="bulk" element={<PortalBulk />} />
+          <Route path="bulk/new" element={<PortalBulkNew />} />
+          <Route path="bulk/inbox" element={<PortalBulkInbox />} />
+          <Route path="bulk/:id" element={<PortalBulkDetail />} />
           <Route path="accounts" element={<PortalAccounts />} />
           <Route path="leads" element={<PortalLeads />} />
           <Route path="knowledge-bases" element={<PortalKnowledgeBases />} />

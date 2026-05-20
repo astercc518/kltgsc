@@ -343,6 +343,135 @@ TG1.AI 是面向出海企业的 **Telegram 群控 + AI 客服 SaaS** 平台，�
 - `GET /api/v1/customer/settings`
 - `PATCH /api/v1/customer/settings`
 
+## 2.10 群发服务（Bulk Send）
+
+群发服务是 TG1 的"加量 SKU"：客户上传一份目标号码 / 用户名 CSV，平台用 worker 账号池批量私聊发送 + 监听回复，按条计费。
+回复后自动落进 Inbox，AI 副驾驶 / 销售接管完全沿用现有管线。
+
+详尽规格见 [docs/planning/bulk_send_spec.md](planning/bulk_send_spec.md)。
+
+### 2.10.1 钱包（Wallet）
+
+**URL** `/portal/wallet`
+
+群发走预存钱包模型，不与订阅 quota 共享。
+
+- **起充 $100**，最大单次 $50,000
+- 充值赠送：$500 +2% / $1,000 +5% / $5,000 +10%
+- USDT 链上结算（TRC20 / ERC20 / BEP20），webhook 自动确认后到账
+- 余额跌破 **$20** 触发一次告警（WS + 主号 Saved Messages），下次充值后自动重置
+
+**Endpoints**
+- `GET /api/v1/customer/wallet` 余额 + 累计统计
+- `POST /api/v1/customer/wallet/topup` 创建充值 invoice
+- `GET /api/v1/customer/wallet/transactions` 流水分页
+
+### 2.10.2 创建批次（New Batch）
+
+**URL** `/portal/bulk/new`
+
+四步走：
+
+1. **填基本信息**：批次名 + 主消息模板 + 节流（min/max delay 秒数）
+2. **上传 CSV**（可粘贴）：自动识别 `phone` / `tg_username` / `tg_user_id` / `name` / `country` 列；无 header 时按内容自动判断
+3. **加 5+ 文案变体**：anti-spam 硬要求，发送时按权重随机抽
+4. **实时成本预览**：右侧卡片显示当前 tier 单价、跨 tier 总价、余额是否够、不够时一键跳钱包充值
+
+阶梯单价（按累计已花算）：
+
+| 累计已发送量 | 单条价格 |
+|---|---|
+| 0 – 10,000 | $0.15 |
+| 10,001 – 50,000 | $0.10 |
+| 50,001 – 200,000 | $0.07 |
+| 200,001+ | $0.05 |
+
+创建后状态是 `draft`，未扣款。
+
+### 2.10.3 启动 / 暂停 / 续跑（Lifecycle）
+
+**URL** `/portal/bulk/{id}`
+
+| 状态 | 描述 | 可做的操作 |
+|---|---|---|
+| `draft` | 草稿，未派发 | Start / Delete / 编辑变体 |
+| `pending` | Dispatcher 排队中 | Pause |
+| `running` | Worker 正在发送 | Pause |
+| `paused` | 暂停（用户手动 / 余额不足 / 失败熔断） | Resume / 编辑变体 |
+| `completed` | 全部 target 终态 | 查看历史 |
+| `canceled` | 取消 | 查看历史 |
+
+**Start 校验**：必须有 ≥ 5 个变体 + 钱包余额 ≥ 单条单价。
+**Pause 是软暂停**：在跑的 worker 在下一条 target 之前退出。
+**Resume 续跑** 仍然按当前 tier 单价。
+
+### 2.10.4 收件箱（Inbox）
+
+**URL** `/portal/bulk/inbox`
+
+群发回复进 Inbox 的工作机制：
+
+1. Worker 用账号池里的某个号给目标发 DM → 标记 `bulk_target.status='sent'` + 扣款
+2. 对方回复 → Listener 命中 → 自动创建 Lead，`source='bulk'` `bulk_batch_id={id}` `status='replied'`
+3. WebSocket 广播 `bulk_reply` 事件 → 前端 Inbox 实时刷新
+4. 同一个 Lead 自动出现在 `/portal/leads` 主收件箱，AI 副驾驶 / 销售接管完整继承
+
+按批次过滤（下拉框）可以快速看某次活动的转化率。
+
+### 2.10.5 反 spam / 风控自动化
+
+| 控制点 | 阈值 / 行为 |
+|---|---|
+| 文案变体最少 5 个 | 创建批次时可少，启动时强校验 |
+| 单条最小延迟 | min/max delay 秒，每条 random 抽 |
+| 失败熔断 | 单 worker 连续 5 次失败 → 整个 batch 自动 `paused`，pause_reason=`account_X_failure_burst` |
+| 跨批次去重 | `UNIQUE(customer_id, tg_user_id)` — 同号 7 天内不会被两个批次重复打 |
+| 余额耗尽 | Worker 扣款失败 → batch `paused`，pause_reason=`insufficient_balance` |
+| 余额低告警 | < $20 触发，每次 dip 仅一次 |
+
+### 2.10.6 Endpoints 速查
+
+```
+# Customer
+POST   /api/v1/customer/bulk/preview-cost
+POST   /api/v1/customer/bulk/batches
+GET    /api/v1/customer/bulk/batches[?status=]
+GET    /api/v1/customer/bulk/batches/{id}
+DELETE /api/v1/customer/bulk/batches/{id}              # 取消 draft
+POST   /api/v1/customer/bulk/batches/{id}/start
+POST   /api/v1/customer/bulk/batches/{id}/pause
+POST   /api/v1/customer/bulk/batches/{id}/resume
+POST   /api/v1/customer/bulk/batches/{id}/variants     # 加变体
+PUT    /api/v1/customer/bulk/variants/{vid}            # 改变体
+DELETE /api/v1/customer/bulk/variants/{vid}            # 删变体
+GET    /api/v1/customer/leads?source=bulk&bulk_batch_id={id}   # 收件箱
+
+# Admin
+GET    /api/v1/admin/bulk/batches[?status=&customer_id=]
+GET    /api/v1/admin/bulk/metrics[?window_hours=24]    # 健康快照
+POST   /api/v1/admin/bulk/batches/{id}/force-pause
+POST   /api/v1/admin/bulk/batches/{id}/force-cancel
+```
+
+### 2.10.7 端到端 sanity check
+
+部署后或演示前可一键体检：
+
+```bash
+docker exec -w /app -e PYTHONPATH=/app tgsc-backend-1 \
+  python -m scripts.bulk_send_e2e_smoke
+```
+
+会覆盖：登录 → cost preview → 创建 batch → 变体 CRUD → 启动 → 等完成 →
+模拟 inbound reply → 验证 Leads filter → admin metrics → 清理。
+全过返回退出码 0。
+
+### 2.10.8 当前限制（MVP）
+
+- **真发模式**需要 `BULK_SEND_MOCK=0` + bulk 专属账号池就位；默认 `=1` 仅模拟（90% 成功率随机）
+- 仅支持 **tg_user_id** 直发；`@username` / `phone` 真发要 `client.resolve_username` / `import_contacts`，会消耗 ResolveUsername 配额且容易撞 24h FloodWait — phase 4 解决
+- 客户自带账号（BYOA）、API 接入、模板变量替换 — Phase 4+
+
 ---
 
 # 第三部分：运营管理手册（Admin 后台）

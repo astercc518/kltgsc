@@ -105,12 +105,25 @@ def list_my_leads(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     status_filter: str | None = Query(None, alias="status"),
+    source: str | None = Query(None, description="Filter by lead source: monitor | bulk"),
+    bulk_batch_id: int | None = Query(None, description="Filter to a specific bulk batch"),
 ) -> Any:
-    """List leads captured for the current customer."""
+    """List leads captured for the current customer.
+
+    Filter knobs (used by Portal /bulk/inbox to scope to bulk replies):
+        - source: 'bulk' to see only bulk-send replies, 'monitor' for keyword hits
+        - bulk_batch_id: narrow further to a single batch
+    """
     stmt = select(Lead).where(Lead.customer_id == customer.id)
     if status_filter:
         stmt = stmt.where(Lead.status == status_filter)
-    rows = session.exec(stmt.offset(skip).limit(limit)).all()
+    if source:
+        stmt = stmt.where(Lead.source == source)
+    if bulk_batch_id is not None:
+        stmt = stmt.where(Lead.bulk_batch_id == bulk_batch_id)
+    rows = session.exec(
+        stmt.order_by(Lead.last_interaction_at.desc()).offset(skip).limit(limit)
+    ).all()
     return rows
 
 

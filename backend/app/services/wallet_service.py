@@ -193,6 +193,8 @@ def credit_wallet_from_invoice(
     wallet.balance_cents += credit_cents
     wallet.total_topup_cents += credit_cents
     wallet.updated_at = datetime.utcnow()
+    # Clear low-balance flag so the watcher will re-notify on the next dip
+    wallet.low_balance_notified_at = None
 
     description = f"Topup ${invoice.amount_usd:.0f}"
     if bonus_pct:

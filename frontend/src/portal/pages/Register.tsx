@@ -100,7 +100,7 @@ const PortalRegister: React.FC = () => {
         </Form>
         <div style={{ textAlign: 'center', marginTop: 16 }}>
           <Text type="secondary">Already a customer? </Text>
-          <Link to="/portal/login">Sign in</Link>
+          <Link to="/login">Sign in</Link>
         </div>
       </Card>
     </div>

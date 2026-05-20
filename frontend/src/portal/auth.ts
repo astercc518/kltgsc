@@ -21,7 +21,7 @@ export function isCustomerAuthenticated(): boolean {
   return !!getCustomerToken();
 }
 
-export function logoutCustomer(redirectTo: string = '/portal/login'): void {
+export function logoutCustomer(redirectTo: string = '/login'): void {
   clearCustomerToken();
   window.location.href = redirectTo;
 }

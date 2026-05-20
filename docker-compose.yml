@@ -30,6 +30,9 @@ services:
       - /root/.config/gcloud:/root/.config/gcloud:ro
     env_file:
       - ./backend/.env
+    environment:
+      # Bulk Send W3 — mirrors worker setting so /admin/bulk/metrics reads true.
+      - BULK_SEND_MOCK=1
     depends_on:
       - redis
     networks:
@@ -61,6 +64,9 @@ services:
     environment:
       - QT_QPA_PLATFORM=offscreen
       - QT_DEBUG_PLUGINS=0
+      # Bulk Send W3 — 1 = simulate sends without touching Telegram. Flip to 0
+      # once worker pool is ready for real sends.
+      - BULK_SEND_MOCK=1
     depends_on:
       - redis
       - backend

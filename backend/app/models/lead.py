@@ -32,6 +32,11 @@ class LeadBase(SQLModel):
     # denormalized 在 Lead 上以便 Celery task 用 SELECT FOR UPDATE 防 race
     takeover_deadline: Optional[datetime] = Field(default=None, index=True)
 
+    # ── Bulk Send W2: 区分 lead 来源 + 反查 batch ──
+    # source: 'monitor' (现有关键词监控) | 'bulk' (bulk send 回复) | 其他
+    source: str = Field(default="monitor", max_length=20, index=True)
+    bulk_batch_id: Optional[int] = Field(default=None, foreign_key="bulk_batch.id", index=True)
+
 class Lead(LeadBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     interactions: List["LeadInteraction"] = Relationship(back_populates="lead")

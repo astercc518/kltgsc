@@ -7,6 +7,8 @@ from app.api.v1.endpoints import (
     customer_auth, customer_resources, customer_billing, admin_billing,
     webhooks, customer_kb, customer_main_account, admin_dashboard,
     customer_wallet, admin_features, customer_features,
+    customer_bulk, admin_bulk,
+    unified_auth,
 )
 from app.api.deps import get_current_user
 from app.core.config import settings
@@ -29,6 +31,8 @@ def get_auth_dependencies():
 
 # 公开路由 (不需要认证)
 router.include_router(login.router, tags=["login"])
+# Unified login: single URL for customers + admin (POST /api/v1/auth/login)
+router.include_router(unified_auth.router, prefix="/auth", tags=["auth"])
 
 # 受保护路由 (需要认证)
 auth_deps = get_auth_dependencies()
@@ -219,6 +223,18 @@ router.include_router(
     customer_features.router,
     prefix="/customer/features",
     tags=["customer-features"],
+)
+# Bulk Send W2 — customer bulk batches (create draft / list / detail / cancel)
+router.include_router(
+    customer_bulk.router,
+    prefix="/customer/bulk",
+    tags=["customer-bulk"],
+)
+# Bulk Send W5 — admin force-pause / force-cancel + cross-customer batch list
+router.include_router(
+    admin_bulk.router,
+    prefix="/admin/bulk",
+    tags=["admin-bulk"],
 )
 # Epic 6.0 — admin business-ops dashboard
 router.include_router(

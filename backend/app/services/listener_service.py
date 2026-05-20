@@ -78,6 +78,34 @@ class ListenerService:
         user_id = message.from_user.id if message.from_user else 0
         sender_name = (message.from_user.first_name if message.from_user else "") or str(user_id)
 
+        # ── Bulk Send W4: detect inbound reply to a previous bulk send ──
+        # Run first, before any monitor logic — fires regardless of LLM state.
+        # Only private DMs from real users qualify.
+        if (
+            getattr(message.chat, "type", None) == enums.ChatType.PRIVATE
+            and message.from_user
+            and not message.outgoing
+        ):
+            try:
+                from app.services.bulk_reply_service import handle_inbound_dm
+                client_name = getattr(client, "name", None) or ""
+                account = self.client_accounts.get(client_name)
+                if account:
+                    with Session(engine) as bulk_session:
+                        # Re-attach a fresh Account copy bound to this session
+                        acc = bulk_session.get(Account, account.id)
+                        if acc:
+                            handle_inbound_dm(
+                                bulk_session,
+                                account=acc,
+                                sender_tg_user_id=message.from_user.id,
+                                sender_username=message.from_user.username,
+                                sender_first_name=message.from_user.first_name,
+                                message_text=message.text,
+                            )
+            except Exception as e:
+                logger.warning(f"bulk_reply hook failed: {e}")
+
         # 旧上下文缓存（兼容 dispatch_ai_shill）
         if chat_id not in self.context_cache:
             self.context_cache[chat_id] = []

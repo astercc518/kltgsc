@@ -31,6 +31,10 @@ class CustomerWallet(SQLModel, table=True):
     total_topup_cents: int = Field(default=0, ge=0)
     total_spent_cents: int = Field(default=0, ge=0)
 
+    # W5: low-balance dip tracking. Set when watcher notifies the customer,
+    # cleared when next topup brings balance back above the threshold.
+    low_balance_notified_at: Optional[datetime] = Field(default=None)
+
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

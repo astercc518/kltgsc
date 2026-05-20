@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
 import { Form, Input, Button, Card, message, Typography, Space } from 'antd';
 import { UserOutlined, LockOutlined, SafetyCertificateOutlined, ReloadOutlined } from '@ant-design/icons';
 import { login } from '../services/api';
-import { useNavigate } from 'react-router-dom';
+import { setCustomerToken } from '../portal/auth';
+import { Link, useNavigate } from 'react-router-dom';
 
 const { Title, Text } = Typography;
 
@@ -61,13 +63,38 @@ const Login: React.FC = () => {
     }
 
     setLoading(true);
+    const identifier: string = values.username.trim();
     try {
-      const data = await login(values.username, values.password);
-      localStorage.setItem('token', data.access_token);
+      // Single unified endpoint — server figures out customer vs admin
+      // and returns the right token + redirect target.
+      const { data } = await axios.post('/api/v1/auth/login', {
+        identifier,
+        password: values.password,
+      });
+      if (data.role === 'customer') {
+        setCustomerToken(data.access_token);
+      } else {
+        localStorage.setItem('token', data.access_token);
+      }
       message.success('登录成功');
-      window.location.href = '/';
+      window.location.href = data.redirect_to || '/dashboard';
     } catch (error: any) {
-      const errorMsg = error.response?.data?.detail || '登录失败';
+      const detail = error.response?.data?.detail;
+      // 2FA admin → fall back to legacy /login/access-token flow transparently
+      if (typeof detail === 'string' && detail.includes('2FA')) {
+        try {
+          const data = await login(identifier, values.password);
+          localStorage.setItem('token', data.access_token);
+          message.success('登录成功');
+          window.location.href = '/dashboard';
+          return;
+        } catch (e: any) {
+          message.error(e.response?.data?.detail || '登录失败');
+          refreshCaptcha();
+          return;
+        }
+      }
+      const errorMsg = detail || '登录失败';
       if (errorMsg.includes('Too many')) {
         message.error('登录尝试次数过多，请15分钟后再试');
       } else {
@@ -126,11 +153,11 @@ const Login: React.FC = () => {
         >
           <Form.Item
             name="username"
-            rules={[{ required: true, message: '请输入用户名!' }]}
+            rules={[{ required: true, message: '请输入用户名或邮箱!' }]}
           >
-            <Input 
-              prefix={<UserOutlined style={{ color: '#bfbfbf' }} />} 
-              placeholder="用户名" 
+            <Input
+              prefix={<UserOutlined style={{ color: '#bfbfbf' }} />}
+              placeholder="用户名（管理员/销售）或邮箱（客户）"
               autoComplete="username"
             />
           </Form.Item>
@@ -204,8 +231,12 @@ const Login: React.FC = () => {
         </Form>
         
         <div style={{ textAlign: 'center' }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
             🔒 已启用登录保护：连续5次失败将锁定15分钟
+          </Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            还没有客户账号？
+            <Link to="/portal/register" style={{ marginLeft: 4 }}>立即注册</Link>
           </Text>
         </div>
       </Card>

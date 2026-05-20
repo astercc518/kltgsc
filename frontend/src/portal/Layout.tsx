@@ -19,6 +19,7 @@ import {
   SettingOutlined,
   WalletOutlined,
   AppstoreOutlined,
+  SendOutlined,
 } from '@ant-design/icons';
 import { Link, Outlet, useLocation, Navigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -44,7 +45,7 @@ const PortalLayout: React.FC = () => {
   const location = useLocation();
 
   if (!isCustomerAuthenticated()) {
-    return <Navigate to="/portal/login" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   const { data: me, isLoading } = useQuery({
@@ -58,6 +59,7 @@ const PortalLayout: React.FC = () => {
     { key: '/portal/billing', icon: <CreditCardOutlined />, label: <Link to="/portal/billing">Billing</Link> },
     { key: '/portal/wallet', icon: <WalletOutlined />, label: <Link to="/portal/wallet">Wallet</Link> },
     { key: '/portal/features', icon: <AppstoreOutlined />, label: <Link to="/portal/features">Feature Pack</Link> },
+    { key: '/portal/bulk', icon: <SendOutlined />, label: <Link to="/portal/bulk">Bulk Send</Link> },
     { key: '/portal/accounts', icon: <TeamOutlined />, label: <Link to="/portal/accounts">TG Accounts</Link> },
     { key: '/portal/leads', icon: <MessageOutlined />, label: <Link to="/portal/leads">Leads</Link> },
     { key: '/portal/knowledge-bases', icon: <BookOutlined />, label: <Link to="/portal/knowledge-bases">Knowledge Base</Link> },

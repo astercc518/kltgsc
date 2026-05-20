@@ -108,6 +108,12 @@ celery_app.conf.update(
             "schedule": 86400.0,        # 每天一次
             "options": {"queue": "low_priority"},
         },
+        # ── Bulk Send W5: low-balance watcher ──────────────────────────
+        "bulk-low-balance-watcher": {
+            "task": "app.tasks.bulk_balance_watcher.scan_low_balance",
+            "schedule": 600.0,          # 每 10 分钟扫一次
+            "options": {"queue": "low_priority"},
+        },
     },
 
     # ==================== 任务路由 ====================

@@ -48,3 +48,12 @@ from .feature import (
     CATEGORY_MARKETING, CATEGORY_SCRAPING, CATEGORY_AI,
     CATEGORY_KB, CATEGORY_ACCOUNT,
 )
+from .bulk_send import (
+    BulkBatch, BulkTarget, BulkTemplateVariant,
+    BulkBatchRead, BulkTargetRead, BulkTemplateVariantRead, BulkBatchDetail,
+    BulkBatchCreate, BulkCostPreviewRequest,
+    BATCH_DRAFT, BATCH_PENDING, BATCH_RUNNING, BATCH_PAUSED,
+    BATCH_COMPLETED, BATCH_FAILED, BATCH_CANCELED,
+    TARGET_PENDING, TARGET_SENDING, TARGET_SENT, TARGET_DELIVERED,
+    TARGET_FAILED, TARGET_REPLIED, TARGET_OPTED_OUT, TARGET_SKIPPED,
+)

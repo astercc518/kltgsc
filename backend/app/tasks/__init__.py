@@ -41,6 +41,10 @@ from app.tasks import billing_tasks  # noqa: F401
 # Epic 5.2 — main-account notifier + handover Celery tasks
 from app.services import main_account_notifier  # noqa: F401
 from app.tasks import handover_tasks  # noqa: F401
+# Bulk Send W3 — dispatcher + worker tasks
+from app.tasks import bulk_send_tasks  # noqa: F401
+# Bulk Send W5 — low-balance watcher beat task
+from app.tasks import bulk_balance_watcher  # noqa: F401
 
 __all__ = [
     # Account tasks
