@@ -31,6 +31,9 @@ class GroupMessageBase(SQLModel):
     # 后续 Q&A 抽取标记
     qa_extracted: bool = Field(default=False, index=True)
 
+    # ── Epic 5.1: 多租户归属（沿 Account.customer_id 派生，显式存便于查询/清理）──
+    customer_id: Optional[int] = Field(default=None, foreign_key="customer.id", index=True)
+
 
 class GroupMessage(GroupMessageBase, table=True):
     __tablename__ = "group_message"

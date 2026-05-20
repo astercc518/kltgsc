@@ -24,6 +24,9 @@ class AIPersonaBase(SQLModel):
     usage_count: int = Field(default=0)
     avg_reply_rate: Optional[float] = None
 
+    # 多租户归属（TG1.AI 商业化）— NULL = 系统预设人设（金牌销售/技术分析师等），客户共享
+    customer_id: Optional[int] = Field(default=None, foreign_key="customer.id", index=True)
+
 
 class AIPersona(AIPersonaBase, table=True):
     __tablename__ = "ai_persona"

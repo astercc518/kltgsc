@@ -273,7 +273,7 @@ def update_account_role(
         raise HTTPException(status_code=404, detail="Account not found")
     
     if update_data.role is not None:
-        if update_data.role not in ["worker", "master", "support", "sales"]:
+        if update_data.role not in ["worker", "master", "support", "sales", "collector"]:
             raise HTTPException(status_code=400, detail="Invalid role")
         account.role = update_data.role
     
@@ -304,7 +304,7 @@ def update_accounts_role_batch(
     if not account_ids:
         raise HTTPException(status_code=400, detail="account_ids required")
     
-    if role and role not in ["worker", "master", "support", "sales"]:
+    if role and role not in ["worker", "master", "support", "sales", "collector"]:
         raise HTTPException(status_code=400, detail="Invalid role")
         
     if tier and tier not in ["tier1", "tier2", "tier3"]:

@@ -24,7 +24,7 @@ class AccountBase(SQLModel):
     persona_prompt: Optional[str] = None  # e.g. "You are a helpful assistant..."
     
     # Management fields
-    role: str = Field(default="worker", index=True)  # worker, master, support
+    role: str = Field(default="worker", index=True)  # worker, master, support, sales, listener, collector, main
     tier: Optional[str] = Field(default="tier3", index=True)  # tier1 (premium), tier2 (support/shill), tier3 (disposable)
     tags: Optional[str] = None  # Comma separated tags e.g. "US,Crypto"
     
@@ -36,6 +36,25 @@ class AccountBase(SQLModel):
 
     # AI 人设绑定（用于 trigger_ai 炒群、自动回复）
     ai_persona_id: Optional[int] = Field(default=None, foreign_key="ai_persona.id", index=True)
+
+    # 多租户归属（TG1.AI 商业化）— NULL = 系统所有/未分配，仅 admin 视角可见
+    customer_id: Optional[int] = Field(default=None, foreign_key="customer.id", index=True)
+
+    # ── Epic 3: 客户激活后自动分配 + AI 改造 ──
+    assigned_at: Optional[datetime] = Field(default=None, index=True)
+    # AI 生成的行业匹配资料（DB-only；Epic 3.1 才真去 TG 上 set_username/set_bio）
+    customized_username: Optional[str] = None
+    customized_first_name: Optional[str] = None
+    customized_last_name: Optional[str] = None
+    customized_bio: Optional[str] = None
+    # 若是替补账号，指向被替换的原账号（用于审计 + SLA 追踪）
+    replaced_account_id: Optional[int] = Field(default=None, foreign_key="account.id", index=True)
+
+    # ── Epic 5.0: 客户主号标识 ──
+    # True = 客户扫码登录的个人主号；listener / allocation 自动排除，避免把客户私号当工人调度
+    is_customer_main: bool = Field(default=False, index=True)
+    # session_string 是否已用 session_encryption_service 加密（向后兼容存量明文 session）
+    session_string_encrypted: bool = Field(default=False)
 
 
 class Account(AccountBase, table=True):

@@ -193,12 +193,19 @@ const SourceGroupPage: React.FC = () => {
     {
       title: '群链接/名称',
       key: 'info',
-      render: (_: any, record: SourceGroup) => (
-        <div>
-          <div style={{ fontWeight: 500 }}>{record.name || '未命名'}</div>
-          <div style={{ fontSize: 12, color: '#999' }}>{record.link}</div>
-        </div>
-      )
+      render: (_: any, record: SourceGroup) => {
+        const isPublic = record.link?.startsWith('https://t.me/') || record.link?.startsWith('http://t.me/');
+        return (
+          <div>
+            <div style={{ fontWeight: 500 }}>{record.name || '未命名'}</div>
+            {isPublic ? (
+              <div style={{ fontSize: 12, color: '#999' }}>{record.link}</div>
+            ) : (
+              <Tag color="default" style={{ fontSize: 12 }}>私有群</Tag>
+            )}
+          </div>
+        );
+      }
     },
     {
       title: '类型',

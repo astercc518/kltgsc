@@ -21,6 +21,8 @@ from app.models.target_user import TargetUser
 from app.models.send_task import SendTask, SendRecord
 from app.services.telegram_client import send_message_with_client
 from app.services.safe_send_dispatcher import SafeSendDispatcher, SafeSendConfig
+from app.services import feature_billing as fb
+from app.services.wallet_service import InsufficientBalanceError
 
 logger = logging.getLogger(__name__)
 
@@ -157,10 +159,38 @@ def execute_send_task(self, task_id: int, account_ids: List[int], target_user_id
                             error_message=msg if not success else None
                         )
                         session.add(record)
-                        
+                        session.flush()  # need record.id for idempotency key
+
                         if success:
                             task.success_count += 1
                             sent_count += 1
+
+                            # Feature billing: charge wallet per successful send
+                            # Skip if account belongs to no customer (pool/admin test accounts).
+                            if account.customer_id:
+                                try:
+                                    fb.charge(
+                                        session,
+                                        customer_id=account.customer_id,
+                                        slug='bulk_send_message',
+                                        units=1,
+                                        idempotency_key=f'feat:bulk_send_message:{task.id}:{record.id}',
+                                        description=f'群发 task#{task.id}',
+                                    )
+                                except fb.FeatureNotEnabledError:
+                                    logger.warning(
+                                        f"bulk_send_message not enabled for customer "
+                                        f"{account.customer_id}, skipping charge (sent_count={sent_count})"
+                                    )
+                                except InsufficientBalanceError as ib_err:
+                                    logger.error(
+                                        f"Wallet exhausted for customer {account.customer_id} "
+                                        f"during task {task.id}: {ib_err}. Pausing task."
+                                    )
+                                    task.status = "paused_no_funds"
+                                    session.add(task)
+                                    session.commit()
+                                    return sent_count, skipped_count
                         else:
                             task.fail_count += 1
                             logger.warning(f"Failed to send to {target.telegram_id}: {msg}")

@@ -27,6 +27,14 @@ class SourceGroupBase(SQLModel):
     ai_score: Optional[int] = None
     ai_analysis: Optional[str] = None  # JSON
 
+    # 多租户归属（TG1.AI 商业化）— NULL = 系统群组库，按行业筛选共享给客户
+    customer_id: Optional[int] = Field(default=None, foreign_key="customer.id", index=True)
+
+    # ── Epic 3: 按客户行业筛选 ──
+    # crypto / ecommerce / b2b / gaming / mcn / other —— 与 Customer.industry 对齐
+    industry: Optional[str] = Field(default=None, index=True, max_length=40)
+    assigned_at: Optional[datetime] = Field(default=None, index=True)
+
 
 class SourceGroup(SourceGroupBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)

@@ -23,3 +23,28 @@ from .funnel_group import FunnelGroup, FunnelGroupCreate, FunnelGroupUpdate, Fun
 from .ai_persona import AIPersona, AIPersonaCreate, AIPersonaUpdate, AIPersonaRead
 from .knowledge_base import KnowledgeBase, KnowledgeBaseCreate, KnowledgeBaseUpdate, KnowledgeBaseRead, CampaignKnowledgeLink
 from .group_message import GroupMessage, GroupMessageRead
+from .llm_usage import LLMUsage
+from .customer import Customer, CustomerCreate, CustomerLogin, CustomerRead, CustomerUpdate
+from .subscription import (
+    Subscription, SubscriptionRead,
+    Invoice, InvoiceRead,
+    SubscribeRequest, ActivateSubscriptionRequest,
+)
+from .wallet import (
+    CustomerWallet, WalletTransaction,
+    WalletRead, WalletTransactionRead,
+    WalletTopupRequest, WalletTopupResponse,
+    TXN_TOPUP, TXN_CHARGE, TXN_REFUND, TXN_ADJUST,
+    calculate_bonus_pct, calculate_tier_unit_price_cents,
+)
+from .feature import (
+    FeatureRegistry, CustomerFeature,
+    FeatureRegistryRead, FeatureRegistryUpdate,
+    CustomerFeatureRead, CustomerFeatureUpdate,
+    FeatureUsageSummary, EstimateCostRequest, EstimateCostResponse,
+    BILLING_UNIT_MESSAGE, BILLING_UNIT_MEMBER, BILLING_UNIT_INVITE,
+    BILLING_UNIT_ACCOUNT, BILLING_UNIT_QA_WINDOW, BILLING_UNIT_MB,
+    BILLING_UNIT_AI_REPLY,
+    CATEGORY_MARKETING, CATEGORY_SCRAPING, CATEGORY_AI,
+    CATEGORY_KB, CATEGORY_ACCOUNT,
+)

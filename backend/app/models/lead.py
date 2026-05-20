@@ -23,6 +23,15 @@ class LeadBase(SQLModel):
     ai_draft: Optional[str] = None  # 最新一条 AI 建议草稿（接管后才生成）
     claimed_at: Optional[datetime] = None
 
+    # 多租户归属（TG1.AI 商业化）— 沿 Account.customer_id 派生，但显式存便于查询
+    customer_id: Optional[int] = Field(default=None, foreign_key="customer.id", index=True)
+
+    # ── Epic 5.2: 主号通知 + 对接群超时升级 ──
+    main_account_notified_at: Optional[datetime] = None
+    handover_link_sent_at: Optional[datetime] = None
+    # denormalized 在 Lead 上以便 Celery task 用 SELECT FOR UPDATE 防 race
+    takeover_deadline: Optional[datetime] = Field(default=None, index=True)
+
 class Lead(LeadBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     interactions: List["LeadInteraction"] = Relationship(back_populates="lead")

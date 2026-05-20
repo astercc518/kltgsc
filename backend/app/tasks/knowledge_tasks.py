@@ -62,20 +62,29 @@ def scrape_account_groups(
     limit_per_chat: Optional[int] = None,
     chat_sleep_sec: float = 2.0,
     msg_batch_size: int = 200,
+    # Epic 5.1 — customer-driven import filters
+    since_iso: Optional[str] = None,           # ISO date string; messages older than this are skipped
+    until_iso: Optional[str] = None,           # ISO date string; messages newer than this are skipped
+    dialog_types: Optional[list] = None,        # whitelist of chat types: ['private','group','supergroup']
 ):
     """
     用指定账号采集其参与的所有群组/私聊消息历史，落库 GroupMessage。
     增量逻辑：每个 chat 查询当前 DB 最大 message_id，超过部分才入库。
 
-    参数:
-      account_id: 用哪个账号采（一般是主业务号 81）
-      scraping_task_id: 进度跟踪记录
-      include_private: 是否包含私聊
-      limit_per_chat: 每个 chat 最多采多少条（None=全量）
-      chat_sleep_sec: chat 之间停顿秒数（防 FloodWait）
-      msg_batch_size: 每多少条落一次盘
+    Epic 5.1 additions:
+      • since_iso / until_iso bound the message_date range (default: full history)
+      • dialog_types whitelists chat types (default: all of private/group/supergroup)
+      • GroupMessage rows are tagged with account.customer_id so the extracted KB
+        stays tenant-scoped per [[project-epic5-state]]
     """
-    logger.info(f"scrape_account_groups start: account={account_id}, include_private={include_private}, limit_per_chat={limit_per_chat}")
+    since_dt = datetime.fromisoformat(since_iso) if since_iso else None
+    until_dt = datetime.fromisoformat(until_iso) if until_iso else None
+    type_whitelist = set(dialog_types) if dialog_types else None
+    logger.info(
+        f"scrape_account_groups start: account={account_id}, "
+        f"include_private={include_private}, limit_per_chat={limit_per_chat}, "
+        f"since={since_dt}, until={until_dt}, types={type_whitelist}"
+    )
 
     db = DBSession(engine)
     progress = {
@@ -112,6 +121,9 @@ def scrape_account_groups(
                     continue
                 if ct == "private" and not include_private:
                     continue
+                # Epic 5.1: explicit type whitelist takes precedence over include_private
+                if type_whitelist is not None and ct not in type_whitelist:
+                    continue
                 dialogs.append((dialog.chat, ct))
 
             progress["total_chats"] = len(dialogs)
@@ -145,6 +157,14 @@ def scrape_account_groups(
                         if limit_per_chat and count >= limit_per_chat:
                             stopped = True
                             break
+                        # Epic 5.1 date bounds — iteration is newest-first, so since_dt
+                        # gates "stop walking back further", until_dt skips too-new entries
+                        msg_dt = msg.date if hasattr(msg, "date") and msg.date else None
+                        if since_dt and msg_dt and msg_dt < since_dt:
+                            stopped = True
+                            break
+                        if until_dt and msg_dt and msg_dt > until_dt:
+                            continue
 
                         text = _extract_text(msg)
                         if not text.strip():
@@ -160,6 +180,7 @@ def scrape_account_groups(
 
                         gm = GroupMessage(
                             account_id=account_id,
+                            customer_id=account.customer_id,  # Epic 5.1 tenant tag
                             chat_id=chat.id,
                             chat_title=chat_title,
                             chat_type=chat_type,
@@ -191,7 +212,7 @@ def scrape_account_groups(
                                     except Exception:
                                         db.rollback()
                             buffer = []
-                            await asyncio.sleep(0.5)
+                            await asyncio.sleep(0.1)
 
                 except FloodWait as fw:
                     logger.warning(f"FloodWait {fw.value}s on chat {chat.id}, sleeping then continuing")
@@ -284,16 +305,16 @@ def extract_qa_from_messages(
     concurrency: int = 3,
     scraping_task_id: Optional[int] = None,
     max_windows: Optional[int] = None,
+    customer_id: Optional[int] = None,          # Epic 5.1: tenant filter
+    source_main_account_id: Optional[int] = None,  # Epic 5.1: KB audit attribution
 ):
     """
     扫描 group_message 表里 qa_extracted=false 的消息，按 chat 分组、按时间窗口切片，
     调 Gemini 抽取 Q&A 对，写入 KnowledgeBase（source_type='qa_extracted'）。
 
-    参数:
-      chat_ids: 限定只处理这些 chat（None=全部）
-      window_size: 每个窗口包含多少条消息送给 LLM
-      concurrency: LLM 并发数（防超 RPM）
-      max_windows: 最多处理多少个窗口（None=全部）
+    Epic 5.1 additions:
+      • customer_id — only process messages tagged with this customer (skip platform-wide)
+      • source_main_account_id — written onto every KB row for audit ("from this main account")
     """
     import asyncio
     from app.services.llm import LLMService
@@ -330,6 +351,9 @@ def extract_qa_from_messages(
         )
         if chat_ids:
             chat_q = chat_q.where(GroupMessage.chat_id.in_(chat_ids))
+        # Epic 5.1: restrict to this customer's messages only
+        if customer_id is not None:
+            chat_q = chat_q.where(GroupMessage.customer_id == customer_id)
         chat_q = chat_q.distinct()
         chat_rows = db.exec(chat_q).all()
         logger.info(f"Found {len(chat_rows)} chats with pending messages")
@@ -366,11 +390,13 @@ def extract_qa_from_messages(
                 if max_windows and window_count >= max_windows:
                     break
                 # 拿该 chat 所有未抽消息（按时间升序）
-                msgs = db.exec(
+                msg_q = (
                     select(GroupMessage)
                     .where(GroupMessage.chat_id == chat_id, GroupMessage.qa_extracted == False)
-                    .order_by(GroupMessage.message_date.asc())
-                ).all()
+                )
+                if customer_id is not None:
+                    msg_q = msg_q.where(GroupMessage.customer_id == customer_id)
+                msgs = db.exec(msg_q.order_by(GroupMessage.message_date.asc())).all()
                 if not msgs:
                     continue
                 stats["chats_touched"] += 1
@@ -402,6 +428,8 @@ def extract_qa_from_messages(
                             qa_answer=qa["answer"],
                             qa_topic=qa["topic"],
                             qa_tags=tags_str,
+                            customer_id=customer_id,                       # Epic 5.1 tenant
+                            source_main_account_id=source_main_account_id, # Epic 5.1 audit
                         )
                         db.add(kb)
                         stats["qa_extracted"] += 1
@@ -419,6 +447,33 @@ def extract_qa_from_messages(
                     stats["windows_processed"] += 1
                     window_count += 1
                     _save_progress()
+
+                    # Feature billing: charge per LLM window processed.
+                    # Skip when no customer context (platform-wide / admin runs).
+                    if customer_id:
+                        try:
+                            from app.services import feature_billing as fb
+                            from app.services.wallet_service import InsufficientBalanceError
+                            fb.charge(
+                                db,
+                                customer_id=customer_id,
+                                slug='kb_extract_qa',
+                                units=1,
+                                idempotency_key=f'feat:kb_extract_qa:{scraping_task_id}:{stats["windows_processed"]}',
+                                description=f'Q&A 抽取 task#{scraping_task_id} 窗口 {stats["windows_processed"]}',
+                            )
+                        except fb.FeatureNotEnabledError:
+                            logger.debug(
+                                f"kb_extract_qa not enabled for customer {customer_id}, "
+                                f"continuing without charge"
+                            )
+                        except InsufficientBalanceError as ib_err:
+                            logger.error(
+                                f"Wallet exhausted for customer {customer_id} after "
+                                f"{stats['windows_processed']} windows: {ib_err}. Halting."
+                            )
+                            stats["errors"] += 1
+                            return  # Exit _run() — outer code will finalize task
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)

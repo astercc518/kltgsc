@@ -45,6 +45,14 @@ class KnowledgeBaseBase(SQLModel):
         sa_column=Column(Vector(EMBEDDING_DIM), nullable=True),
     )
 
+    # 多租户归属（TG1.AI 商业化）— NULL = 系统/全局 KB，所有客户可见
+    customer_id: Optional[int] = Field(default=None, foreign_key="customer.id", index=True)
+
+    # ── Epic 5.1: 来源主号（用于审计：这条 KB 是从哪个客户主号的聊天抽出来的）──
+    source_main_account_id: Optional[int] = Field(
+        default=None, foreign_key="account.id", index=True,
+    )
+
 
 class KnowledgeBase(KnowledgeBaseBase, table=True):
     __tablename__ = "ai_knowledge_base"

@@ -36,6 +36,11 @@ from app.tasks.knowledge_tasks import (
 from app.tasks.import_tasks import (
     import_pdf_to_kb,
 )
+# Epic 2.5 — billing beat tasks (imported so Celery beat sees them)
+from app.tasks import billing_tasks  # noqa: F401
+# Epic 5.2 — main-account notifier + handover Celery tasks
+from app.services import main_account_notifier  # noqa: F401
+from app.tasks import handover_tasks  # noqa: F401
 
 __all__ = [
     # Account tasks

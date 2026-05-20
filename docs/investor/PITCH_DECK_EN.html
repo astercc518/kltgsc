@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <title>TGSC 商业计划书</title>
+    <style>
+@page {
+    size: A4;
+    margin: 22mm 18mm 22mm 18mm;
+}
+* { box-sizing: border-box; }
+html, body {
+    font-family: "Noto Sans CJK SC", "Noto Sans", "PingFang SC",
+                 "Microsoft YaHei", sans-serif;
+    color: #1f2937;
+    line-height: 1.7;
+    font-size: 10.5pt;
+    margin: 0;
+    padding: 0;
+    -webkit-print-color-adjust: exact;
+}
+
+/* Cover */
+.cover {
+    page-break-after: always;
+    text-align: center;
+    padding-top: 18mm;
+}
+.cover .brand {
+    font-size: 56pt;
+    font-weight: 900;
+    color: #0f172a;
+    letter-spacing: 1pt;
+    margin-bottom: 6mm;
+    line-height: 1;
+}
+.cover .brand .dot { color: #0066FF; }
+.cover .brand .tld {
+    color: #0066FF;
+    font-size: 38pt;
+    vertical-align: 6pt;
+    font-weight: 800;
+}
+.cover .tagline {
+    font-size: 12pt;
+    color: #475569;
+    margin-bottom: 8mm;
+    letter-spacing: 1.5pt;
+    text-transform: uppercase;
+}
+.cover .badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #2563eb, #7c3aed);
+    color: #fff;
+    padding: 3mm 8mm;
+    border-radius: 30px;
+    font-size: 11pt;
+    margin-bottom: 14mm;
+}
+.cover .title {
+    font-size: 26pt;
+    color: #111827;
+    margin: 0 0 6mm 0;
+    font-weight: 700;
+}
+.cover .subtitle {
+    font-size: 13pt;
+    color: #475569;
+    margin-bottom: 30mm;
+}
+.cover .meta-box {
+    margin: 0 auto;
+    width: 70%;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 8mm;
+    background: #f9fafb;
+    font-size: 11pt;
+}
+.cover .meta-box table { width: 100%; }
+.cover .meta-box td { padding: 2mm 0; text-align: left; }
+.cover .meta-box td:first-child { color: #64748b; width: 40%; }
+.cover .meta-box td:last-child { color: #0f172a; font-weight: 600; }
+.cover .footer {
+    margin-top: 35mm;
+    color: #94a3b8;
+    font-size: 9pt;
+}
+
+/* Content */
+h1 {
+    font-size: 20pt;
+    color: #0f172a;
+    border-bottom: 3px solid #2563eb;
+    padding-bottom: 3mm;
+    margin-top: 12mm;
+    margin-bottom: 6mm;
+    page-break-before: always;
+    page-break-after: avoid;
+}
+h1:first-of-type { page-break-before: avoid; }
+h2 {
+    font-size: 15pt;
+    color: #1e3a8a;
+    margin-top: 9mm;
+    margin-bottom: 4mm;
+    padding-left: 3mm;
+    border-left: 4px solid #2563eb;
+    page-break-after: avoid;
+}
+h3 {
+    font-size: 12pt;
+    color: #1e40af;
+    margin-top: 6mm;
+    margin-bottom: 3mm;
+    page-break-after: avoid;
+}
+h4 { font-size: 11pt; color: #334155; margin: 4mm 0 2mm 0; }
+
+p { margin: 2mm 0; text-align: justify; }
+strong { color: #0f172a; font-weight: 700; }
+em { color: #475569; }
+
+blockquote {
+    border-left: 4px solid #60a5fa;
+    background: #eff6ff;
+    padding: 3mm 5mm;
+    margin: 4mm 0;
+    color: #1e3a8a;
+    font-style: normal;
+}
+
+ul, ol { margin: 2mm 0 4mm 0; padding-left: 8mm; }
+li { margin: 1mm 0; }
+
+a { color: #2563eb; text-decoration: none; }
+
+/* Code */
+code {
+    background: #f1f5f9;
+    color: #be123c;
+    padding: 0.5mm 1.5mm;
+    border-radius: 2px;
+    font-family: "Menlo", "Consolas", monospace;
+    font-size: 9.5pt;
+}
+pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 4mm;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 8.5pt;
+    line-height: 1.5;
+    page-break-inside: avoid;
+}
+pre code {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+}
+
+/* Tables */
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 4mm 0;
+    font-size: 9.5pt;
+    page-break-inside: avoid;
+}
+th {
+    background: #1e3a8a;
+    color: #fff;
+    padding: 2.5mm 3mm;
+    text-align: left;
+    font-weight: 600;
+    border: 1px solid #1e3a8a;
+}
+td {
+    padding: 2mm 3mm;
+    border: 1px solid #e2e8f0;
+    vertical-align: top;
+}
+tbody tr:nth-child(even) { background: #f8fafc; }
+tbody tr:hover { background: #eff6ff; }
+
+/* Horizontal rule */
+hr {
+    border: none;
+    border-top: 1px dashed #cbd5e1;
+    margin: 8mm 0;
+}
+
+/* Footer / page numbers handled by wkhtmltopdf */
+</style>
+</head>
+<body>
+
+<div class="cover">
+    <div class="brand">TG1<span class="tld">.AI</span></div>
+    <div class="tagline">The #1 AI Growth OS for Telegram</div>
+    <div class="badge">Angel Round</div>
+    <div class="title">Investor Pitch Deck</div>
+    <div class="subtitle">1-Page Executive Summary<br/>Angel Round · $71k · 11.1% Equity</div>
+    <div class="meta-box">
+        <table>
+
+            <tr><td>Project</td><td>TG1 (Telegram Growth Intelligence)</td></tr>
+            <tr><td>Domain</td><td>tg1.ai</td></tr>
+            <tr><td>Version</td><td>v3.1</td></tr>
+            <tr><td>Date</td><td>2026-05-18</td></tr>
+            <tr><td>Round</td><td>Angel</td></tr>
+            <tr><td>Raise</td><td>¥500k CNY (~$71k USD)</td></tr>
+            <tr><td>Post-money</td><td>¥4.5M</td></tr>
+            <tr><td>Equity Offered</td><td>11.1% (negotiable)</td></tr>
+    
+        </table>
+    </div>
+    <div class="footer">
+        Confidential. For qualified investor due diligence only.<br/>Unauthorized copying or distribution is prohibited.
+    </div>
+</div>
+
+<div class="content">
+<h1 id="tg1-investor-pitch-deck-1-page">TG1 · Investor Pitch Deck (1-Page)</h1>
+<blockquote>
+<p><strong>TG Orchestration + AI Lead-Gen · System Account Licensing</strong><br />
+Angel Round ｜ ¥500k (~$71k) ｜ 11.1% Equity ｜ Post-money ¥4.5M</p>
+</blockquote>
+<hr />
+<h2 id="one-liner">🎯 ONE-LINER</h2>
+<p><strong>TG1 sells the right to use "customized TG accounts + AI personas + industry knowledge bases + thousands of target groups" as a monthly subscription. From $199, customers log in and start acquiring leads.</strong></p>
+<hr />
+<h2 id="problem">💥 PROBLEM</h2>
+<p>For global teams running TG private-traffic marketing, building it yourself requires:</p>
+<p>❌ <strong>¥300k upfront cost</strong> — SMS, proxies, device fingerprints, warm-up, control scripts, AI integration<br />
+❌ <strong>6-month dev cycle</strong> — most teams can't wait and can't pull it off<br />
+❌ <strong>Ongoing ops nightmare</strong> — accounts get banned in batches, nobody wants the job<br />
+❌ <strong>AI/sales disconnect</strong> — ChatGPT wrappers can't link user profiles or collaborate with sales</p>
+<h2 id="solution">✨ SOLUTION</h2>
+<p><strong>From $199/month, 5-minute setup. Platform supplies the entire infrastructure + AI lead-gen capability.</strong></p>
+<pre><code>Customer logs in → picks industry → platform auto-customizes accounts+personas+KB
+  → joins 500-3000 target groups → AI runs 7×24 lead-gen
+  → high-intent alerts to sales for Copilot-assisted closing
+</code></pre>
+<hr />
+<h2 id="product">📦 PRODUCT</h2>
+<pre><code>┌────────────────────────────────────────────────────────┐
+│  Ammo Layer    1000+ pre-warmed accounts (4 roles)     │
+│  Capability    Orchestration + AI lead-gen + Copilot   │
+│  Service       Auto-replace + CS + industry scripts    │
+└────────────────────────────────────────────────────────┘
+
+Tech Highlights:
+• pgvector HNSW 768d vector KB (no Qdrant needed)
+• Vertex AI Gemini (LLM + Embedding, no RPM limits)
+• Listener 5-shard + multi-replica Workers for 1000+ accounts
+• AI Copilot mode (drafts only, doesn't talk over sales)
+</code></pre>
+<hr />
+<h2 id="business-model-three-tiers">💰 BUSINESS MODEL — Three Tiers</h2>
+<table>
+<thead>
+<tr>
+<th>Plan</th>
+<th>Monthly</th>
+<th>TG Accounts</th>
+<th>AI Target Groups</th>
+<th>Gross Margin</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Starter</strong></td>
+<td><strong>$199</strong></td>
+<td>3</td>
+<td>500</td>
+<td><strong>89%</strong></td>
+</tr>
+<tr>
+<td><strong>Growth</strong></td>
+<td><strong>$299</strong></td>
+<td>5</td>
+<td>1,000</td>
+<td><strong>85%</strong></td>
+</tr>
+<tr>
+<td><strong>Pro</strong></td>
+<td><strong>$599</strong></td>
+<td>10</td>
+<td>3,000</td>
+<td><strong>80%</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Blended ARPU $308/mo ｜ Gross margin 84% ｜ LTV/CAC ≈ 12 ｜ Payback &lt; 1 month</strong></p>
+<hr />
+<h2 id="market">🌍 MARKET</h2>
+<ul>
+<li><strong>Telegram MAU 900M+</strong>, fastest-growing private-traffic channel</li>
+<li><strong>TAM</strong> USD 3B/yr ｜ <strong>SAM</strong> USD 600M/yr ｜ <strong>3-yr SOM</strong> ¥50M ARR</li>
+<li><strong>Target</strong>: Crypto projects / cross-border e-commerce / B2B exporters / global SaaS</li>
+</ul>
+<hr />
+<h2 id="traction">🏆 TRACTION</h2>
+<p>✅ <strong>All 9 dev stages completed</strong> — 50+ backend services, 25+ frontend pages<br />
+✅ <strong>1000+ account capacity battle-tested</strong> — sharding, connection pool, caching all in place<br />
+✅ <strong>AI pipeline production-ready</strong> — pgvector + Vertex AI + Copilot mode<br />
+✅ <strong>Production deployment ready</strong> — Docker + Nginx + Cloudflare</p>
+<blockquote>
+<p><em>To fill: account pool size / beta customer count / current MRR</em></p>
+</blockquote>
+<hr />
+<h2 id="moat">🛡️ MOAT</h2>
+<p><strong>① Account supply engineering</strong> — Auto registration/warm-up/replacement, ¥25/account cost (vs ¥100-500 black market)<br />
+<strong>② 1000+ real engineering capability</strong> — Competitors stop at 50-200 accounts<br />
+<strong>③ AI Copilot product form</strong> — Industry gap, AI ↔ sales two-way collaboration</p>
+<hr />
+<h2 id="financials-3-year">📈 FINANCIALS (3-Year)</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Y1 (2026)</th>
+<th>Y2 (2027)</th>
+<th>Y3 (2028)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Paying customers</td>
+<td>60</td>
+<td>280</td>
+<td>900</td>
+</tr>
+<tr>
+<td>ARR (USD)</td>
+<td>$222k</td>
+<td>$1.18M</td>
+<td>$4.32M</td>
+</tr>
+<tr>
+<td>ARR (¥)</td>
+<td>¥1.55M</td>
+<td>¥8.25M</td>
+<td>¥30.24M</td>
+</tr>
+<tr>
+<td>EBITDA</td>
+<td>-¥315k</td>
+<td>+¥1.8M</td>
+<td>+¥12M</td>
+</tr>
+</tbody>
+</table>
+<p><strong>M10-M12 monthly EBITDA breakeven → Y2 Q1 sustained profitability → Y2-end Series A</strong></p>
+<hr />
+<h2 id="ask">💸 ASK</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Raise</strong></td>
+<td><strong>¥ 500,000 CNY (~$ 71k USD)</strong></td>
+</tr>
+<tr>
+<td><strong>Valuation</strong></td>
+<td>Post-money ¥ 4.5M</td>
+</tr>
+<tr>
+<td><strong>Equity</strong></td>
+<td>11.1%</td>
+</tr>
+<tr>
+<td><strong>Runway</strong></td>
+<td>12 months</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Use of funds</strong>: Account pool 30% ｜ Team 25% ｜ Infrastructure 25% ｜ Marketing 15% ｜ Reserve 5%</p>
+<p><strong>Exit</strong>: Series A in 12-15 months (target ¥30-50M valuation) / Strategic M&amp;A / Continued dividend</p>
+<hr />
+<h2 id="team">👥 TEAM</h2>
+<blockquote>
+<p><em>To fill: Founder / CTO / AI Lead / Ops</em></p>
+</blockquote>
+<hr />
+<h2 id="contact">📞 CONTACT</h2>
+<blockquote>
+<p><em>To fill: Contact / Email / Telegram / WeChat</em></p>
+</blockquote>
+<hr />
+<p><em>Full business plan: <a href="./FINANCING_PLAN_EN.md">FINANCING_PLAN_EN.md</a></em><br />
+<em>Technical architecture: <a href="./ARCHITECTURE.md">ARCHITECTURE.md</a></em></p>
+</div>
+</body>
+</html>

@@ -133,7 +133,7 @@ async def _embed_and_insert(
         batch = chunks[batch_start:batch_start + EMBED_BATCH_SIZE]
         vectors: List[Optional[List[float]]]
         if emb_service.is_configured():
-            vectors = await emb_service.embed_batch(batch)
+            vectors = await emb_service.embed_batch(batch, source="embedding_import")
         else:
             vectors = [None] * len(batch)
 

@@ -34,10 +34,13 @@ CTX_WINDOW = 20                   # 上下文保留条数
 CTX_TTL = 86400                   # 24h
 
 # 各角色响应概率
+# cannon = 群发炮灰，绝不应进入对话（避免自言自语链）
+# scout = 专心监听，极少插嘴
+# actor = 唯一应该被对话引擎使用的角色
 _ROLE_PROBS = {
     "actor":  0.65,
-    "cannon": 0.28,
-    "scout":  0.05,   # scout 专心监听，极少插嘴
+    "cannon": 0.0,    # 禁用：cannon 不参与对话
+    "scout":  0.0,    # 禁用：scout 只监听，不发言
     "sniper": 0.40,
 }
 
@@ -46,7 +49,27 @@ _HUMAN_TRAITS_SHORT = """[真人基础规则]
 - 短句为主，偶尔省略标点
 - 偶尔错别字、缩写（yyds/xswl/awsl）
 - 有情绪、有疲惫、有生活感，不是客服
-- 绝对禁止：作为AI/我是助手/抱歉/无法提供"""
+- 绝对禁止：作为AI/我是助手/抱歉/无法提供
+- 不要营销话术：不要"私我/加我/公众号/内参/拆解/全网最/赛道/红利"等卖课感词
+- 不要伪装权威：不要"我之前帮朋友/我手上有/我整理过"等暗示自己有资源的钩子"""
+
+
+def _strip_sales_sections(persona_prompt: str) -> str:
+    """
+    剥离 persona system_prompt 里的"[互动策略]/[硬性约束]/[回复示例]"段，
+    只保留角色设定 + 说话风格 + 人类档案。
+    RAG 场景下，actor 应该当真实群友，不当销售。
+    """
+    if not persona_prompt:
+        return persona_prompt
+    import re
+    # 删除 "[互动策略...]" 段、"[硬性约束]" 段、"[回复示例]" 段，到下一个 "[" 或结尾
+    cleaned = re.sub(
+        r"\[(互动策略[^\]]*|硬性约束|回复示例)\][^\[]*",
+        "",
+        persona_prompt,
+    )
+    return cleaned.strip()
 
 _REACT_PROMPT = """\
 {persona_prompt}
@@ -204,24 +227,35 @@ class ConversationDirector:
     # ── Responder selection ────────────────────────────────────────────────────
 
     def _select_responders(self, group_id: str, sender_id: str) -> List[Account]:
+        """
+        只挑 actor / sniper 角色（明确为对话演员设计的角色）。
+        排除 cannon / scout（cannon 是炮灰群发，scout 只监听）。
+        排除 listener 不知道的账号（避免触发自言自语链）。
+        最多挑 1 个，避免多 actor 互相接话。
+        """
         t_mult = _time_multiplier()
         candidates = []
 
         with Session(engine) as session:
             accounts = session.exec(
-                select(Account).where(Account.status == "active")
+                select(Account).where(
+                    Account.status == "active",
+                    Account.combat_role.in_(["actor", "sniper"]),
+                )
             ).all()
 
             for acc in accounts:
                 if self._is_on_cooldown(acc.id, group_id):
                     continue
-                base = _ROLE_PROBS.get(acc.combat_role or "cannon", 0.2)
+                base = _ROLE_PROBS.get(acc.combat_role or "cannon", 0.0)
+                if base <= 0:
+                    continue
                 if random.random() < base * t_mult:
                     candidates.append(Account.model_validate(acc))
 
-        # 优先 actor，最多 2 个
+        # 优先 actor，最多 1 个（避免互相接话）
         candidates.sort(key=lambda a: (0 if a.combat_role == "actor" else 1, random.random()))
-        return candidates[:2]
+        return candidates[:1]
 
     # ── LLM response generation ────────────────────────────────────────────────
 
@@ -231,6 +265,7 @@ class ConversationDirector:
         context_str: str,
         sender_name: str,
         trigger: str,
+        group_id: Optional[str] = None,
     ) -> Optional[str]:
         from app.services.ai_engine import AIEngine
         from app.services.shill_dispatcher import _anti_hallucination_filter
@@ -238,16 +273,23 @@ class ConversationDirector:
 
         with Session(engine) as session:
             persona = session.get(AIPersona, account.ai_persona_id) if account.ai_persona_id else None
-            persona_prompt = (persona.system_prompt if persona and persona.system_prompt
+            raw_persona_prompt = (persona.system_prompt if persona and persona.system_prompt
                               else "你是一个普通的 Telegram 群友，性格自然随和。")
+            # 剥离原 persona 里的"营销话术指令"，只保留角色设定+说话风格
+            # （RAG 场景下 actor 当真实群友，不当销售）
+            persona_prompt = _strip_sales_sections(raw_persona_prompt)
 
             # RAG：从知识库向量召回相关条目注入 persona prompt
-            kb_items = await retrieve_relevant_kb(session, trigger, top_k=4)
+            # Epic 5.1: tenant-scope to the account's customer
+            kb_items = await retrieve_relevant_kb(
+                session, trigger, top_k=4,
+                customer_id_filter=account.customer_id,
+            )
             kb_block = format_kb_for_prompt(kb_items, max_chars=1200)
             if kb_block:
                 persona_prompt = (
                     f"{persona_prompt}\n\n"
-                    f"[业务知识参考 — 如果用户提到相关内容，可以基于这些回答]\n{kb_block}"
+                    f"[你脑子里碰巧记得的相关信息 — 如果话题对上可以随口说，但不要照搬、不要列清单、不要变成广告]\n{kb_block}"
                 )
 
             ai = AIEngine(session)
@@ -260,7 +302,11 @@ class ConversationDirector:
                         context=context_str,
                         sender_name=sender_name,
                         trigger=trigger[:150],
-                    )
+                    ),
+                    source="director_reactive",
+                    account_id=account.id,
+                    persona_id=account.ai_persona_id,
+                    chat_id=str(group_id) if group_id else None,
                 )
             except Exception as e:
                 logger.error(f"Director LLM failed account={account.id}: {e}")
@@ -310,7 +356,7 @@ class ConversationDirector:
 
         base_delay = 0
         for acc in responders:
-            reply = await self._generate_reply(acc, context_str, sender_name, text)
+            reply = await self._generate_reply(acc, context_str, sender_name, text, group_id=group_id)
             if not reply:
                 continue
 
@@ -332,8 +378,8 @@ class ConversationDirector:
                 f"in {delay//60}m{delay%60}s: {reply[:50]!r}"
             )
 
-            # Gemini 免费层节流：两次 LLM 调用之间留 13s
-            await asyncio.sleep(13)
+            # 小停顿避免突发打 Vertex；TG 发送节奏由 Celery countdown 控制
+            await asyncio.sleep(1)
 
     # ── Public: proactive ──────────────────────────────────────────────────────
 
@@ -385,7 +431,11 @@ class ConversationDirector:
                         time_str=_get_time_str(),
                         context=context_str,
                         topic_hint=topic_hint,
-                    )
+                    ),
+                    source="director_proactive",
+                    account_id=acc.id,
+                    persona_id=acc.ai_persona_id,
+                    chat_id=str(group_id) if group_id else None,
                 )
             except Exception as e:
                 logger.error(f"Director proactive LLM failed account={acc.id}: {e}")

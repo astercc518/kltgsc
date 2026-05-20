@@ -313,7 +313,9 @@ class ShillDispatcher:
                     context=context_text,
                     trigger=trigger_text,
                     knowledge=knowledge or "无",
-                )
+                ),
+                source="shill_dispatch",
+                chat_id=str(chat_id) if chat_id else None,
             )
             text_a = _anti_hallucination_filter(raw_a)
         except Exception as e:
@@ -330,7 +332,9 @@ class ShillDispatcher:
                     trigger=trigger_text,
                     role_a_msg=text_a or "（提问中）",
                     knowledge=knowledge or "无",
-                )
+                ),
+                source="shill_dispatch",
+                chat_id=str(chat_id) if chat_id else None,
             )
             text_b = _anti_hallucination_filter(raw_b)
         except Exception as e:
@@ -494,7 +498,11 @@ async def dispatch_free_conversation(
                             human_traits=_HUMAN_TRAITS,
                             topic=topic,
                             recent_msgs=recent_text,
-                        )
+                        ),
+                        source="shill_free_chat",
+                        account_id=acc.id,
+                        persona_id=acc.ai_persona_id,
+                        chat_id=str(chat_id) if chat_id else None,
                     )
                     text = _anti_hallucination_filter(raw)
                 except Exception as e:
@@ -502,8 +510,7 @@ async def dispatch_free_conversation(
                     text = ""
 
                 if not text:
-                    # Still advance countdown so timing between actual sends stays natural
-                    await asyncio.sleep(13)  # stay under 5 req/min free-tier limit
+                    await asyncio.sleep(1)
                     continue
 
                 execute_single_shill_line.apply_async(
@@ -517,8 +524,8 @@ async def dispatch_free_conversation(
                     f"scheduled in {countdown}s: {text[:40]!r}"
                 )
                 countdown += random.randint(30, 90)
-                # Respect Gemini free-tier: 5 req/min → ≥13s between calls
-                await asyncio.sleep(13)
+                # 小停顿避免突发打 Vertex；TG 发送节奏由 Celery countdown 控制
+                await asyncio.sleep(1)
 
     return scheduled_count, countdown
 

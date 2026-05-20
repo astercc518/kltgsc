@@ -92,7 +92,9 @@ async def backfill(batch_size: int = 50, max_rows: int = 0, rpm: int = 0) -> Non
                 session.commit()
                 continue
 
-            vectors = await emb.embed_batch([t for _, t in non_empty])
+            vectors = await emb.embed_batch(
+                [t for _, t in non_empty], source="embedding_backfill",
+            )
 
             ok = 0
             for (orig_idx, _), vec in zip(non_empty, vectors):

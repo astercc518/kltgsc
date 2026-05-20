@@ -93,8 +93,11 @@ def auto_assign(
             ]
         }
     """
-    # 1. 加载候选账号
-    query = select(Account).where(Account.status == "active")
+    # 1. 加载候选账号（collector 角色为 KB 采集专用号，绝不参与角色再分配）
+    query = select(Account).where(
+        Account.status == "active",
+        Account.role != "collector",
+    )
     if account_ids:
         query = query.where(Account.id.in_(account_ids))
     accounts = list(session.exec(query).all())

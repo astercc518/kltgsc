@@ -13,10 +13,13 @@ Telegram 群控平台是一个高度自动化的 Telegram 账号批量管理与�
 
 ## 项目文档
 
-- [开发计划 (DEV_PLAN.md)](./DEV_PLAN.md) - 9 个开发阶段的详细规划
-- [需求分析 (REQUIREMENTS.md)](./REQUIREMENTS.md) - 完整的功能需求说明
-- [技术架构 (ARCHITECTURE.md)](./ARCHITECTURE.md) - 系统架构设计
-- [开发任务清单 (TASKS.md)](./TASKS.md) - 详细的开发任务和验收标准 ⭐
+全部文档归档在 [`docs/`](./docs/)，索引见 [docs/README.md](./docs/README.md)。
+
+- 📘 [使用手册 (docs/user_manual.md)](./docs/user_manual.md) - Portal / Admin / 销售 / API 4 视角完整手册 ⭐
+- 🏗 [技术架构 (docs/architecture/)](./docs/architecture/) - ARCHITECTURE / REQUIREMENTS / MIGRATION
+- 📋 [规划与任务 (docs/planning/)](./docs/planning/) - DEV_PLAN / STRATEGIC_PLAN / TASKS / TESTING
+- 💼 [投资人材料 (docs/investor/)](./docs/investor/) - FINANCING / PITCH 中英文双语
+- 📊 [数据资产 (docs/data/)](./docs/data/) - 群清单 / 候选清单 / resolve 结果
 
 ## 快速开始
 
@@ -68,7 +71,7 @@ npm run dev
 - ✅ **Stage 7** - CRM 客户管理
 - ✅ **Stage 8** - 数据看板与运维
 
-详细任务和验收标准请查看 [TASKS.md](./TASKS.md)
+详细任务和验收标准请查看 [docs/planning/TASKS.md](./docs/planning/TASKS.md)
 
 ## 功能特性
 
@@ -115,7 +118,7 @@ npm run dev
 
 ## 验收标准
 
-每个开发阶段完成后，都需要在 **Web 端进行真实环境验收**。详细验收标准请参考 [TASKS.md](./TASKS.md) 中每个阶段的"验收标准"部分。
+每个开发阶段完成后，都需要在 **Web 端进行真实环境验收**。详细验收标准请参考 [docs/planning/TASKS.md](./docs/planning/TASKS.md) 中每个阶段的"验收标准"部分。
 
 ## 许可证
 

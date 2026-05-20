@@ -769,6 +769,73 @@ export const testAIConnection = async (): Promise<any> => {
     return response.data;
 };
 
+// --- AI Usage (费用预估) ---
+
+export interface UsageBucket {
+    source?: string;
+    model?: string;
+    cost_usd: number;
+    input_tokens: number;
+    output_tokens: number;
+    calls: number;
+}
+
+export interface UsageSummary {
+    range_days: number;
+    total_cost_usd: number;
+    total_input_tokens: number;
+    total_output_tokens: number;
+    total_calls: number;
+    today_cost_usd: number;
+    all_time_cost_usd: number;
+    by_source: UsageBucket[];
+    by_model: UsageBucket[];
+}
+
+export interface UsageTimelinePoint {
+    ts: string;
+    cost_usd: number;
+    calls: number;
+    input_tokens: number;
+    output_tokens: number;
+}
+
+export interface UsageTopItem {
+    id: number | string | null;
+    name: string | null;
+    cost_usd: number;
+    calls: number;
+    input_tokens: number;
+    output_tokens: number;
+}
+
+export const getUsageSummary = async (days: number = 30): Promise<UsageSummary> => {
+    const r = await api.get('/ai/usage/summary', { params: { days } });
+    return r.data;
+};
+
+export const getUsageTimeline = async (
+    days: number = 30,
+    interval: 'day' | 'hour' = 'day',
+): Promise<{ range_days: number; interval: string; points: UsageTimelinePoint[] }> => {
+    const r = await api.get('/ai/usage/timeline', { params: { days, interval } });
+    return r.data;
+};
+
+export const getUsageTop = async (
+    dim: 'account' | 'persona' | 'chat',
+    days: number = 7,
+    limit: number = 10,
+): Promise<{ dim: string; range_days: number; items: UsageTopItem[] }> => {
+    const r = await api.get('/ai/usage/top', { params: { dim, days, limit } });
+    return r.data;
+};
+
+export const getUsagePricing = async (): Promise<{ pricing_per_1m_tokens_usd: Record<string, { input: number; output: number }> }> => {
+    const r = await api.get('/ai/usage/pricing');
+    return r.data;
+};
+
 // --- Leads / CRM ---
 
 export const getLeads = async (skip: number = 0, limit: number = 20, status?: string): Promise<Lead[]> => {
@@ -834,6 +901,101 @@ export const createUser = async (body: {
     is_active?: boolean;
 }): Promise<UserInfo> => {
     const r = await api.post('/users/', body);
+    return r.data;
+};
+
+export const updateUser = async (
+    userId: number,
+    body: { role?: 'admin' | 'sales'; is_active?: boolean }
+): Promise<UserInfo> => {
+    const r = await api.put(`/users/${userId}`, body);
+    return r.data;
+};
+
+export const deleteUser = async (userId: number): Promise<void> => {
+    await api.delete(`/users/${userId}`);
+};
+
+export const resetUserPassword = async (
+    userId: number,
+    newPassword: string
+): Promise<{ success: boolean; message: string }> => {
+    const r = await api.post(`/users/${userId}/reset-password`, {
+        new_password: newPassword,
+    });
+    return r.data;
+};
+
+// ─── Feature Pack / Usage Billing (Admin views) ──────────────────────────
+
+export interface FeatureRegistry {
+    slug: string;
+    name_zh: string;
+    name_en: string;
+    description: string;
+    billing_unit: string;
+    default_price_cents: number;
+    enabled_by_default: boolean;
+    category: string;
+    is_active: boolean;
+}
+
+export interface CustomerFeature {
+    feature_slug: string;
+    name_zh: string;
+    name_en: string;
+    category: string;
+    billing_unit: string;
+    enabled: boolean;
+    unit_price_cents: number;
+    is_custom_price: boolean;
+    notes: string;
+}
+
+export interface FeatureUsage {
+    feature_slug: string;
+    name_zh: string;
+    units_consumed: number;
+    total_charged_cents: number;
+    last_charged_at: string | null;
+}
+
+export const adminListFeatures = async (): Promise<FeatureRegistry[]> => {
+    const r = await api.get('/admin/features');
+    return r.data;
+};
+
+export const adminUpdateFeature = async (
+    slug: string,
+    body: Partial<Pick<FeatureRegistry, 'default_price_cents' | 'enabled_by_default' | 'is_active' | 'description'>>
+): Promise<FeatureRegistry> => {
+    const r = await api.patch(`/admin/features/${slug}`, body);
+    return r.data;
+};
+
+export const adminListCustomerFeatures = async (cid: number): Promise<CustomerFeature[]> => {
+    const r = await api.get(`/admin/customers/${cid}/features`);
+    return r.data;
+};
+
+export const adminSetCustomerFeature = async (
+    cid: number,
+    slug: string,
+    body: { enabled: boolean; custom_price_cents?: number | null; notes?: string }
+): Promise<CustomerFeature> => {
+    const r = await api.put(`/admin/customers/${cid}/features/${slug}`, body);
+    return r.data;
+};
+
+export const adminRemoveCustomerFeature = async (cid: number, slug: string): Promise<void> => {
+    await api.delete(`/admin/customers/${cid}/features/${slug}`);
+};
+
+export const adminGetCustomerUsage = async (
+    cid: number,
+    days: number = 30
+): Promise<FeatureUsage[]> => {
+    const r = await api.get(`/admin/customers/${cid}/usage`, { params: { days } });
     return r.data;
 };
 

@@ -53,6 +53,16 @@ class Settings(BaseSettings):
     SMS_ACTIVATE_API_KEY: str = ""
     IP2WORLD_API_URL: str = ""
     DEFAULT_2FA_PASSWORD: str = "Password123!"
+
+    # ── TG1.AI Subscription billing (Epic 2, USDT) ───────────────────
+    # 客户付款收款地址：每条链一个静态地址，由 ops 手动维护
+    USDT_ADDRESS_TRC20: str = ""
+    USDT_ADDRESS_ERC20: str = ""
+    USDT_ADDRESS_BEP20: str = ""
+    # Invoice 过期时间（分钟）— 超时未付款自动 expire，需重新下单
+    INVOICE_EXPIRE_MINUTES: int = 30
+    # NowPayments IPN secret (Epic 2.5)；为空 = webhook 关闭，仍走 admin 手动激活
+    NOWPAYMENTS_IPN_SECRET: str = ""
     
     @field_validator("ADMIN_PASSWORD", mode="before")
     @classmethod

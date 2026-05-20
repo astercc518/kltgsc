@@ -193,7 +193,7 @@ class InviteService:
 
         return AccountInviteStats(
             account_id=account_id,
-            account_username=account.username if account else None,
+            account_username=(account.customized_username or account.phone_number) if account else None,
             today_count=today_count,
             today_success=today_success,
             today_failed=today_failed,
@@ -542,11 +542,40 @@ class InviteService:
             error_code=result.get("error_code"),
             error_message=result.get("error_message"),
             duration_ms=result.get("duration_ms"),
-            account_username=account.username,
+            account_username=account.customized_username or account.phone_number,
             flood_wait_seconds=result.get("flood_wait_seconds")
         )
         self.session.add(log)
         self.session.commit()
+        self.session.refresh(log)
+
+        # Feature billing: charge per invite request regardless of success
+        # (account capacity consumed even when target rejects).
+        if account.customer_id:
+            try:
+                from app.services import feature_billing as fb
+                from app.services.wallet_service import InsufficientBalanceError
+                fb.charge(
+                    self.session,
+                    customer_id=account.customer_id,
+                    slug='bulk_invite',
+                    units=1,
+                    idempotency_key=f'feat:bulk_invite:{log.id}',
+                    description=f'拉人 task#{task.id} → {target.telegram_id}',
+                )
+            except fb.FeatureNotEnabledError:
+                logger.debug(
+                    f"bulk_invite not enabled for customer {account.customer_id}, "
+                    f"keeping log but skipping charge"
+                )
+            except InsufficientBalanceError as e:
+                logger.error(
+                    f"Wallet exhausted for customer {account.customer_id} during "
+                    f"invite task {task.id}: {e}"
+                )
+                # Note: caller (execute_invite_task) doesn't see this exception;
+                # the next invite attempt will also be uncharged. Recommend admin
+                # monitor `paused_no_funds` task status (TODO add to outer loop).
     
     def _update_target_status(
         self,

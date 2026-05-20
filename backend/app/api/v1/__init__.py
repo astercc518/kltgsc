@@ -3,7 +3,10 @@ from app.api.v1.endpoints import (
     accounts, proxies, registration, login, system, tasks, scraping, marketing,
     warmup, ai, script, ws, crm, logs, monitor, invite, users,
     campaigns, source_groups, funnel_groups, personas, knowledge_bases, workflow,
-    monitoring
+    monitoring, ai_usage,
+    customer_auth, customer_resources, customer_billing, admin_billing,
+    webhooks, customer_kb, customer_main_account, admin_dashboard,
+    customer_wallet, admin_features, customer_features,
 )
 from app.api.deps import get_current_user
 from app.core.config import settings
@@ -85,10 +88,16 @@ router.include_router(
     dependencies=auth_deps
 )
 router.include_router(
-    ai.router, 
-    prefix="/ai", 
+    ai.router,
+    prefix="/ai",
     tags=["ai"],
     dependencies=auth_deps
+)
+router.include_router(
+    ai_usage.router,
+    prefix="/ai/usage",
+    tags=["ai-usage"],
+    dependencies=auth_deps,
 )
 router.include_router(
     script.router, 
@@ -167,4 +176,76 @@ router.include_router(
     prefix="/monitoring",
     tags=["monitoring"],
     dependencies=auth_deps
+)
+
+# ── TG1.AI 客户租户接口（独立鉴权，不走 admin auth_deps）──────────────────
+# customer_auth: 注册 / 登录 / me（公开，自身处理鉴权）
+# customer_resources: 客户视角的资源列表（依赖 get_current_customer）
+router.include_router(
+    customer_auth.router,
+    prefix="/customer",
+    tags=["customer-auth"],
+)
+router.include_router(
+    customer_resources.router,
+    prefix="/customer",
+    tags=["customer-resources"],
+)
+router.include_router(
+    customer_billing.router,
+    prefix="/customer",
+    tags=["customer-billing"],
+)
+# Epic 4.1 — customer KB CRUD + upload (writes; reads still on customer_resources)
+router.include_router(
+    customer_kb.router,
+    prefix="/customer/knowledge-bases",
+    tags=["customer-kb"],
+)
+# Epic 5.0 — customer main account QR login
+router.include_router(
+    customer_main_account.router,
+    prefix="/customer/main-account",
+    tags=["customer-main-account"],
+)
+# Bulk Send W1 — customer wallet (topup / balance / transactions)
+router.include_router(
+    customer_wallet.router,
+    prefix="/customer/wallet",
+    tags=["customer-wallet"],
+)
+# Feature Pack W2 — customer feature visibility + cost estimate + usage
+router.include_router(
+    customer_features.router,
+    prefix="/customer/features",
+    tags=["customer-features"],
+)
+# Epic 6.0 — admin business-ops dashboard
+router.include_router(
+    admin_dashboard.router,
+    prefix="/admin/dashboard",
+    tags=["admin-dashboard"],
+    dependencies=auth_deps,
+)
+
+# ── Admin-facing billing (Epic 2 MVP, requires admin auth) ───────────────
+router.include_router(
+    admin_billing.router,
+    prefix="/admin/billing",
+    tags=["admin-billing"],
+    dependencies=auth_deps,  # also require admin via get_current_admin
+)
+# Feature Pack W2 — admin feature management
+router.include_router(
+    admin_features.router,
+    prefix="/admin",
+    tags=["admin-features"],
+    dependencies=auth_deps,
+)
+
+# ── Payment gateway webhooks (Epic 2.5, public, signature-verified) ──────
+router.include_router(
+    webhooks.router,
+    prefix="/webhooks",
+    tags=["webhooks"],
 )

@@ -1,0 +1,1548 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <title>TGSC 商业计划书</title>
+    <style>
+@page {
+    size: A4;
+    margin: 22mm 18mm 22mm 18mm;
+}
+* { box-sizing: border-box; }
+html, body {
+    font-family: "Noto Sans CJK SC", "Noto Sans", "PingFang SC",
+                 "Microsoft YaHei", sans-serif;
+    color: #1f2937;
+    line-height: 1.7;
+    font-size: 10.5pt;
+    margin: 0;
+    padding: 0;
+    -webkit-print-color-adjust: exact;
+}
+
+/* Cover */
+.cover {
+    page-break-after: always;
+    text-align: center;
+    padding-top: 18mm;
+}
+.cover .brand {
+    font-size: 56pt;
+    font-weight: 900;
+    color: #0f172a;
+    letter-spacing: 1pt;
+    margin-bottom: 6mm;
+    line-height: 1;
+}
+.cover .brand .dot { color: #0066FF; }
+.cover .brand .tld {
+    color: #0066FF;
+    font-size: 38pt;
+    vertical-align: 6pt;
+    font-weight: 800;
+}
+.cover .tagline {
+    font-size: 12pt;
+    color: #475569;
+    margin-bottom: 8mm;
+    letter-spacing: 1.5pt;
+    text-transform: uppercase;
+}
+.cover .badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #2563eb, #7c3aed);
+    color: #fff;
+    padding: 3mm 8mm;
+    border-radius: 30px;
+    font-size: 11pt;
+    margin-bottom: 14mm;
+}
+.cover .title {
+    font-size: 26pt;
+    color: #111827;
+    margin: 0 0 6mm 0;
+    font-weight: 700;
+}
+.cover .subtitle {
+    font-size: 13pt;
+    color: #475569;
+    margin-bottom: 30mm;
+}
+.cover .meta-box {
+    margin: 0 auto;
+    width: 70%;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 8mm;
+    background: #f9fafb;
+    font-size: 11pt;
+}
+.cover .meta-box table { width: 100%; }
+.cover .meta-box td { padding: 2mm 0; text-align: left; }
+.cover .meta-box td:first-child { color: #64748b; width: 40%; }
+.cover .meta-box td:last-child { color: #0f172a; font-weight: 600; }
+.cover .footer {
+    margin-top: 35mm;
+    color: #94a3b8;
+    font-size: 9pt;
+}
+
+/* Content */
+h1 {
+    font-size: 20pt;
+    color: #0f172a;
+    border-bottom: 3px solid #2563eb;
+    padding-bottom: 3mm;
+    margin-top: 12mm;
+    margin-bottom: 6mm;
+    page-break-before: always;
+    page-break-after: avoid;
+}
+h1:first-of-type { page-break-before: avoid; }
+h2 {
+    font-size: 15pt;
+    color: #1e3a8a;
+    margin-top: 9mm;
+    margin-bottom: 4mm;
+    padding-left: 3mm;
+    border-left: 4px solid #2563eb;
+    page-break-after: avoid;
+}
+h3 {
+    font-size: 12pt;
+    color: #1e40af;
+    margin-top: 6mm;
+    margin-bottom: 3mm;
+    page-break-after: avoid;
+}
+h4 { font-size: 11pt; color: #334155; margin: 4mm 0 2mm 0; }
+
+p { margin: 2mm 0; text-align: justify; }
+strong { color: #0f172a; font-weight: 700; }
+em { color: #475569; }
+
+blockquote {
+    border-left: 4px solid #60a5fa;
+    background: #eff6ff;
+    padding: 3mm 5mm;
+    margin: 4mm 0;
+    color: #1e3a8a;
+    font-style: normal;
+}
+
+ul, ol { margin: 2mm 0 4mm 0; padding-left: 8mm; }
+li { margin: 1mm 0; }
+
+a { color: #2563eb; text-decoration: none; }
+
+/* Code */
+code {
+    background: #f1f5f9;
+    color: #be123c;
+    padding: 0.5mm 1.5mm;
+    border-radius: 2px;
+    font-family: "Menlo", "Consolas", monospace;
+    font-size: 9.5pt;
+}
+pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 4mm;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 8.5pt;
+    line-height: 1.5;
+    page-break-inside: avoid;
+}
+pre code {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+}
+
+/* Tables */
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 4mm 0;
+    font-size: 9.5pt;
+    page-break-inside: avoid;
+}
+th {
+    background: #1e3a8a;
+    color: #fff;
+    padding: 2.5mm 3mm;
+    text-align: left;
+    font-weight: 600;
+    border: 1px solid #1e3a8a;
+}
+td {
+    padding: 2mm 3mm;
+    border: 1px solid #e2e8f0;
+    vertical-align: top;
+}
+tbody tr:nth-child(even) { background: #f8fafc; }
+tbody tr:hover { background: #eff6ff; }
+
+/* Horizontal rule */
+hr {
+    border: none;
+    border-top: 1px dashed #cbd5e1;
+    margin: 8mm 0;
+}
+
+/* Footer / page numbers handled by wkhtmltopdf */
+</style>
+</head>
+<body>
+
+<div class="cover">
+    <div class="brand">TG1<span class="tld">.AI</span></div>
+    <div class="tagline">The #1 AI Growth OS for Telegram</div>
+    <div class="badge">天使轮 · Angel Round</div>
+    <div class="title">商业计划书</div>
+    <div class="subtitle">TG 群控 + AI 获客 · 一体化平台<br/>系统账号使用权租赁 · $199 起</div>
+    <div class="meta-box">
+        <table>
+
+            <tr><td>项目名称</td><td>TG1 (Telegram Growth Intelligence)</td></tr>
+            <tr><td>官方域名</td><td>tg1.ai</td></tr>
+            <tr><td>文档版本</td><td>v3.1</td></tr>
+            <tr><td>编制日期</td><td>2026-05-18</td></tr>
+            <tr><td>融资轮次</td><td>天使轮</td></tr>
+            <tr><td>融资金额</td><td>¥ 50 万 人民币</td></tr>
+            <tr><td>投后估值</td><td>¥ 450 万</td></tr>
+            <tr><td>出让股权</td><td>11.1% (可议)</td></tr>
+    
+        </table>
+    </div>
+    <div class="footer">
+        本文档为商业秘密，仅供合格投资人尽职调查使用<br/>未经许可不得复制或转发
+    </div>
+</div>
+
+<div class="content">
+<h1 id="tg1">TG1 项目融资计划书（天使轮）</h1>
+<blockquote>
+<p><strong>TG1（Telegram Growth Intelligence）</strong><br />
+<strong>TG 群控 + AI 获客</strong> 一体化平台<br />
+商业模式：<strong>系统账号使用权租赁</strong> —— 按月付费，定制 TG 账号 + AI 人设 + 行业知识库 + 海量获客群组</p>
+<p>文档版本：v3.0 ｜ 编制日期：2026-05-18 ｜ 轮次：天使轮</p>
+</blockquote>
+<hr />
+<h2 id="executive-summary">一、执行摘要 (Executive Summary)</h2>
+<h3 id="11">1.1 一句话定位</h3>
+<p><strong>TG1 按月出售"定制 TG 账号 + AI 人设 + 行业知识库 + 海量获客群组"的使用权。$199 起，客户登录即获客。</strong></p>
+<h3 id="12">1.2 商业模式核心</h3>
+<pre><code>            ┌──────────────────────────────────────────────┐
+            │           TG1 平台（卖方）                  │
+            │  • 1000+ 已养好的 TG 账号池                  │
+            │  • 海量行业群组库（5,000+ 已沉淀）           │
+            │  • AI 人设定制 + 行业知识库自动生成          │
+            │  • AI 精准获客（KB+RAG+意图+副驾驶）         │
+            │  • 销售工作台 (CRM + Inbox)                  │
+            └──────────────────┬───────────────────────────┘
+                               │ 按月订阅
+                               │ $199 / $299 / $599
+                ┌──────────────▼──────────────┐
+                │      客户（买方）           │
+                │  • 加密 / Web3 项目方       │
+                │  • 跨境电商                 │
+                │  • 外贸 B2B                 │
+                │  • 出海 SaaS / 游戏         │
+                └─────────────────────────────┘
+</code></pre>
+<p><strong>客户买的不是工具，是"一个 7×24 自动跑的 AI 获客团队"。</strong></p>
+<h3 id="13">1.3 三档套餐（核心定价）</h3>
+<table>
+<thead>
+<tr>
+<th>套餐</th>
+<th>月费 (USD)</th>
+<th>TG 账号</th>
+<th>AI 获客群组</th>
+<th>目标客户</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>基础版</strong></td>
+<td><strong>$199 / 月</strong></td>
+<td>3 个定制账号</td>
+<td>500 个</td>
+<td>个人 / 小团队</td>
+</tr>
+<tr>
+<td><strong>标准版</strong></td>
+<td><strong>$299 / 月</strong></td>
+<td>5 个定制账号</td>
+<td>1,000 个</td>
+<td>中型外贸 / 电商</td>
+</tr>
+<tr>
+<td><strong>专业版</strong></td>
+<td><strong>$599 / 月</strong></td>
+<td>10 个定制账号</td>
+<td>3,000 个</td>
+<td>加密项目 / 大客户</td>
+</tr>
+</tbody>
+</table>
+<p><strong>每个套餐均包含</strong>：<br />
+- ✅ 按业务行业<strong>定制 TG 账号</strong>（用户名/头像/简介/语言匹配）<br />
+- ✅ <strong>AI 人设定制</strong>（专业销售/技术分析师/活跃群友等可选）<br />
+- ✅ <strong>行业知识库自动生成</strong>（爬取行业资料 + Vertex AI Embedding）<br />
+- ✅ <strong>AI 精准获客</strong>（群组监听 + 意图识别 + 自动开场白 + 多轮洽谈）<br />
+- ✅ <strong>销售接管工作台</strong>（CRM + Inbox 副驾驶模式）<br />
+- ✅ <strong>账号封号自动补给</strong></p>
+<h3 id="14">1.4 为什么这个模式跑得通</h3>
+<table>
+<thead>
+<tr>
+<th>客户自建</th>
+<th>用 TG1</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>自己注册账号（接码+代理+设备指纹）</td>
+<td>✅ 平台供给已养好的账号</td>
+</tr>
+<tr>
+<td>自己买代理（IP2World / 911s5）</td>
+<td>✅ 平台代理池已绑定</td>
+</tr>
+<tr>
+<td>自己养号 30 天防风控</td>
+<td>✅ 平台账号已过养号期</td>
+</tr>
+<tr>
+<td>自己找行业群组（人工搜寻 + 加入限频）</td>
+<td>✅ <strong>平台 500-3000 个行业群组直接覆盖</strong></td>
+</tr>
+<tr>
+<td>自己整理行业知识库</td>
+<td>✅ <strong>AI 自动爬取 + Embedding 生成</strong></td>
+</tr>
+<tr>
+<td>自己开发群控脚本（半年起步）</td>
+<td>✅ 平台 50+ 服务模块开箱即用</td>
+</tr>
+<tr>
+<td>自己接 AI（GPT/Gemini）</td>
+<td>✅ Vertex AI Gemini 已集成</td>
+</tr>
+<tr>
+<td>封号 = 自己重头来</td>
+<td>✅ 平台自动补号、按角色分组风控</td>
+</tr>
+<tr>
+<td><strong>门槛</strong>：¥30 万启动 + 半年开发 + 持续运维</td>
+<td><strong>门槛</strong>：$199/月起，5 分钟开通</td>
+</tr>
+</tbody>
+</table>
+<h3 id="15">1.5 核心成绩（已实现）</h3>
+<ul>
+<li><strong>9 个开发阶段全部落地</strong>：账号生命周期、AI 营销、CRM、数据看板、运维监控</li>
+<li><strong>1000+ 账号容量扩展已落地</strong>：Listener 5 分片、Worker 多副本、PG/Redis 调优</li>
+<li><strong>AI 链路完整</strong>：pgvector 向量检索（HNSW 768 维）+ Vertex AI Gemini + 副驾驶模式</li>
+<li><strong>核心代码资产</strong>：后端 50+ 服务模块、前端 25+ 业务页面、Alembic 迁移体系</li>
+<li><strong>生产部署就绪</strong>：Docker Compose + Nginx + Cloudflare + 多副本</li>
+</ul>
+<h3 id="16">1.6 融资需求</h3>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>轮次</td>
+<td>天使轮</td>
+</tr>
+<tr>
+<td>金额</td>
+<td><strong>¥ 50 万 人民币</strong></td>
+</tr>
+<tr>
+<td>估值</td>
+<td>投前 ¥ 400 万 / 投后 ¥ 450 万</td>
+</tr>
+<tr>
+<td>出让股权</td>
+<td>约 11.1%（可议 10%–15%）</td>
+</tr>
+<tr>
+<td>资金可用周期</td>
+<td><strong>12 个月</strong></td>
+</tr>
+<tr>
+<td>核心用途</td>
+<td>账号池建设 30% / 团队人员 25% / 基础设施 25% / 市场冷启动 15% / 储备 5%</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="market-opportunity">二、市场机会 (Market Opportunity)</h2>
+<h3 id="21">2.1 行业趋势</h3>
+<ul>
+<li><strong>Telegram 月活突破 9 亿</strong>（2025），出海团队私域增速最快的渠道</li>
+<li><strong>微信封禁外贸号愈发严格</strong>，外贸客户大量迁移到 TG</li>
+<li><strong>Web3 / 加密</strong>：90% 项目方将 TG 作为社区主阵地</li>
+<li><strong>TG 账号资源价格走高</strong>：高质量长号黑市价 ¥100-500/个，且供给极度依赖灰产链</li>
+</ul>
+<h3 id="22-icp">2.2 目标客户（ICP）</h3>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>客户画像</th>
+<th>痛点</th>
+<th>月预算</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>加密 / Web3 项目方</strong></td>
+<td>交易所、DeFi、NFT 项目</td>
+<td>社区运营 + 高客单转化</td>
+<td><strong>专业版 $599+</strong>（多席位）</td>
+</tr>
+<tr>
+<td><strong>跨境电商独立站</strong></td>
+<td>Shopify 卖家、DTC 品牌</td>
+<td>引流到 TG 群后转化</td>
+<td><strong>标准版 $299</strong></td>
+</tr>
+<tr>
+<td><strong>外贸 B2B</strong></td>
+<td>中小外贸公司、外贸 SOHO</td>
+<td>持续开发海外客户</td>
+<td><strong>基础版 $199</strong></td>
+</tr>
+<tr>
+<td><strong>出海游戏 / SaaS</strong></td>
+<td>出海创业公司</td>
+<td>用户拉新与留存</td>
+<td><strong>标准/专业版 $299–599</strong></td>
+</tr>
+<tr>
+<td><strong>MCN / KOL 运营</strong></td>
+<td>TG 频道矩阵运营</td>
+<td>多账号矩阵管理</td>
+<td><strong>专业版 $599+</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="23">2.3 市场规模</h3>
+<table>
+<thead>
+<tr>
+<th>层级</th>
+<th>范围</th>
+<th>测算</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>TAM</strong></td>
+<td>全球 TG 私域营销服务</td>
+<td>USD 30 亿/年</td>
+</tr>
+<tr>
+<td><strong>SAM</strong></td>
+<td>中文出海团队 + Web3 项目</td>
+<td>USD 6 亿/年</td>
+</tr>
+<tr>
+<td><strong>SOM</strong>（3 年可达）</td>
+<td>头部 5%–10% 中国出海团队</td>
+<td>¥ 5,000 万 ARR</td>
+</tr>
+</tbody>
+</table>
+<p><strong>单一城市/赛道即可支撑天使轮目标</strong>：仅深圳跨境电商行业，付费意愿客户即超过 1 万家。</p>
+<hr />
+<h2 id="product-architecture">三、产品架构 (Product Architecture)</h2>
+<h3 id="31">3.1 系统全景</h3>
+<pre><code>┌────────────────────────────────────────────────────────────────┐
+│                    客户 Web 前端（React 18）                    │
+│   账号池视图 │ 战役管理 │ 知识库 │ CRM │ Inbox │ 数据看板      │
+└────────────────────────┬───────────────────────────────────────┘
+                         │ REST + WebSocket
+┌────────────────────────▼───────────────────────────────────────┐
+│              FastAPI 后端 (Python 3.10+ / asyncio)             │
+│   ┌──────────────────────────────────────────────────────┐     │
+│   │  API 层  /api/v1/*  (25+ endpoints)                  │     │
+│   └──────────────────────────────────────────────────────┘     │
+│   ┌──────────────────────────────────────────────────────┐     │
+│   │  服务层（50+ services）                              │     │
+│   │  • TG 客户端池 (Pyrogram)                            │     │
+│   │  • 任务调度  (Celery + Redis)                        │     │
+│   │  • AI 引擎  (Vertex AI / Gemini)                     │     │
+│   │  • 知识库   (pgvector HNSW 768d)                     │     │
+│   │  • 代理池   (IP2World / 911s5)                       │     │
+│   │  • 接码     (SMS-Activate)                           │     │
+│   └──────────────────────────────────────────────────────┘     │
+└──┬───────────┬──────────────┬────────────────┬────────────────┘
+   │           │              │                │
+   ▼           ▼              ▼                ▼
+┌──────┐  ┌────────┐    ┌─────────┐      ┌──────────┐
+│ PG16 │  │ Redis  │    │   TG    │      │Vertex AI │
+│pgvect│  │ Celery │    │ Servers │      │ Gemini   │
+└──────┘  └────────┘    └─────────┘      └──────────┘
+</code></pre>
+<h3 id="32">3.2 技术栈</h3>
+<table>
+<thead>
+<tr>
+<th>层</th>
+<th>技术</th>
+<th>选型理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>后端</td>
+<td>FastAPI + SQLModel + Pyrogram</td>
+<td>异步友好，与 TG 协议天然契合</td>
+</tr>
+<tr>
+<td>任务调度</td>
+<td>Celery + Redis</td>
+<td>千账号级并发，分片扩展</td>
+</tr>
+<tr>
+<td>数据库</td>
+<td>PostgreSQL 16 + pgvector + Alembic</td>
+<td>单库支撑业务数据 + 向量检索</td>
+</tr>
+<tr>
+<td>AI</td>
+<td>Vertex AI（Gemini）+ <code>gemini-embedding-001</code> 768d</td>
+<td>企业级 SLA，无免费档 RPM 限制</td>
+</tr>
+<tr>
+<td>前端</td>
+<td>React 18 + Vite + Ant Design</td>
+<td>后台管理快速迭代</td>
+</tr>
+<tr>
+<td>部署</td>
+<td>Docker Compose + Nginx + Cloudflare</td>
+<td>单机起飞，无云依赖</td>
+</tr>
+</tbody>
+</table>
+<h3 id="33-aaas">3.3 账号即服务（AaaS）三层资产</h3>
+<table>
+<thead>
+<tr>
+<th>层</th>
+<th>资产</th>
+<th>客户视角</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>账号层</strong></td>
+<td>1000+ 已养好的 TG 账号，按 cannon/scout/actor/sniper 分组</td>
+<td>即开即用，封号自动补</td>
+</tr>
+<tr>
+<td><strong>能力层</strong></td>
+<td>群控 + AI 获客 + 销售接管的全套软件</td>
+<td>不写代码，UI 配置</td>
+</tr>
+<tr>
+<td><strong>服务层</strong></td>
+<td>客户成功 + 风控顾问 + 话术优化</td>
+<td>有人带跑，不掉队</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="business-flows">四、核心业务流程 (Business Flows)</h2>
+<h3 id="41">4.1 客户购买与开通流程</h3>
+<pre><code>客户访问官网 → 选择套餐（按账号数+类型）→ 支付月费
+    ↓
+平台后台为客户分配账号池（专属隔离）
+    ↓
+客户登录 → 上传知识库（PDF/Word/网页）→ 配置 AI 人设 → 配置话术
+    ↓
+客户配置猎场（竞品群链接 / 行业群）
+    ↓
+平台启动 Scout 监听 + AI 评分 + Sniper 触达
+    ↓
+高意向线索 → 销售在客户后台 Inbox 接管 → 副驾驶辅助成交
+</code></pre>
+<h3 id="42">4.2 三条核心获客链路</h3>
+<p><strong>A. 竞品截流（实时）</strong></p>
+<pre><code>Scout 进竞品群 → 监听新成员 → AI 评分 → Sniper 5 分钟内私聊
+  → 用户回复 → AI 多轮洽谈 → 高意向告警 → 销售接管成交
+</code></pre>
+<p><strong>B. 批量洗群（周度）</strong></p>
+<pre><code>Scout 批量采集公海群成员（500-1000/群）→ AI 评分分层
+  → A 层精准私聊 / B 层拉入养鱼群 / C 层丢弃
+  → Actor 在养鱼群炒群造势 → 活跃用户 Sniper 收割
+</code></pre>
+<p><strong>C. AI 客服 + 销售接管（核心闭环）</strong></p>
+<pre><code>TG 私聊进入 → KB 检索（pgvector）→ 意图分析 → AI 回复
+  → intent=purchase + is_high_value → WebSocket 高意向告警
+  → 销售点击&quot;接管&quot; → Lead.ai_enabled=false
+  → AI 切换副驾驶（不发送，只生成草稿 + 实时洽谈摘要）
+  → 销售一键发送 / 改写 → 成交
+</code></pre>
+<hr />
+<h2 id="module-matrix">五、模块功能矩阵 (Module Matrix)</h2>
+<h3 id="51-50">5.1 后端服务（50+）</h3>
+<table>
+<thead>
+<tr>
+<th>模块组</th>
+<th>关键服务</th>
+<th>功能</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>账号生命周期</strong></td>
+<td><code>auto_register</code> <code>device_generator</code> <code>session_*</code> <code>warmup_service</code></td>
+<td>注册、设备指纹、Session、养号</td>
+</tr>
+<tr>
+<td><strong>代理网络</strong></td>
+<td><code>proxy_fetcher</code> <code>proxy_checker</code> <code>proxy_assigner</code></td>
+<td>API 提取、检测、ISP 绑定</td>
+</tr>
+<tr>
+<td><strong>TG 通信</strong></td>
+<td><code>telegram_client</code> <code>client_pool</code> <code>listener_service</code></td>
+<td>Pyrogram 池、5 分片监听</td>
+</tr>
+<tr>
+<td><strong>任务调度</strong></td>
+<td><code>safe_send_dispatcher</code> <code>shill_dispatcher</code> <code>script_executor</code> <code>workflow_engine</code></td>
+<td>限速发送、炒群、剧本、工作流</td>
+</tr>
+<tr>
+<td><strong>AI 引擎</strong></td>
+<td><code>ai_engine</code> <code>llm</code> <code>ai_reply_service</code> <code>conversation_director</code></td>
+<td>LLM 路由、回复生成、对话状态机</td>
+</tr>
+<tr>
+<td><strong>知识库</strong></td>
+<td><code>embedding_service</code> <code>kb_retrieval</code> <code>qa_extractor</code></td>
+<td>Vertex Embedding、向量召回、Q&amp;A 抽取</td>
+</tr>
+<tr>
+<td><strong>采集与营销</strong></td>
+<td><code>scraper</code> <code>intercept_service</code> <code>keyword_monitor_service</code> <code>invite_service</code></td>
+<td>群成员采集、新成员截流、关键词、拉人</td>
+</tr>
+<tr>
+<td><strong>CRM 与画像</strong></td>
+<td><code>score_service</code> <code>persona_profile</code></td>
+<td>用户评分、人设画像</td>
+</tr>
+<tr>
+<td><strong>计费与配额</strong></td>
+<td><code>pricing</code> <code>usage_tracker</code> <code>permission_service</code></td>
+<td>LLM 计费、租户配额（核心商业化基础）</td>
+</tr>
+<tr>
+<td><strong>基础设施</strong></td>
+<td><code>websocket_manager</code> <code>system_config_service</code> <code>mega_importer</code></td>
+<td>实时推送、动态配置、批量导入</td>
+</tr>
+</tbody>
+</table>
+<h3 id="52-25">5.2 前端页面（25+）</h3>
+<table>
+<thead>
+<tr>
+<th>模块</th>
+<th>页面</th>
+<th>价值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>账号池</td>
+<td>AccountList / AutoRegister / ProxyList / Warmup</td>
+<td>客户可见自己租用的账号状态</td>
+</tr>
+<tr>
+<td>战役</td>
+<td>CampaignPage / TasksPage / Marketing / ScriptPage</td>
+<td>客户配置营销战役</td>
+</tr>
+<tr>
+<td>猎场</td>
+<td>SourceGroupPage / FunnelGroupPage / Scraping / InvitePage</td>
+<td>客户配置目标群组</td>
+</tr>
+<tr>
+<td>AI 中心</td>
+<td>AIPage / KnowledgeBasePage / PersonaPage / <code>ai/*</code></td>
+<td>客户训练自己的 AI</td>
+</tr>
+<tr>
+<td>销售工作台</td>
+<td>CRM / Inbox（副驾驶）</td>
+<td>客户销售实操</td>
+</tr>
+<tr>
+<td>数据</td>
+<td>Dashboard / MonitoringDashboard / MonitorPage / LogsPage</td>
+<td>客户看 ROI</td>
+</tr>
+<tr>
+<td>系统</td>
+<td>Login / SystemConfigPage</td>
+<td>客户管理员</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_1">六、商业模式（核心章节）</h2>
+<h3 id="61">6.1 收费方式：系统账号使用权租赁</h3>
+<p><strong>三档标准套餐（USD 计价，面向出海客户）</strong></p>
+<table>
+<thead>
+<tr>
+<th>套餐</th>
+<th>月费</th>
+<th>TG 账号</th>
+<th>AI 获客群组</th>
+<th>平均单账号覆盖群数</th>
+<th>含 AI Token</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>基础版</strong></td>
+<td><strong>$ 199 / 月</strong></td>
+<td>3 个</td>
+<td>500 个</td>
+<td>167 群/号</td>
+<td>200 万 token</td>
+</tr>
+<tr>
+<td><strong>标准版</strong></td>
+<td><strong>$ 299 / 月</strong></td>
+<td>5 个</td>
+<td>1,000 个</td>
+<td>200 群/号</td>
+<td>500 万 token</td>
+</tr>
+<tr>
+<td><strong>专业版</strong></td>
+<td><strong>$ 599 / 月</strong></td>
+<td>10 个</td>
+<td>3,000 个</td>
+<td>300 群/号</td>
+<td>1,500 万 token</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>"AI 获客群组"定义</strong>：平台为客户监听并触达的目标 TG 群组数量上限，含竞品群、行业群、流量群。客户可在群组库中按行业筛选，平台账号自动加入并执行 AI 获客策略。</p>
+</blockquote>
+<h3 id="62">6.2 每个套餐交付什么（标准化交付物）</h3>
+<table>
+<thead>
+<tr>
+<th>交付项</th>
+<th>基础版</th>
+<th>标准版</th>
+<th>专业版</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>定制 TG 账号（用户名/头像/简介行业匹配）</td>
+<td>3</td>
+<td>5</td>
+<td>10</td>
+</tr>
+<tr>
+<td>AI 人设定制（金牌销售/技术分析师/活跃群友等）</td>
+<td>1 套</td>
+<td>2 套</td>
+<td>3 套</td>
+</tr>
+<tr>
+<td>行业知识库自动生成（爬取+Embedding）</td>
+<td>1 个</td>
+<td>2 个</td>
+<td>5 个</td>
+</tr>
+<tr>
+<td>AI 获客群组覆盖</td>
+<td>500</td>
+<td>1,000</td>
+<td>3,000</td>
+</tr>
+<tr>
+<td>AI 自动回复 + 副驾驶</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>CRM + Inbox 销售工作台席位</td>
+<td>1</td>
+<td>3</td>
+<td>10</td>
+</tr>
+<tr>
+<td>封号自动补给 SLA</td>
+<td>24 小时</td>
+<td>12 小时</td>
+<td>4 小时</td>
+</tr>
+<tr>
+<td>客户成功支持</td>
+<td>工单</td>
+<td>工单+月度回顾</td>
+<td>1v1 专属顾问</td>
+</tr>
+</tbody>
+</table>
+<h3 id="63">6.3 增值收入（附加）</h3>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>计费方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AI Token 超额</td>
+<td>$ 5 / 百万 token</td>
+</tr>
+<tr>
+<td>加购账号</td>
+<td>基础版 $50/号 / 标准版 $45/号 / 专业版 $40/号（阶梯优惠）</td>
+</tr>
+<tr>
+<td>加购获客群组</td>
+<td>$ 20 / 100 群 / 月</td>
+</tr>
+<tr>
+<td>自定义知识库导入服务</td>
+<td>$ 80 / 次（PDF 100 页内免费）</td>
+</tr>
+<tr>
+<td>高质量住宅代理升级</td>
+<td>$ 5 / 账号 / 月</td>
+</tr>
+<tr>
+<td>私有化部署</td>
+<td>$ 12,000 / 年起</td>
+</tr>
+<tr>
+<td>行业模板定制（话术 + 知识库 + 人设）</td>
+<td>$ 300 / 次</td>
+</tr>
+</tbody>
+</table>
+<h3 id="64">6.4 单账号 / 单群组成本结构</h3>
+<p><strong>单 TG 账号月均摊成本</strong>（含接码注册 + 养号 + 代理 + 服务器）：</p>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>成本 (¥)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>注册（SMS-Activate + 一次性代理）</td>
+<td>15</td>
+</tr>
+<tr>
+<td>养号期摊销（30 天）</td>
+<td>7</td>
+</tr>
+<tr>
+<td>月运营（代理 + 服务器）</td>
+<td>15</td>
+</tr>
+<tr>
+<td>平均生命周期 4 个月 → 月均摊总成本</td>
+<td><strong>¥ 25 ≈ $ 3.6</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>单获客群组月均成本</strong>：<br />
+- 群组加入 + 监听消息流量 + Listener 分片开销 → 约 ¥0.05 / 群 / 月（边际成本接近 0）</p>
+<p><strong>单客户 AI Token 成本</strong>（按 Vertex AI Gemini）：<br />
+- 含 200-1500 万 token，平均 Vertex 定价 ¥0.7 / 百万输出 token → 月成本 ¥10-100</p>
+<h3 id="65">6.5 三档单客户经济模型（关键）</h3>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>基础版</th>
+<th>标准版</th>
+<th>专业版</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>月费 (USD)</td>
+<td>$ 199</td>
+<td>$ 299</td>
+<td>$ 599</td>
+</tr>
+<tr>
+<td>月费 (¥, 汇率 7.0)</td>
+<td>¥ 1,393</td>
+<td>¥ 2,093</td>
+<td>¥ 4,193</td>
+</tr>
+<tr>
+<td>账号成本</td>
+<td>¥ 75</td>
+<td>¥ 125</td>
+<td>¥ 250</td>
+</tr>
+<tr>
+<td>群组覆盖成本</td>
+<td>¥ 25</td>
+<td>¥ 50</td>
+<td>¥ 150</td>
+</tr>
+<tr>
+<td>AI Token 成本</td>
+<td>¥ 25</td>
+<td>¥ 60</td>
+<td>¥ 180</td>
+</tr>
+<tr>
+<td>客户成功摊销</td>
+<td>¥ 30</td>
+<td>¥ 80</td>
+<td>¥ 250</td>
+</tr>
+<tr>
+<td><strong>直接成本合计</strong></td>
+<td><strong>¥ 155</strong></td>
+<td><strong>¥ 315</strong></td>
+<td><strong>¥ 830</strong></td>
+</tr>
+<tr>
+<td><strong>月毛利</strong></td>
+<td><strong>¥ 1,238</strong></td>
+<td><strong>¥ 1,778</strong></td>
+<td><strong>¥ 3,363</strong></td>
+</tr>
+<tr>
+<td><strong>毛利率</strong></td>
+<td><strong>89%</strong></td>
+<td><strong>85%</strong></td>
+<td><strong>80%</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>综合毛利率 ≈ 84%</strong>（远高于 SaaS 行业均值 70-80%，得益于"账号 + 群组"边际成本极低 + 自动化运维）</p>
+<h3 id="66-arpu-ltvcac">6.6 加权 ARPU 与 LTV/CAC</h3>
+<p><strong>假设套餐分布</strong>：基础版 50% / 标准版 30% / 专业版 20%</p>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th>数值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>加权月费</td>
+<td>$199×0.5 + $299×0.3 + $599×0.2 = <strong>$ 308 ≈ ¥ 2,160</strong></td>
+</tr>
+<tr>
+<td>加权月毛利</td>
+<td><strong>¥ 1,790</strong></td>
+</tr>
+<tr>
+<td>CAC（获客成本）</td>
+<td>¥ 1,500 / 客户</td>
+</tr>
+<tr>
+<td>月留存率</td>
+<td>90%</td>
+</tr>
+<tr>
+<td>平均生命周期</td>
+<td>10 个月</td>
+</tr>
+<tr>
+<td>LTV</td>
+<td>≈ ¥ 2,160 × 10 × 0.84 ≈ ¥ 18,144</td>
+</tr>
+<tr>
+<td><strong>LTV / CAC</strong></td>
+<td><strong>≈ 12</strong></td>
+</tr>
+<tr>
+<td><strong>回收期</strong></td>
+<td><strong>&lt; 1 个月</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="67">6.7 三年收入预测</h3>
+<table>
+<thead>
+<tr>
+<th>年度</th>
+<th>付费客户数</th>
+<th>加权 ARPU (USD)</th>
+<th>MRR (USD)</th>
+<th>ARR (USD)</th>
+<th>ARR (¥)</th>
+<th>关键里程碑</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Y1 (2026)</strong></td>
+<td>60</td>
+<td>$ 308</td>
+<td>$ 18.5k</td>
+<td>$ 222k</td>
+<td>¥ 155 万</td>
+<td>跑通 PMF，账号池 2000</td>
+</tr>
+<tr>
+<td><strong>Y2 (2027)</strong></td>
+<td>280</td>
+<td>$ 350</td>
+<td>$ 98k</td>
+<td>$ 1.18M</td>
+<td>¥ 825 万</td>
+<td>加密+跨境头部客户</td>
+</tr>
+<tr>
+<td><strong>Y3 (2028)</strong></td>
+<td>900</td>
+<td>$ 400</td>
+<td>$ 360k</td>
+<td>$ 4.32M</td>
+<td>¥ 3,024 万</td>
+<td>A 轮 / 海外扩张</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="moat">七、技术壁垒与差异化 (Moat)</h2>
+<h3 id="71">7.1 三大护城河</h3>
+<p><strong>① 账号供给与养号工程化能力（最高门槛）</strong></p>
+<p>竞争对手最难复制的部分：<br />
+- 自动注册：SMS-Activate + IP2World + 设备指纹生成 → 单账号成本压到 ¥15<br />
+- 养号自动化：<code>warmup_service</code> 模拟真人行为 30-60 天<br />
+- 风控分级：cannon/scout/actor/sniper 4 角色 + 健康分 + 自动降级<br />
+- 失效补给：账号封禁后 1 小时内自动补号到客户池</p>
+<p><strong>② 1000+ 账号级真实工程能力</strong></p>
+<ul>
+<li>Listener 按 <code>account.id % N</code> 分片，5 分片支撑千账号长连接</li>
+<li>Worker 多副本 + <code>max-tasks-per-child=200</code> 防 Pyrogram 内存泄漏</li>
+<li>PG <code>max_connections=500</code>、Redis <code>maxmemory=4G</code> <code>noeviction</code></li>
+<li>业内大多数群控工具止步于 50-200 账号</li>
+</ul>
+<p><strong>③ AI 副驾驶与销售协同的产品形态</strong></p>
+<ul>
+<li>同行 A（纯群控）：只有"群发工具"，无 AI、无销售接管</li>
+<li>同行 B（AI 客服）：ChatGPT 套壳，无销售协同</li>
+<li><strong>TG1</strong>：AI 自动处理长尾流量 + 高意向自动告警 + AI 持续生成草稿/摘要给销售</li>
+</ul>
+<h3 id="72">7.2 商业模式的护城河</h3>
+<p><strong>预养号资产是网络效应</strong>：<br />
+- 客户越多 → 账号池流转越快 → 单账号边际成本越低 → 定价更有优势<br />
+- 不同客户对账号要求差异化 → 平台可做"账号二级流转"（用过的 Cannon 降级再用）</p>
+<hr />
+<h2 id="competitive-landscape">八、竞争分析 (Competitive Landscape)</h2>
+<h3 id="81">8.1 对比表</h3>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>TG1</th>
+<th>同行 A（群控脚本）</th>
+<th>同行 B（AI 客服 SaaS）</th>
+<th>自建团队</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>账号供给</td>
+<td><strong>平台提供，租赁</strong></td>
+<td>客户自备</td>
+<td>–</td>
+<td>客户自建（最难）</td>
+</tr>
+<tr>
+<td>账号规模</td>
+<td><strong>1000+ 已养号池</strong></td>
+<td>客户自有（通常&lt;200）</td>
+<td>–</td>
+<td>半年起步</td>
+</tr>
+<tr>
+<td>AI 获客</td>
+<td><strong>KB+RAG+意图+副驾驶</strong></td>
+<td>无</td>
+<td>ChatGPT 套壳</td>
+<td>–</td>
+</tr>
+<tr>
+<td>销售接管</td>
+<td><strong>副驾驶模式</strong></td>
+<td>无</td>
+<td>简单转人工</td>
+<td>手动</td>
+</tr>
+<tr>
+<td>风控分级</td>
+<td><strong>4 角色 + 健康分</strong></td>
+<td>简单限速</td>
+<td>–</td>
+<td>经验依赖</td>
+</tr>
+<tr>
+<td>客户启动门槛</td>
+<td><strong>$199/月，5 分钟开通</strong></td>
+<td>¥5k-50k 工具费</td>
+<td>¥500-5000/月</td>
+<td>¥30 万 + 半年</td>
+</tr>
+<tr>
+<td>失效补号</td>
+<td><strong>自动补给</strong></td>
+<td>客户自担</td>
+<td>–</td>
+<td>客户自担</td>
+</tr>
+<tr>
+<td>部署模式</td>
+<td>SaaS 租赁 + 私有化</td>
+<td>仅本地</td>
+<td>仅 SaaS</td>
+<td>自建</td>
+</tr>
+</tbody>
+</table>
+<h3 id="82">8.2 差异化定位</h3>
+<blockquote>
+<p><strong>TG1 = "TG 营销界的 Cloud"</strong></p>
+<p>同行卖"群控脚本"= 卖物理机<br />
+TG1 卖"账号 + 算力 + AI"= 卖云服务</p>
+</blockquote>
+<p><strong>不和"群控工具"打价格战</strong> —— 卖的是"端到端获客能力 + 持续供给"<br />
+<strong>不和"AI 客服"拼模型</strong> —— 价值在"账号资产 + 工程整合 + 销售协同"<br />
+<strong>打"启动门槛 + 持续运营"差异化</strong> —— 客户算账：自建 ¥30 万 vs 租赁 ¥3,500/月</p>
+<hr />
+<h2 id="roadmap">九、研发路线图 (Roadmap)</h2>
+<h3 id="stage-1-8-stage-9">已完成（Stage 1-8 + Stage 9 部分）</h3>
+<p>✅ 账号全生命周期 / 代理池 / Session 管理<br />
+✅ AI 智能营销 / 炒群 / 关键词监控 / 截流<br />
+✅ CRM 客户管理 / Inbox 聚合聊天<br />
+✅ 数据看板 / 实时监控 / 告警<br />
+✅ pgvector 向量检索 + Vertex AI 统一接入<br />
+✅ 1000+ 账号容量扩展（代码已落地，prod compose 待切换）</p>
+<h3 id="12_1">12 个月内（融资周期）</h3>
+<p><strong>Q1 (M1–M3) — PMF 验证期</strong><br />
+- 🚧 多租户隔离（账号池按客户隔离、配额管理）<br />
+- 🚧 客户自助开通 + 计费系统（按账号数 + 用量）<br />
+- 🚧 销售副驾驶 UI 完善（AI on/off + 草稿建议 + 实时摘要）<br />
+- 🚧 接入 3-5 家种子客户内测</p>
+<p><strong>Q2 (M4–M6) — 商业化启动</strong><br />
+- 📅 KB 多源导入（PDF/Word/网页/聊天历史抽取）<br />
+- 📅 洽谈阶段建模（需求挖掘 → 报价 → 议价 → 成交）<br />
+- 📅 公开发售 + 价格表落地<br />
+- 📅 目标：付费客户 20+，MRR 突破 ¥10 万</p>
+<p><strong>Q3 (M7–M9) — 规模化</strong><br />
+- 📅 自动补号机制（账号封禁自动补给客户池）<br />
+- 📅 客户成功体系建立<br />
+- 📅 目标：付费客户 40+，MRR 突破 ¥20 万</p>
+<p><strong>Q4 (M10–M12) — A 轮筹备</strong><br />
+- 📅 多语言客服扩展（俄/英/阿）<br />
+- 📅 多渠道扩展规划（WhatsApp / Discord）<br />
+- 📅 目标：付费客户 60+，MRR 突破 ¥30 万，启动 A 轮融资</p>
+<hr />
+<h2 id="team">十、团队 (Team)</h2>
+<blockquote>
+<p><em>本节占位，请按实际情况填写</em></p>
+</blockquote>
+<h3 id="3-4">当前团队（建议规模 3-4 人）</h3>
+<table>
+<thead>
+<tr>
+<th>角色</th>
+<th>职责</th>
+<th>背景要求</th>
+<th>当前状态</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>创始人 / CEO</strong></td>
+<td>战略、商业化、销售</td>
+<td>TG 私域/出海 5+ 年</td>
+<td>–</td>
+</tr>
+<tr>
+<td><strong>CTO / 全栈</strong></td>
+<td>技术架构、平台研发</td>
+<td>Python + 分布式 5+ 年</td>
+<td>–</td>
+</tr>
+<tr>
+<td><strong>AI / 后端</strong></td>
+<td>AI 链路、RAG、风控</td>
+<td>LLM 应用 2+ 年</td>
+<td>–</td>
+</tr>
+<tr>
+<td><strong>运营 / 客户成功</strong></td>
+<td>账号供给、客户支持</td>
+<td>TG 营销实操经验</td>
+<td>–</td>
+</tr>
+</tbody>
+</table>
+<h3 id="12_2">融资后扩张（12 个月）</h3>
+<p>新增 2-3 人：销售 1 名 + 客户成功 1 名 + 资深后端 1 名</p>
+<hr />
+<h2 id="financial-projection">十一、财务预测 (Financial Projection)</h2>
+<h3 id="111-12-mrr-usd">11.1 12 个月 MRR 预测（USD / ¥ 双币）</h3>
+<p>汇率：1 USD = 7.0 RMB；加权 ARPU 按 50%/30%/20% 套餐分布。</p>
+<table>
+<thead>
+<tr>
+<th>月</th>
+<th>累计付费客户</th>
+<th>加权 ARPU (USD)</th>
+<th>MRR (USD)</th>
+<th>MRR (¥)</th>
+<th>累计 ARR (¥)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>M1-M3</td>
+<td>3-5（种子，半价/免费）</td>
+<td>–</td>
+<td>&lt; $1k</td>
+<td>&lt; ¥7k</td>
+<td>–</td>
+</tr>
+<tr>
+<td>M4</td>
+<td>10</td>
+<td>$ 250</td>
+<td>$ 2.5k</td>
+<td>¥ 1.75 万</td>
+<td>¥ 21 万</td>
+</tr>
+<tr>
+<td>M6</td>
+<td>25</td>
+<td>$ 280</td>
+<td>$ 7.0k</td>
+<td>¥ 4.9 万</td>
+<td>¥ 59 万</td>
+</tr>
+<tr>
+<td>M9</td>
+<td>45</td>
+<td>$ 300</td>
+<td>$ 13.5k</td>
+<td>¥ 9.5 万</td>
+<td>¥ 113 万</td>
+</tr>
+<tr>
+<td><strong>M12</strong></td>
+<td><strong>60</strong></td>
+<td><strong>$ 308</strong></td>
+<td><strong>$ 18.5k</strong></td>
+<td><strong>¥ 13.0 万</strong></td>
+<td><strong>¥ 156 万</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="112-12">11.2 12 个月损益预测（¥ 万元）</h3>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>M1-M3</th>
+<th>M4-M6</th>
+<th>M7-M9</th>
+<th>M10-M12</th>
+<th>全年</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>收入</td>
+<td>0.5</td>
+<td>7</td>
+<td>20</td>
+<td>35</td>
+<td><strong>62.5</strong></td>
+</tr>
+<tr>
+<td>直接成本（账号+代理+AI+客服）</td>
+<td>1</td>
+<td>2</td>
+<td>3.5</td>
+<td>5.5</td>
+<td>12</td>
+</tr>
+<tr>
+<td><strong>毛利</strong></td>
+<td>-0.5</td>
+<td>5</td>
+<td>16.5</td>
+<td>29.5</td>
+<td><strong>50.5</strong></td>
+</tr>
+<tr>
+<td>人员成本</td>
+<td>8</td>
+<td>10</td>
+<td>12</td>
+<td>14</td>
+<td>44</td>
+</tr>
+<tr>
+<td>服务器与基础设施</td>
+<td>2</td>
+<td>2</td>
+<td>3</td>
+<td>4</td>
+<td>11</td>
+</tr>
+<tr>
+<td>市场获客</td>
+<td>1</td>
+<td>4</td>
+<td>6</td>
+<td>8</td>
+<td>19</td>
+</tr>
+<tr>
+<td>其他</td>
+<td>1</td>
+<td>2</td>
+<td>2</td>
+<td>3</td>
+<td>8</td>
+</tr>
+<tr>
+<td><strong>EBITDA</strong></td>
+<td>-12.5</td>
+<td>-13</td>
+<td>-6.5</td>
+<td>0.5</td>
+<td><strong>-31.5</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>关键里程碑</strong>：<br />
+- <strong>M10-M12</strong> 实现 EBITDA 接近盈亏平衡<br />
+- <strong>Y2 Q1</strong> 全月持续盈利，启动 A 轮筹备<br />
+- <strong>三年综合毛利率 84%</strong> 是 SaaS 头部分位水平，得益于账号 + 群组的边际成本极低</p>
+<blockquote>
+<p>注：Y1 EBITDA 略亏属正常天使期 PMF 验证阶段，¥31.5 万亏损在 ¥50 万融资覆盖范围内。</p>
+</blockquote>
+<hr />
+<h2 id="investment-plan">十二、融资计划 (Investment Plan)</h2>
+<h3 id="121">12.1 本轮融资条款</h3>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>轮次</td>
+<td>天使轮</td>
+</tr>
+<tr>
+<td>金额</td>
+<td><strong>¥ 50 万 人民币</strong></td>
+</tr>
+<tr>
+<td>投前估值</td>
+<td>¥ 400 万</td>
+</tr>
+<tr>
+<td>投后估值</td>
+<td>¥ 450 万</td>
+</tr>
+<tr>
+<td>出让股权</td>
+<td><strong>11.1%</strong>（可议 10%–15%）</td>
+</tr>
+<tr>
+<td>资金可用周期</td>
+<td><strong>12 个月</strong></td>
+</tr>
+<tr>
+<td>投资人席位</td>
+<td>观察员席位（非控股、不参与日常决策）</td>
+</tr>
+<tr>
+<td>反稀释</td>
+<td>加权平均反稀释</td>
+</tr>
+</tbody>
+</table>
+<h3 id="122-50-12">12.2 资金用途（¥ 50 万 / 12 个月）</h3>
+<pre><code>┌─────────────────────────────────────────────────────────┐
+│  30%  账号池建设 (¥ 15 万)                              │
+│       • 累计采购 2000 账号（接码 ¥30k）                 │
+│       • 养号期代理与服务器（¥80k）                      │
+│       • 备用号池建立（¥40k）                            │
+├─────────────────────────────────────────────────────────┤
+│  25%  团队人员 (¥ 12.5 万)                              │
+│       • 补贴创始人 + 1 名合伙人 12 个月轻薪             │
+│       • 兼职 AI/前端工程师                              │
+├─────────────────────────────────────────────────────────┤
+│  25%  基础设施 (¥ 12.5 万)                              │
+│       • 服务器（PG + Redis + Worker 集群）¥5 万         │
+│       • Vertex AI Token（Embedding + LLM）¥5 万         │
+│       • 高质量住宅代理池（IP2World/911s5）¥2.5 万       │
+├─────────────────────────────────────────────────────────┤
+│  15%  市场冷启动 (¥ 7.5 万)                             │
+│       • 行业群投放 / KOL 合作 ¥3 万                     │
+│       • 内容营销 / 案例库 ¥2 万                         │
+│       • 加密 / 跨境行业活动 ¥2.5 万                     │
+├─────────────────────────────────────────────────────────┤
+│   5%  储备金 (¥ 2.5 万)                                 │
+└─────────────────────────────────────────────────────────┘
+</code></pre>
+<h3 id="123">12.3 退出预期</h3>
+<table>
+<thead>
+<tr>
+<th>路径</th>
+<th>时间</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A 轮融资</strong></td>
+<td>12-15 个月后</td>
+<td>目标融资 ¥ 500-1000 万，估值 ¥ 3,000-5,000 万</td>
+</tr>
+<tr>
+<td><strong>战略并购</strong></td>
+<td>3-5 年</td>
+<td>潜在收购方：CRM 大厂、Web3 基础设施、跨境 SaaS 巨头</td>
+</tr>
+<tr>
+<td><strong>持续分红</strong></td>
+<td>–</td>
+<td>早期即可分红（毛利率 75%，盈亏平衡后回报快）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="risk-mitigation">十三、风险与应对 (Risk &amp; Mitigation)</h2>
+<table>
+<thead>
+<tr>
+<th>风险</th>
+<th>等级</th>
+<th>应对策略</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>TG 政策变动 / 账号大规模封禁</strong></td>
+<td>高</td>
+<td>4 角色分级 + 健康分 + ISP 绑定 + 自动补号；规划 WhatsApp/Discord 多渠道</td>
+</tr>
+<tr>
+<td><strong>账号供给被封禁源头切断</strong></td>
+<td>中</td>
+<td>多接码平台备份（SMS-Activate / 5sim / smshub）；自建小号工厂</td>
+</tr>
+<tr>
+<td><strong>AI 成本上涨</strong></td>
+<td>低</td>
+<td>已用 Vertex 最优档；规划自托管 Qwen/Llama 作 fallback</td>
+</tr>
+<tr>
+<td><strong>合规风险（数据/营销）</strong></td>
+<td>中</td>
+<td>不接违规客户；服务条款明确禁止赌博/诈骗用途</td>
+</tr>
+<tr>
+<td><strong>同行复制商业模式</strong></td>
+<td>中</td>
+<td>账号供给链 + 养号工程是高门槛；先发优势锁定头部客户</td>
+</tr>
+<tr>
+<td><strong>客户付费意愿不及预期</strong></td>
+<td>中</td>
+<td>M1-M3 内测期验证 PMF；定价灵活（试水套餐 ¥900 起降低门槛）</td>
+</tr>
+<tr>
+<td><strong>创始团队稳定性</strong></td>
+<td>高</td>
+<td>4 年 vesting + 1 年 cliff；本轮资金可覆盖 12 个月</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="appendix">十四、附录 (Appendix)</h2>
+<h3 id="a">A. 技术文档索引</h3>
+<ul>
+<li><a href="./ARCHITECTURE.md">ARCHITECTURE.md</a> — 技术架构设计</li>
+<li><a href="./STRATEGIC_PLAN.md">STRATEGIC_PLAN.md</a> — 三维矩阵 + AI 赋能战略</li>
+<li><a href="./DEV_PLAN.md">DEV_PLAN.md</a> — 9 阶段开发规划</li>
+<li><a href="./TASKS.md">TASKS.md</a> — 任务清单与验收标准</li>
+<li><a href="./REQUIREMENTS.md">REQUIREMENTS.md</a> — 功能需求说明</li>
+<li><a href="./WEB_ACCEPTANCE_REPORT.md">WEB_ACCEPTANCE_REPORT.md</a> — Web 端验收报告</li>
+</ul>
+<h3 id="b">B. 核心代码资产（用于尽调）</h3>
+<ul>
+<li>后端服务：<a href="./backend/app/services/">backend/app/services/</a>（50+ 模块）</li>
+<li>API 端点：<a href="./backend/app/api/v1/endpoints/">backend/app/api/v1/endpoints/</a>（25+）</li>
+<li>数据迁移：<a href="./backend/alembic/versions/">backend/alembic/versions/</a></li>
+<li>前端页面：<a href="./frontend/src/pages/">frontend/src/pages/</a>（25+）</li>
+<li>部署编排：<a href="./docker-compose.prod.yml">docker-compose.prod.yml</a></li>
+</ul>
+<h3 id="c">C. 关键运营数据（待补充）</h3>
+<ul>
+<li>当前账号池规模：[待补充]</li>
+<li>当前付费客户数：[待补充]</li>
+<li>当前 MRR：[待补充]</li>
+<li>平均账号生命周期：[待补充]</li>
+</ul>
+<h3 id="d">D. 联系方式</h3>
+<ul>
+<li>项目负责人：[待补充]</li>
+<li>邮箱：[待补充]</li>
+<li>Telegram：[待补充]</li>
+<li>微信：[待补充]</li>
+</ul>
+<hr />
+<blockquote>
+<p><em>本文档为商业秘密，仅供合格投资人尽职调查使用。未经许可不得复制或转发。</em></p>
+</blockquote>
+</div>
+</body>
+</html>

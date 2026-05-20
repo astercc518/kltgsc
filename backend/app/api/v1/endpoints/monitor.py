@@ -79,7 +79,10 @@ async def suggest_keywords(
         raise HTTPException(status_code=400, detail="请提供种子关键词或业务场景描述")
     
     try:
-        response = await llm.get_response(prompt, system_prompt="你是一个关键词扩充助手，只输出关键词列表。")
+        response = await llm.get_response(
+            prompt, system_prompt="你是一个关键词扩充助手，只输出关键词列表。",
+            source="keyword_expand",
+        )
         if not response:
             raise HTTPException(status_code=500, detail="AI 服务暂时不可用")
         
@@ -131,7 +134,10 @@ async def semantic_match(
 """
     
     try:
-        response = await llm.get_response(prompt, system_prompt="你是一个意图判别助手，只输出JSON格式结果。")
+        response = await llm.get_response(
+            prompt, system_prompt="你是一个意图判别助手，只输出JSON格式结果。",
+            source="semantic_match",
+        )
         if not response:
             return {"match": False, "confidence": 0, "reason": "AI 服务不可用"}
         

@@ -252,7 +252,7 @@ class AIEngine:
         )
         
         try:
-            response = await self.llm.generate(prompt)
+            response = await self.llm.generate(prompt, source="user_analysis")
             data = json.loads(response)
             
             return UserAnalysis(
@@ -296,7 +296,7 @@ class AIEngine:
         )
         
         try:
-            response = await self.llm.generate(prompt)
+            response = await self.llm.generate(prompt, source="group_analysis")
             data = json.loads(response)
             
             return GroupAnalysis(
@@ -352,7 +352,7 @@ class AIEngine:
         )
         
         try:
-            response = await self.llm.generate(prompt)
+            response = await self.llm.generate(prompt, source="opener")
             return response.strip()
         except Exception as e:
             logger.error(f"Opener generation failed: {e}")
@@ -398,7 +398,7 @@ class AIEngine:
         )
         
         try:
-            response = await self.llm.generate(prompt)
+            response = await self.llm.generate(prompt, source="smart_reply")
             return response.strip()
         except Exception as e:
             logger.error(f"Reply generation failed: {e}")
@@ -433,7 +433,7 @@ class AIEngine:
         )
 
         try:
-            response = await self.llm.generate(prompt)
+            response = await self.llm.generate(prompt, source="script_generation")
             script = json.loads(response)
             return script
         except Exception as e:
@@ -554,7 +554,7 @@ class AIEngine:
         )
         
         try:
-            response = await self.llm.generate(prompt)
+            response = await self.llm.generate(prompt, source="content_rewrite")
             variants = json.loads(response)
             return variants if isinstance(variants, list) else [content]
         except Exception as e:
@@ -590,7 +590,7 @@ class AIEngine:
         )
 
         try:
-            response = await self.llm.generate(prompt)
+            response = await self.llm.generate(prompt, source="kb_generation")
             if response:
                 return response.strip()
             raise ValueError("LLM returned empty response")
@@ -704,7 +704,7 @@ A: 待补充
 """
         
         try:
-            response = await self.llm.chat(prompt)
+            response = await self.llm.chat(prompt, source="risk_detection")
             result = json.loads(response)
             return result
         except Exception as e:

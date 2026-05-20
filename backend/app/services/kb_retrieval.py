@@ -57,6 +57,11 @@ def _extract_keywords(query: str, max_kw: int = 8) -> List[str]:
     return out
 
 
+# Sentinel: caller must pass customer_id_filter explicitly even if NULL/None.
+# Forgetting to scope a retrieval is a P0 cross-tenant leak (see Epic 5.1 plan).
+_UNSCOPED = object()
+
+
 async def retrieve_relevant_kb(
     session: Session,
     query: str,
@@ -66,6 +71,7 @@ async def retrieve_relevant_kb(
     source_type: Optional[str] = None,
     category_filter: Optional[str] = None,
     similarity_threshold: float = 0.45,
+    customer_id_filter=_UNSCOPED,
 ) -> List[KnowledgeBase]:
     """
     向量召回（pgvector cosine distance）。失败回退到关键词 ILIKE。
@@ -73,7 +79,21 @@ async def retrieve_relevant_kb(
     Args:
         source_type: 限定来源类型；None = 不限（manual + qa_extracted + file_import 全找）
         similarity_threshold: 相似度阈值，1 - cosine_distance < threshold 的丢弃
+        customer_id_filter: **REQUIRED** (Epic 5.1 P0 tenant isolation).
+            Pass `account.customer_id` (the account this query is on behalf of).
+            Pass `None` only when calling from system-wide admin tooling.
+            Forgetting raises ValueError to force callers to be explicit.
+
+    Tenant rule:
+        (KB.customer_id == customer_id_filter) OR (KB.customer_id IS NULL)
+        — i.e. customer's own KB + platform-wide system KB are both visible;
+        other customers' KBs are NEVER returned.
     """
+    if customer_id_filter is _UNSCOPED:
+        raise ValueError(
+            "retrieve_relevant_kb: customer_id_filter is required (Epic 5.1 P0). "
+            "Pass account.customer_id, or None for system-wide admin queries."
+        )
     if not query or not query.strip():
         return []
 
@@ -81,12 +101,12 @@ async def retrieve_relevant_kb(
     try:
         emb_service = EmbeddingService(session)
         if emb_service.is_configured():
-            qvec = await emb_service.embed(query)
+            qvec = await emb_service.embed(query, source="embedding_runtime")
             if qvec:
                 return _vector_search(
                     session, qvec, top_k,
                     chat_id_filter, topic_filter, source_type, category_filter,
-                    similarity_threshold,
+                    similarity_threshold, customer_id_filter,
                 )
             else:
                 logger.warning("Failed to embed query; falling back to keyword search")
@@ -98,7 +118,7 @@ async def retrieve_relevant_kb(
     # —— 2. 回退：关键词 ILIKE ——
     return _keyword_search(
         session, query, top_k,
-        chat_id_filter, topic_filter, source_type, category_filter,
+        chat_id_filter, topic_filter, source_type, category_filter, customer_id_filter,
     )
 
 
@@ -111,9 +131,15 @@ def _vector_search(
     source_type: Optional[str],
     category_filter: Optional[str],
     similarity_threshold: float,
+    customer_id_filter,
 ) -> List[KnowledgeBase]:
     where_clauses = ["embedding IS NOT NULL"]
     params: dict = {"qvec": str(qvec), "top_k": top_k * 2}
+
+    # Epic 5.1 tenant isolation: own KB + system-wide KB (customer_id IS NULL)
+    if customer_id_filter is not None:
+        where_clauses.append("(customer_id = :customer_id OR customer_id IS NULL)")
+        params["customer_id"] = customer_id_filter
 
     if source_type:
         where_clauses.append("source_type = :source_type")
@@ -168,12 +194,19 @@ def _keyword_search(
     topic_filter: Optional[str],
     source_type: Optional[str],
     category_filter: Optional[str],
+    customer_id_filter,
 ) -> List[KnowledgeBase]:
     keywords = _extract_keywords(query)
     if not keywords:
         return []
 
     stmt = select(KnowledgeBase)
+    # Epic 5.1 tenant isolation
+    if customer_id_filter is not None:
+        stmt = stmt.where(or_(
+            KnowledgeBase.customer_id == customer_id_filter,
+            KnowledgeBase.customer_id.is_(None),
+        ))
     if source_type:
         stmt = stmt.where(KnowledgeBase.source_type == source_type)
     if chat_id_filter is not None:

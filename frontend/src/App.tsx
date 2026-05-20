@@ -16,7 +16,10 @@ import {
   TeamOutlined,
   LogoutOutlined,
   RadarChartOutlined,
+  UserSwitchOutlined,
 } from '@ant-design/icons';
+import { useQuery } from '@tanstack/react-query';
+import { getCurrentUser } from './services/api';
 import Dashboard from './pages/Dashboard';
 import AccountList from './pages/AccountList';
 import ProxyList from './pages/ProxyList';
@@ -40,6 +43,24 @@ import FunnelGroupPage from './pages/FunnelGroupPage';
 import KnowledgeBasePage from './pages/KnowledgeBasePage';
 import AutoRegister from './pages/AutoRegister';
 import MonitoringDashboard from './pages/MonitoringDashboard';
+import BusinessOps from './pages/BusinessOps';
+import UserManagement from './pages/UserManagement';
+import FeaturePack from './pages/FeaturePack';
+
+// ── TG1.AI Customer Portal (Epic 1.5) ─────────────────────────────
+import PortalLayout from './portal/Layout';
+import PortalLogin from './portal/pages/Login';
+import PortalRegister from './portal/pages/Register';
+import PortalDashboard from './portal/pages/Dashboard';
+import PortalBilling from './portal/pages/Billing';
+import PortalAccounts from './portal/pages/Accounts';
+import PortalLeads from './portal/pages/Leads';
+import PortalKnowledgeBases from './portal/pages/KnowledgeBases';
+import PortalMainAccount from './portal/pages/MainAccount';
+import PortalSettings from './portal/pages/Settings';
+import PortalWallet from './portal/pages/Wallet';
+import PortalFeatures from './portal/pages/Features';
+import { isCustomerAuthenticated } from './portal/auth';
 
 // 检查用户是否已登录
 const isAuthenticated = (): boolean => {
@@ -61,10 +82,26 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
+// admin-only 路由保护：sales 直接弹回 Dashboard
+const AdminOnly: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { data: me, isLoading } = useQuery({
+    queryKey: ['me'], queryFn: getCurrentUser, retry: false,
+  });
+  if (isLoading) {
+    return <div style={{ padding: 48, textAlign: 'center' }}><Spin tip="检查权限中..." /></div>;
+  }
+  if (me?.role !== 'admin' && !me?.is_superuser) {
+    return <Navigate to="/" replace />;
+  }
+  return <>{children}</>;
+};
+
 const { Header, Content, Sider } = Layout;
 
-// Menu items configuration
-const menuItems: MenuProps['items'] = [
+// Menu items configuration (role-aware: admin-only items inserted conditionally)
+const buildMenuItems = (role?: string, isSuperuser?: boolean): MenuProps['items'] => {
+  const isAdmin = role === 'admin' || isSuperuser === true;
+  const items: MenuProps['items'] = [
   {
     key: '1',
     icon: <DashboardOutlined />,
@@ -74,6 +111,11 @@ const menuItems: MenuProps['items'] = [
     key: 'monitoring',
     icon: <RadarChartOutlined />,
     label: <Link to="/monitoring">实时监控</Link>,
+  },
+  {
+    key: 'business-ops',
+    icon: <DashboardOutlined />,
+    label: <Link to="/business-ops">运营看板</Link>,
   },
   {
     key: 'resources',
@@ -171,36 +213,45 @@ const menuItems: MenuProps['items'] = [
       },
     ]
   },
-  {
-    key: 'system',
-    icon: <SettingOutlined />,
-    label: '系统管理',
-    children: [
-      {
-        key: '9',
-        label: <Link to="/tasks">任务管理</Link>,
-      },
-      {
-        key: '10',
-        label: <Link to="/logs">操作日志</Link>,
-      },
-      {
-        key: '11',
-        label: <Link to="/system-config">系统配置</Link>,
-      },
-    ]
-  },
-  {
-    type: 'divider',
-  },
-  {
-    key: 'logout',
-    icon: <LogoutOutlined />,
-    label: '退出登录',
-    danger: true,
-    onClick: handleLogout,
-  },
-];
+  ];
+
+  // 账号中心 — 仅 admin 可见
+  if (isAdmin) {
+    items.push({
+      key: 'accounts-hub',
+      icon: <UserSwitchOutlined />,
+      label: <Link to="/users">账号中心</Link>,
+    });
+    items.push({
+      key: 'feature-pack',
+      icon: <DashboardOutlined />,
+      label: <Link to="/feature-pack">功能包</Link>,
+    });
+  }
+
+  items.push(
+    {
+      key: 'system',
+      icon: <SettingOutlined />,
+      label: '系统管理',
+      children: [
+        { key: '9', label: <Link to="/tasks">任务管理</Link> },
+        { key: '10', label: <Link to="/logs">操作日志</Link> },
+        { key: '11', label: <Link to="/system-config">系统配置</Link> },
+      ],
+    },
+    { type: 'divider' },
+    {
+      key: 'logout',
+      icon: <LogoutOutlined />,
+      label: '退出登录',
+      danger: true,
+      onClick: handleLogout,
+    },
+  );
+
+  return items;
+};
 
 const AppContent: React.FC = () => {
     const location = useLocation();
@@ -229,6 +280,7 @@ const AppContent: React.FC = () => {
         '/knowledge-bases': '知识库',
         '/auto-register': '自动注册',
         '/monitoring': '实时监控',
+        '/business-ops': '运营看板',
     };
 
     const pathSnippets = location.pathname.split('/').filter(i => i);
@@ -275,6 +327,9 @@ const AppContent: React.FC = () => {
                     <Route path="/knowledge-bases" element={<KnowledgeBasePage />} />
                     <Route path="/auto-register" element={<AutoRegister />} />
                     <Route path="/monitoring" element={<MonitoringDashboard />} />
+                    <Route path="/business-ops" element={<BusinessOps />} />
+                    <Route path="/users" element={<AdminOnly><UserManagement /></AdminOnly>} />
+                    <Route path="/feature-pack" element={<AdminOnly><FeaturePack /></AdminOnly>} />
                 </Routes>
             </div>
         </Content>
@@ -283,15 +338,19 @@ const AppContent: React.FC = () => {
 
 // 主应用布局（需要登录）
 const MainLayout: React.FC = () => {
+  const { data: me } = useQuery({
+    queryKey: ['me'], queryFn: getCurrentUser, retry: false,
+  });
+  const menuItems = buildMenuItems(me?.role, me?.is_superuser);
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider collapsible>
         <div style={{ height: 32, margin: 16, background: 'rgba(255, 255, 255, 0.2)', textAlign: 'center', color: '#fff', lineHeight: '32px' }}>
           TGSC
         </div>
-        <Menu 
-          theme="dark" 
-          defaultSelectedKeys={['1']} 
+        <Menu
+          theme="dark"
+          defaultSelectedKeys={['1']}
           mode="inline"
           items={menuItems}
         />
@@ -308,12 +367,34 @@ const App: React.FC = () => {
   return (
     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Routes>
-        {/* 登录页面 - 不需要认证 */}
+        {/* ── Admin auth ─────────────────────────────────────────── */}
         <Route path="/login" element={
           isAuthenticated() ? <Navigate to="/" replace /> : <Login />
         } />
-        
-        {/* 所有其他页面 - 需要认证 */}
+
+        {/* ── TG1.AI Customer Portal (公开页面，自带鉴权重定向) ── */}
+        <Route path="/portal/login" element={
+          isCustomerAuthenticated() ? <Navigate to="/portal/dashboard" replace /> : <PortalLogin />
+        } />
+        <Route path="/portal/register" element={
+          isCustomerAuthenticated() ? <Navigate to="/portal/dashboard" replace /> : <PortalRegister />
+        } />
+
+        {/* ── TG1.AI Customer Portal (受保护，PortalLayout 内已鉴权) ── */}
+        <Route path="/portal" element={<PortalLayout />}>
+          <Route index element={<Navigate to="/portal/dashboard" replace />} />
+          <Route path="dashboard" element={<PortalDashboard />} />
+          <Route path="billing" element={<PortalBilling />} />
+          <Route path="wallet" element={<PortalWallet />} />
+          <Route path="features" element={<PortalFeatures />} />
+          <Route path="accounts" element={<PortalAccounts />} />
+          <Route path="leads" element={<PortalLeads />} />
+          <Route path="knowledge-bases" element={<PortalKnowledgeBases />} />
+          <Route path="main-account" element={<PortalMainAccount />} />
+          <Route path="settings" element={<PortalSettings />} />
+        </Route>
+
+        {/* ── Admin: 所有其他页面需要内部登录 ──────────────────── */}
         <Route path="/*" element={
           <ProtectedRoute>
             <MainLayout />

@@ -70,4 +70,30 @@ async def scrape_members(account_id: int, group_link: str, limit: int, session: 
             raise e
 
     success, msg = await _create_client_and_run(account, op, group_link, limit)
+
+    # Feature billing: charge per new member actually inserted (deduped).
+    # Skip on failure or when account has no customer context (admin pool).
+    if success and new_count > 0 and account.customer_id:
+        try:
+            from app.services import feature_billing as fb
+            from app.services.wallet_service import InsufficientBalanceError
+            fb.charge(
+                session,
+                customer_id=account.customer_id,
+                slug='scrape_group_members',
+                units=new_count,
+                idempotency_key=f'feat:scrape_group_members:{account.id}:{group_link}:{int(datetime.utcnow().timestamp())}',
+                description=f'采集 {group_link} 新成员 × {new_count}',
+            )
+        except fb.FeatureNotEnabledError:
+            logger.warning(
+                f"scrape_group_members not enabled for customer {account.customer_id} — "
+                f"keeping data but skipping charge"
+            )
+        except InsufficientBalanceError as e:
+            logger.error(
+                f"Wallet exhausted post-scrape for customer {account.customer_id}: {e} "
+                f"({new_count} members were scraped but not charged)"
+            )
+
     return success, msg, new_count

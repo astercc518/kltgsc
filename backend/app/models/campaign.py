@@ -25,6 +25,9 @@ class CampaignBase(SQLModel):
     total_replies_received: int = Field(default=0)
     total_conversions: int = Field(default=0)
 
+    # 多租户归属（TG1.AI 商业化）— 每个客户的独立 Campaign
+    customer_id: Optional[int] = Field(default=None, foreign_key="customer.id", index=True)
+
 
 class Campaign(CampaignBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)

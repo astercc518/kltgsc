@@ -255,8 +255,9 @@ class ListenerService:
 严格按JSON格式输出：{{"match": true/false, "confidence": 0-100}}
 """
             response = await llm.get_response(
-                prompt, 
-                system_prompt="你是意图判别助手，只输出JSON。"
+                prompt,
+                system_prompt="你是意图判别助手，只输出JSON。",
+                source="keyword_match_judge",
             )
             
             if response:
@@ -467,7 +468,10 @@ class ListenerService:
                 message=message.text
             )
 
-            reply = await llm.get_response(user_prompt, system_prompt=system_prompt)
+            reply = await llm.get_response(
+                user_prompt, system_prompt=system_prompt,
+                source="intercept_reply",
+            )
             return reply
 
         except Exception as e:
@@ -527,7 +531,9 @@ class ListenerService:
         try:
             with Session(engine) as session:
                 all_accounts = session.exec(
-                    select(Account).where(Account.role.in_(["listener", "support"]))
+                    select(Account)
+                    .where(Account.role.in_(["listener", "support"]))
+                    .where(Account.is_customer_main == False)  # Epic 5.0: 客户主号不能被 listener 调度
                 ).all()
 
                 if not all_accounts:

@@ -1,12 +1,13 @@
 import asyncio
 import openai
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Tuple
 import logging
 import json
 import os
 import tempfile
 from app.models.system_config import SystemConfig
 from app.models.ai_config import AIConfig
+from app.services.usage_tracker import record_usage
 from sqlmodel import Session, select
 
 logger = logging.getLogger(__name__)
@@ -249,27 +250,44 @@ class LLMService:
         self,
         prompt: str,
         system_prompt: str = "You are a helpful assistant.",
-        history: List[Dict[str, str]] = None
+        history: List[Dict[str, str]] = None,
+        source: str = "unknown",
+        account_id: Optional[int] = None,
+        persona_id: Optional[int] = None,
+        chat_id: Optional[str] = None,
     ) -> Optional[str]:
         if self.provider in ("gemini", "vertex") and self.gemini_client:
-            return await self._get_gemini_response(prompt, system_prompt, history)
+            text, in_tok, out_tok = await self._get_gemini_response(prompt, system_prompt, history)
         elif self.client:
-            return await self._get_openai_response(prompt, system_prompt, history)
+            text, in_tok, out_tok = await self._get_openai_response(prompt, system_prompt, history)
         else:
             logger.warning("LLM client not configured")
             return None
+
+        if text is not None and (in_tok or out_tok):
+            record_usage(
+                provider=self.provider,
+                model=self.model,
+                source=source,
+                input_tokens=in_tok,
+                output_tokens=out_tok,
+                account_id=account_id,
+                persona_id=persona_id,
+                chat_id=chat_id,
+            )
+        return text
 
     async def _get_openai_response(
         self,
         prompt: str,
         system_prompt: str,
         history: List[Dict[str, str]] = None
-    ) -> Optional[str]:
+    ) -> Tuple[Optional[str], int, int]:
         messages = [{"role": "system", "content": system_prompt}]
-        
+
         if history:
             messages.extend(history)
-            
+
         messages.append({"role": "user", "content": prompt})
 
         try:
@@ -278,17 +296,21 @@ class LLMService:
                 model=self.model,
                 temperature=0.7,
             )
-            return chat_completion.choices[0].message.content
+            text = chat_completion.choices[0].message.content
+            usage = getattr(chat_completion, "usage", None)
+            in_tok = getattr(usage, "prompt_tokens", 0) or 0
+            out_tok = getattr(usage, "completion_tokens", 0) or 0
+            return text, in_tok, out_tok
         except Exception as e:
             logger.error(f"OpenAI generation failed: {e}")
-            return None
+            return None, 0, 0
 
     async def _get_gemini_response(
         self,
         prompt: str,
         system_prompt: str,
         history: List[Dict[str, str]] = None
-    ) -> Optional[str]:
+    ) -> Tuple[Optional[str], int, int]:
         # Build contents list for Gemini
         contents = []
         if history:
@@ -309,7 +331,10 @@ class LLMService:
                     model=self.model,
                     contents=contents,
                 )
-                return response.text
+                usage = getattr(response, "usage_metadata", None)
+                in_tok = getattr(usage, "prompt_token_count", 0) or 0
+                out_tok = getattr(usage, "candidates_token_count", 0) or 0
+                return response.text, in_tok, out_tok
             except Exception as e:
                 err_str = str(e)
                 is_transient = "503" in err_str or "UNAVAILABLE" in err_str or "429" in err_str
@@ -318,17 +343,47 @@ class LLMService:
                     await asyncio.sleep(4)
                     continue
                 logger.error(f"Gemini generation failed: {e}")
-                return None
+                return None, 0, 0
+        return None, 0, 0
 
-    async def generate(self, prompt: str, system_prompt: str = "You are a helpful assistant.") -> Optional[str]:
+    async def generate(
+        self,
+        prompt: str,
+        system_prompt: str = "You are a helpful assistant.",
+        source: str = "unknown",
+        account_id: Optional[int] = None,
+        persona_id: Optional[int] = None,
+        chat_id: Optional[str] = None,
+    ) -> Optional[str]:
         """Convenience alias for get_response (used by AIEngine for content generation)"""
-        return await self.get_response(prompt, system_prompt)
+        return await self.get_response(
+            prompt, system_prompt,
+            source=source, account_id=account_id, persona_id=persona_id, chat_id=chat_id,
+        )
 
-    async def chat(self, prompt: str, system_prompt: str = "You are a helpful assistant.") -> Optional[str]:
+    async def chat(
+        self,
+        prompt: str,
+        system_prompt: str = "You are a helpful assistant.",
+        source: str = "unknown",
+        account_id: Optional[int] = None,
+        persona_id: Optional[int] = None,
+        chat_id: Optional[str] = None,
+    ) -> Optional[str]:
         """Convenience alias for get_response (used by AIEngine for conversational analysis)"""
-        return await self.get_response(prompt, system_prompt)
+        return await self.get_response(
+            prompt, system_prompt,
+            source=source, account_id=account_id, persona_id=persona_id, chat_id=chat_id,
+        )
 
-    async def analyze_intent(self, message: str, history: List[Dict[str, str]] = None) -> Dict:
+    async def analyze_intent(
+        self,
+        message: str,
+        history: List[Dict[str, str]] = None,
+        source: str = "intent_analyze",
+        account_id: Optional[int] = None,
+        chat_id: Optional[str] = None,
+    ) -> Dict:
         """
         Analyze the intent of a user message.
         Returns a dict with: intent (str), confidence (float), tags (List[str]), reply_suggestion (str)
@@ -367,7 +422,10 @@ class LLMService:
             user_prompt = f"Context:\n{context_str}\n\nAnalyze this message: '{message}'"
 
         try:
-            response = await self.get_response(user_prompt, system_prompt)
+            response = await self.get_response(
+                user_prompt, system_prompt,
+                source=source, account_id=account_id, chat_id=chat_id,
+            )
             if not response:
                 return {"intent": "unknown", "confidence": 0.0, "tags": []}
                 

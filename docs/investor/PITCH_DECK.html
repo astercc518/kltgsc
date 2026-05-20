@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <title>TGSC 商业计划书</title>
+    <style>
+@page {
+    size: A4;
+    margin: 22mm 18mm 22mm 18mm;
+}
+* { box-sizing: border-box; }
+html, body {
+    font-family: "Noto Sans CJK SC", "Noto Sans", "PingFang SC",
+                 "Microsoft YaHei", sans-serif;
+    color: #1f2937;
+    line-height: 1.7;
+    font-size: 10.5pt;
+    margin: 0;
+    padding: 0;
+    -webkit-print-color-adjust: exact;
+}
+
+/* Cover */
+.cover {
+    page-break-after: always;
+    text-align: center;
+    padding-top: 18mm;
+}
+.cover .brand {
+    font-size: 56pt;
+    font-weight: 900;
+    color: #0f172a;
+    letter-spacing: 1pt;
+    margin-bottom: 6mm;
+    line-height: 1;
+}
+.cover .brand .dot { color: #0066FF; }
+.cover .brand .tld {
+    color: #0066FF;
+    font-size: 38pt;
+    vertical-align: 6pt;
+    font-weight: 800;
+}
+.cover .tagline {
+    font-size: 12pt;
+    color: #475569;
+    margin-bottom: 8mm;
+    letter-spacing: 1.5pt;
+    text-transform: uppercase;
+}
+.cover .badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #2563eb, #7c3aed);
+    color: #fff;
+    padding: 3mm 8mm;
+    border-radius: 30px;
+    font-size: 11pt;
+    margin-bottom: 14mm;
+}
+.cover .title {
+    font-size: 26pt;
+    color: #111827;
+    margin: 0 0 6mm 0;
+    font-weight: 700;
+}
+.cover .subtitle {
+    font-size: 13pt;
+    color: #475569;
+    margin-bottom: 30mm;
+}
+.cover .meta-box {
+    margin: 0 auto;
+    width: 70%;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 8mm;
+    background: #f9fafb;
+    font-size: 11pt;
+}
+.cover .meta-box table { width: 100%; }
+.cover .meta-box td { padding: 2mm 0; text-align: left; }
+.cover .meta-box td:first-child { color: #64748b; width: 40%; }
+.cover .meta-box td:last-child { color: #0f172a; font-weight: 600; }
+.cover .footer {
+    margin-top: 35mm;
+    color: #94a3b8;
+    font-size: 9pt;
+}
+
+/* Content */
+h1 {
+    font-size: 20pt;
+    color: #0f172a;
+    border-bottom: 3px solid #2563eb;
+    padding-bottom: 3mm;
+    margin-top: 12mm;
+    margin-bottom: 6mm;
+    page-break-before: always;
+    page-break-after: avoid;
+}
+h1:first-of-type { page-break-before: avoid; }
+h2 {
+    font-size: 15pt;
+    color: #1e3a8a;
+    margin-top: 9mm;
+    margin-bottom: 4mm;
+    padding-left: 3mm;
+    border-left: 4px solid #2563eb;
+    page-break-after: avoid;
+}
+h3 {
+    font-size: 12pt;
+    color: #1e40af;
+    margin-top: 6mm;
+    margin-bottom: 3mm;
+    page-break-after: avoid;
+}
+h4 { font-size: 11pt; color: #334155; margin: 4mm 0 2mm 0; }
+
+p { margin: 2mm 0; text-align: justify; }
+strong { color: #0f172a; font-weight: 700; }
+em { color: #475569; }
+
+blockquote {
+    border-left: 4px solid #60a5fa;
+    background: #eff6ff;
+    padding: 3mm 5mm;
+    margin: 4mm 0;
+    color: #1e3a8a;
+    font-style: normal;
+}
+
+ul, ol { margin: 2mm 0 4mm 0; padding-left: 8mm; }
+li { margin: 1mm 0; }
+
+a { color: #2563eb; text-decoration: none; }
+
+/* Code */
+code {
+    background: #f1f5f9;
+    color: #be123c;
+    padding: 0.5mm 1.5mm;
+    border-radius: 2px;
+    font-family: "Menlo", "Consolas", monospace;
+    font-size: 9.5pt;
+}
+pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 4mm;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 8.5pt;
+    line-height: 1.5;
+    page-break-inside: avoid;
+}
+pre code {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+}
+
+/* Tables */
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 4mm 0;
+    font-size: 9.5pt;
+    page-break-inside: avoid;
+}
+th {
+    background: #1e3a8a;
+    color: #fff;
+    padding: 2.5mm 3mm;
+    text-align: left;
+    font-weight: 600;
+    border: 1px solid #1e3a8a;
+}
+td {
+    padding: 2mm 3mm;
+    border: 1px solid #e2e8f0;
+    vertical-align: top;
+}
+tbody tr:nth-child(even) { background: #f8fafc; }
+tbody tr:hover { background: #eff6ff; }
+
+/* Horizontal rule */
+hr {
+    border: none;
+    border-top: 1px dashed #cbd5e1;
+    margin: 8mm 0;
+}
+
+/* Footer / page numbers handled by wkhtmltopdf */
+</style>
+</head>
+<body>
+
+<div class="cover">
+    <div class="brand">TG1<span class="tld">.AI</span></div>
+    <div class="tagline">The #1 AI Growth OS for Telegram</div>
+    <div class="badge">天使轮 · Angel Round</div>
+    <div class="title">投资人路演 · Pitch Deck</div>
+    <div class="subtitle">1-Page Executive Summary<br/>天使轮 · ¥50 万 · 出让 11.1%</div>
+    <div class="meta-box">
+        <table>
+
+            <tr><td>项目名称</td><td>TG1 (Telegram Growth Intelligence)</td></tr>
+            <tr><td>官方域名</td><td>tg1.ai</td></tr>
+            <tr><td>文档版本</td><td>v3.1</td></tr>
+            <tr><td>编制日期</td><td>2026-05-18</td></tr>
+            <tr><td>融资轮次</td><td>天使轮</td></tr>
+            <tr><td>融资金额</td><td>¥ 50 万 人民币</td></tr>
+            <tr><td>投后估值</td><td>¥ 450 万</td></tr>
+            <tr><td>出让股权</td><td>11.1% (可议)</td></tr>
+    
+        </table>
+    </div>
+    <div class="footer">
+        本文档为商业秘密，仅供合格投资人尽职调查使用<br/>未经许可不得复制或转发
+    </div>
+</div>
+
+<div class="content">
+<h1 id="tg1-pitch-deck-1-page">TG1 · 投资人 Pitch Deck (1-Page)</h1>
+<blockquote>
+<p><strong>TG 群控 + AI 获客 · 系统账号使用权租赁</strong><br />
+天使轮 ｜ ¥50 万 ｜ 出让 11.1% ｜ 投后估值 ¥450 万</p>
+</blockquote>
+<hr />
+<h2 id="one-liner">🎯 ONE-LINER</h2>
+<p><strong>TG1 按月出售"定制 TG 账号 + AI 人设 + 行业知识库 + 海量获客群组"的使用权。$199 起，客户登录即获客。</strong></p>
+<hr />
+<h2 id="problem">💥 PROBLEM</h2>
+<p>出海团队做 TG 私域营销，自建一套系统需要：</p>
+<p>❌ <strong>¥30 万启动成本</strong> — 接码、代理、设备指纹、养号、群控脚本、AI 接入<br />
+❌ <strong>半年开发周期</strong> — 大多数团队等不起也搞不定<br />
+❌ <strong>持续运维噩梦</strong> — 账号封一批换一批，没人愿意干<br />
+❌ <strong>AI 与销售割裂</strong> — ChatGPT 套壳工具无法关联用户画像、无法和销售协同</p>
+<h2 id="solution">✨ SOLUTION</h2>
+<p><strong>$199/月 起，5 分钟开通，平台供给全套基础设施 + AI 获客能力。</strong></p>
+<pre><code>客户登录 → 选行业 → 平台自动定制账号+人设+知识库 → 加入 500-3000 个目标群组 → AI 7×24 自动获客 → 高意向告警销售接管成交
+</code></pre>
+<hr />
+<h2 id="product">📦 PRODUCT</h2>
+<pre><code>┌────────────────────────────────────────────────────────┐
+│  弹药层  1000+ 已养号池（cannon/scout/actor/sniper）   │
+│  能力层  群控 + AI 获客 + 销售副驾驶 (50+ 服务模块)    │
+│  服务层  封号自动补 + 客户成功 + 行业话术              │
+└────────────────────────────────────────────────────────┘
+
+技术亮点:
+• pgvector HNSW 768d 向量知识库 (无需 Qdrant)
+• Vertex AI Gemini (LLM + Embedding, 无 RPM 限制)
+• Listener 5 分片 + Worker 多副本支撑 1000+ 账号
+• AI 副驾驶模式 (接管后只生成草稿不抢话)
+</code></pre>
+<hr />
+<h2 id="business-model">💰 BUSINESS MODEL — 三档定价</h2>
+<table>
+<thead>
+<tr>
+<th>套餐</th>
+<th>月费</th>
+<th>TG 账号</th>
+<th>AI 获客群组</th>
+<th>毛利率</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>基础版</strong></td>
+<td><strong>$199</strong></td>
+<td>3</td>
+<td>500</td>
+<td><strong>89%</strong></td>
+</tr>
+<tr>
+<td><strong>标准版</strong></td>
+<td><strong>$299</strong></td>
+<td>5</td>
+<td>1,000</td>
+<td><strong>85%</strong></td>
+</tr>
+<tr>
+<td><strong>专业版</strong></td>
+<td><strong>$599</strong></td>
+<td>10</td>
+<td>3,000</td>
+<td><strong>80%</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>加权 ARPU $308/月 ｜ 综合毛利率 84% ｜ LTV/CAC ≈ 12 ｜ 回收期 &lt; 1 月</strong></p>
+<hr />
+<h2 id="market">🌍 MARKET</h2>
+<ul>
+<li><strong>Telegram 月活 9 亿+</strong>，出海团队增速最快的私域渠道</li>
+<li><strong>TAM</strong> USD 30 亿/年 ｜ <strong>SAM</strong> USD 6 亿/年 ｜ <strong>3 年 SOM</strong> ¥5,000 万 ARR</li>
+<li><strong>目标客户</strong>：加密项目方 / 跨境电商 / 外贸 B2B / 出海 SaaS</li>
+</ul>
+<hr />
+<h2 id="traction">🏆 TRACTION</h2>
+<p>✅ <strong>9 阶段开发全部完成</strong> — 后端 50+ 服务 / 前端 25+ 页面<br />
+✅ <strong>1000+ 账号容量已实测落地</strong> — 分片/连接池/缓存全部就绪<br />
+✅ <strong>AI 链路完整可用</strong> — pgvector + Vertex AI + 副驾驶模式<br />
+✅ <strong>生产部署就绪</strong> — Docker + Nginx + Cloudflare</p>
+<blockquote>
+<p><em>补充：账号池规模 / 内测客户数 / 当前 MRR 待填</em></p>
+</blockquote>
+<hr />
+<h2 id="moat">🛡️ MOAT</h2>
+<p><strong>① 账号供给工程化</strong> — 注册/养号/补给自动化，单账号成本 ¥25 (vs 黑市 ¥100-500)<br />
+<strong>② 1000+ 真实工程能力</strong> — 同行止步 50-200 账号<br />
+<strong>③ AI 副驾驶产品形态</strong> — 业内空白点，AI ↔ 销售双向协作</p>
+<hr />
+<h2 id="financials-3-year">📈 FINANCIALS (3-Year)</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Y1 (2026)</th>
+<th>Y2 (2027)</th>
+<th>Y3 (2028)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>付费客户</td>
+<td>60</td>
+<td>280</td>
+<td>900</td>
+</tr>
+<tr>
+<td>ARR (USD)</td>
+<td>$222k</td>
+<td>$1.18M</td>
+<td>$4.32M</td>
+</tr>
+<tr>
+<td>ARR (¥)</td>
+<td>155 万</td>
+<td>825 万</td>
+<td>3,024 万</td>
+</tr>
+<tr>
+<td>EBITDA</td>
+<td>-32 万</td>
+<td>+180 万</td>
+<td>+1,200 万</td>
+</tr>
+</tbody>
+</table>
+<p><strong>M10-M12 月度盈亏平衡 → Y2 Q1 持续盈利 → Y2 末启动 A 轮</strong></p>
+<hr />
+<h2 id="ask">💸 ASK</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>融资金额</strong></td>
+<td><strong>¥ 50 万</strong></td>
+</tr>
+<tr>
+<td><strong>估值</strong></td>
+<td>投后 ¥ 450 万</td>
+</tr>
+<tr>
+<td><strong>出让</strong></td>
+<td>11.1%</td>
+</tr>
+<tr>
+<td><strong>可用</strong></td>
+<td>12 个月</td>
+</tr>
+</tbody>
+</table>
+<p><strong>资金用途</strong>：账号池 30% ｜ 团队 25% ｜ 基础设施 25% ｜ 市场 15% ｜ 储备 5%</p>
+<p><strong>退出路径</strong>：12-15 月后 A 轮（目标估值 ¥3,000-5,000 万）/ 战略并购 / 持续分红</p>
+<hr />
+<h2 id="team">👥 TEAM</h2>
+<blockquote>
+<p><em>待填：创始人 / CTO / AI 负责人 / 运营</em></p>
+</blockquote>
+<hr />
+<h2 id="contact">📞 CONTACT</h2>
+<blockquote>
+<p><em>待填：联系人 / 邮箱 / Telegram / 微信</em></p>
+</blockquote>
+<hr />
+<p><em>完整商业计划书：<a href="./FINANCING_PLAN.md">FINANCING_PLAN.md</a></em><br />
+<em>技术架构详情：<a href="./ARCHITECTURE.md">ARCHITECTURE.md</a></em></p>
+</div>
+</body>
+</html>

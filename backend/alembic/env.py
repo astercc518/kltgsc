@@ -22,6 +22,8 @@ from app.models import (  # noqa: F401,E402
     SourceGroup, FunnelGroup, AIPersona,
     KnowledgeBase, CampaignKnowledgeLink,
     AccountSendStats,
+    LLMUsage, Customer,
+    Subscription, Invoice,
 )
 
 config = context.config

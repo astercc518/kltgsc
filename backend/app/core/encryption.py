@@ -17,6 +17,9 @@ logger = logging.getLogger(__name__)
 # 加密文件标识头
 ENCRYPTED_HEADER = b"TGSC_ENC_V1"
 
+# 字符串加密的版本化前缀（base64 payload 区分明文）
+STRING_PREFIX = "enc:v1:"
+
 
 class SessionEncryption:
     """Session 文件加密/解密服务"""
@@ -142,6 +145,40 @@ class SessionEncryption:
         encrypted_data = data[len(ENCRYPTED_HEADER):]
         return self._decrypt(encrypted_data)
     
+    # ── String-at-rest crypto (Epic 5.0 main account session_string) ────
+
+    def encrypt_string(self, plaintext: str) -> str:
+        """Encrypt a UTF-8 string. Returns 'enc:v1:<base64(salt+nonce+ct)>'.
+
+        Idempotent: if input already starts with STRING_PREFIX, returns as-is.
+        """
+        if plaintext is None:
+            return None
+        if plaintext.startswith(STRING_PREFIX):
+            return plaintext
+        ciphertext = self._encrypt(plaintext.encode("utf-8"))
+        return STRING_PREFIX + base64.b64encode(ciphertext).decode("ascii")
+
+    def decrypt_string(self, payload: str) -> str:
+        """Decrypt a 'enc:v1:...' payload back to UTF-8 string.
+
+        If the payload doesn't carry the prefix, treats it as plaintext and
+        returns as-is — lets us migrate existing rows without a backfill.
+        """
+        if payload is None:
+            return None
+        if not payload.startswith(STRING_PREFIX):
+            return payload
+        b64 = payload[len(STRING_PREFIX):]
+        raw = base64.b64decode(b64.encode("ascii"))
+        return self._decrypt(raw).decode("utf-8")
+
+    @staticmethod
+    def is_string_encrypted(payload: Optional[str]) -> bool:
+        return bool(payload) and payload.startswith(STRING_PREFIX)
+
+    # ──────────────────────────────────────────────────────────────────────
+
     def is_encrypted(self, file_path: str) -> bool:
         """检查文件是否已加密"""
         try:
@@ -223,3 +260,15 @@ def decrypt_session_file(file_path: str) -> str:
 def is_session_encrypted(file_path: str) -> bool:
     """便捷函数：检查 session 文件是否已加密"""
     return get_encryption_service().is_encrypted(file_path)
+
+
+# ── Module-level convenience for session_string (Epic 5.0) ──────────────
+
+def encrypt_session_string(plain: str) -> str:
+    """Encrypt a Telegram session_string before persisting to DB."""
+    return get_encryption_service().encrypt_string(plain)
+
+
+def decrypt_session_string(stored: str) -> str:
+    """Decrypt a session_string read from DB; pass-through for legacy plaintext."""
+    return get_encryption_service().decrypt_string(stored)

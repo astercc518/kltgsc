@@ -1280,7 +1280,12 @@ def apply_persona_profile_task(self, account_id: int, persona_id: int):
 
             # 在 session 内提前加载 proxy，避免 detached instance lazy-load 错误
             proxy = session.get(Proxy, account.proxy_id) if account.proxy_id else None
-            session.expunge(account)  # 显式分离，带走已加载的标量字段
+            # 关键：手动把 proxy 挂到关系字段上，并 expunge proxy 一起带走
+            if proxy:
+                session.expunge(proxy)
+            session.expunge(account)
+            # 设置 proxy 关系属性（绕过 lazy-load），_create_client_and_run 会读 account.proxy
+            account.__dict__["proxy"] = proxy
 
         profile = extract_tg_profile(persona, seed_fallback=account_id)
         first_name = profile["first_name"]

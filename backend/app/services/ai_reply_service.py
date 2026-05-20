@@ -9,6 +9,8 @@ from app.models.lead import Lead
 from app.services.telegram_client import _create_client_and_run
 from app.services.llm import LLMService
 from app.services.websocket_manager import manager as ws_manager
+from app.services import feature_billing as fb
+from app.services.wallet_service import InsufficientBalanceError
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +61,29 @@ class AIReplyService:
 
                         if not reply_text:
                             continue
+
+                        # Feature billing: charge per AI generation (draft or sent).
+                        # Skip if no customer context (admin pool account).
+                        if account.customer_id:
+                            try:
+                                fb.charge(
+                                    self.session,
+                                    customer_id=account.customer_id,
+                                    slug='auto_reply_ai',
+                                    units=1,
+                                    idempotency_key=f'feat:auto_reply_ai:{account.id}:{chat.id}:{msg.id}',
+                                    description=f'AI 回复 acc#{account.id}',
+                                )
+                            except fb.FeatureNotEnabledError:
+                                # Feature not opted in — generation already done,
+                                # but skip the charge. Caller can still choose to send.
+                                pass
+                            except InsufficientBalanceError as ib_err:
+                                logger.warning(
+                                    f"Wallet exhausted for customer {account.customer_id}, "
+                                    f"skip AI reply for lead {chat.id}: {ib_err}"
+                                )
+                                continue  # Don't send (would be lost work)
 
                         # 检查接管状态
                         lead = self.session.exec(
@@ -120,14 +145,19 @@ class AIReplyService:
         # Perform intent analysis on the new incoming message + history
         # We run this BEFORE generating reply, so we can potentially adjust strategy (or just notify)
         try:
-            analysis = await self.llm.analyze_intent(user_msg, history_msgs)
+            analysis = await self.llm.analyze_intent(
+                user_msg, history_msgs,
+                source="intent_analyze",
+                account_id=account.id,
+                chat_id=str(target_user_id),
+            )
             
             # Update Lead tags
             self._update_lead_tags(account.id, target_user_id, target_username, target_name, analysis)
             
             # Check for high value intent
             if analysis.get("is_high_value"):
-                # Trigger WebSocket notification
+                # Trigger WebSocket notification (internal Inbox)
                 await ws_manager.broadcast({
                     "type": "high_intent_alert",
                     "data": {
@@ -139,6 +169,46 @@ class AIReplyService:
                         "message": user_msg
                     }
                 })
+
+                # ── Epic 5.2: customer notification + handover timeout ──
+                # Resolve the Lead row we just upserted in _update_lead_tags,
+                # set takeover_deadline based on customer's configured timeout,
+                # fire main_account_notifier + schedule send_handover_link task.
+                try:
+                    from app.models.lead import Lead as _Lead
+                    from app.models.customer import Customer as _Customer
+                    from datetime import datetime as _dt, timedelta as _td
+
+                    lead_row = self.session.exec(
+                        select(_Lead)
+                        .where(_Lead.account_id == account.id)
+                        .where(_Lead.telegram_user_id == target_user_id)
+                    ).first()
+                    if lead_row and account.customer_id and lead_row.takeover_deadline is None:
+                        customer = self.session.get(_Customer, account.customer_id)
+                        if customer:
+                            timeout_min = max(1, min(30, customer.takeover_timeout_minutes or 5))
+                            lead_row.takeover_deadline = _dt.utcnow() + _td(minutes=timeout_min)
+                            self.session.add(lead_row)
+                            self.session.commit()
+
+                            # Best-effort: notifier + Celery timer; failures must not break reply
+                            try:
+                                from app.services.main_account_notifier import notify_high_intent
+                                notify_high_intent.delay(lead_row.id)
+                            except Exception as _e:
+                                logger.warning(f"notify_high_intent enqueue failed: {_e}")
+                            try:
+                                from app.tasks.handover_tasks import send_handover_link_if_unclaimed
+                                send_handover_link_if_unclaimed.apply_async(
+                                    args=(lead_row.id,),
+                                    countdown=timeout_min * 60,
+                                    queue="default",
+                                )
+                            except Exception as _e:
+                                logger.warning(f"handover task enqueue failed: {_e}")
+                except Exception as e:
+                    logger.warning(f"Epic 5.2 hook failed: {e}")
                 
         except Exception as e:
             logger.error(f"Intent analysis error: {e}")
@@ -181,7 +251,11 @@ class AIReplyService:
         # RAG：向量召回业务知识库（含手填/PDF导入/群聊抽取）
         try:
             from app.services.kb_retrieval import retrieve_relevant_kb, format_kb_for_prompt
-            qa_items = await retrieve_relevant_kb(self.session, user_msg, top_k=4)
+            # Epic 5.1: tenant-scope to this account's customer (NULL = platform-wide too).
+            qa_items = await retrieve_relevant_kb(
+                self.session, user_msg, top_k=4,
+                customer_id_filter=account.customer_id,
+            )
             qa_block = format_kb_for_prompt(qa_items, max_chars=1200)
             if qa_block:
                 system_prompt += f"\n\n[业务知识库召回 — 如客户提到相关内容请基于此回复]\n{qa_block}"
@@ -192,7 +266,11 @@ class AIReplyService:
         response = await self.llm.get_response(
             prompt=user_msg,
             system_prompt=system_prompt,
-            history=history_msgs
+            history=history_msgs,
+            source="chat_reply",
+            account_id=account.id,
+            persona_id=account.ai_persona_id,
+            chat_id=str(target_user_id),
         )
 
         return response

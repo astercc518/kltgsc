@@ -113,7 +113,10 @@ async def extract_qa_from_window(
     conversation = _format_messages_for_prompt(messages)
     prompt = f"群名：{chat_title}（{chat_type}）\n\n聊天记录：\n{conversation}"
 
-    raw = await llm.get_response(prompt=prompt, system_prompt=QA_EXTRACTION_SYSTEM)
+    raw = await llm.get_response(
+        prompt=prompt, system_prompt=QA_EXTRACTION_SYSTEM,
+        source="qa_extract",
+    )
     if not raw:
         return []
 

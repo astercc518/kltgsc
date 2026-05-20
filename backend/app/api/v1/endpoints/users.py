@@ -1,13 +1,40 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
+from sqlalchemy import update
 from pydantic import BaseModel, Field
 from app.core.db import get_session
 from app.models.user import User, USER_ROLES, USER_ROLE_ADMIN, USER_ROLE_SALES
+from app.models.lead import Lead
+from app.models.subscription import Invoice
 from app.api.deps import get_current_user, get_current_admin
 from app.core.security import verify_password, get_password_hash
 
 router = APIRouter()
+
+
+def _validate_password_strength(pw: str) -> Optional[str]:
+    """Return None if OK, else error message."""
+    if len(pw) < 8:
+        return "密码长度至少为8位"
+    if not any(c.isupper() for c in pw):
+        return "密码必须包含大写字母"
+    if not any(c.islower() for c in pw):
+        return "密码必须包含小写字母"
+    if not any(c.isdigit() for c in pw):
+        return "密码必须包含数字"
+    return None
+
+
+def _count_active_admins(session: Session, exclude_user_id: Optional[int] = None) -> int:
+    """Count admin users that are active, optionally excluding one id."""
+    stmt = select(User).where(
+        User.role == USER_ROLE_ADMIN,
+        User.is_active == True,  # noqa: E712
+    )
+    if exclude_user_id is not None:
+        stmt = stmt.where(User.id != exclude_user_id)
+    return len(session.exec(stmt).all())
 
 # ========== Pydantic Schemas ==========
 
@@ -35,6 +62,17 @@ class UserCreateRequest(BaseModel):
     password: str = Field(..., min_length=8, max_length=128)
     role: str = Field(default=USER_ROLE_SALES)
     is_active: bool = True
+
+
+class UserUpdateRequest(BaseModel):
+    """admin 编辑用户（role / is_active）。username 不可改，密码走 reset-password。"""
+    role: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class AdminResetPasswordRequest(BaseModel):
+    """admin 替别人重置密码（无需当前密码）。"""
+    new_password: str = Field(..., min_length=8, max_length=128)
 
 
 # ========== API Endpoints ==========
@@ -108,36 +146,155 @@ def change_password(
     user = current_user
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
-    
+
     # 验证新密码和确认密码一致
     if request.new_password != request.confirm_password:
         raise HTTPException(status_code=400, detail="新密码和确认密码不一致")
-    
+
     # 验证当前密码
     if not verify_password(request.current_password, user.hashed_password):
         raise HTTPException(status_code=400, detail="当前密码错误")
-    
+
     # 检查新密码不能和旧密码相同
     if verify_password(request.new_password, user.hashed_password):
         raise HTTPException(status_code=400, detail="新密码不能与当前密码相同")
-    
+
     # 密码强度检查
-    if len(request.new_password) < 8:
-        raise HTTPException(status_code=400, detail="新密码长度至少为8位")
-    
-    has_upper = any(c.isupper() for c in request.new_password)
-    has_lower = any(c.islower() for c in request.new_password)
-    has_digit = any(c.isdigit() for c in request.new_password)
-    
-    if not (has_upper and has_lower and has_digit):
-        raise HTTPException(
-            status_code=400, 
-            detail="密码必须包含大写字母、小写字母和数字"
-        )
-    
+    err = _validate_password_strength(request.new_password)
+    if err:
+        raise HTTPException(status_code=400, detail=err)
+
     # 更新密码
     user.hashed_password = get_password_hash(request.new_password)
     session.add(user)
     session.commit()
-    
+
     return PasswordChangeResponse(success=True, message="密码修改成功")
+
+
+@router.put("/{user_id}", response_model=UserRead)
+def update_user(
+    user_id: int,
+    body: UserUpdateRequest,
+    current_user: User = Depends(get_current_admin),
+    session: Session = Depends(get_session),
+):
+    """admin 编辑用户角色或启用状态。
+
+    保护规则：
+    - 不能修改自己的 role 或 is_active（防止把自己锁出 admin 角色）
+    - 不能让最后一个 active admin 流失（降级 / 禁用）
+    """
+    target = session.get(User, user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    # 防自残
+    if target.id == current_user.id and (body.role is not None or body.is_active is not None):
+        raise HTTPException(
+            status_code=400,
+            detail="不能修改自己的角色或启用状态（请使用其它 admin 账号操作）",
+        )
+
+    # 校验 role
+    if body.role is not None and body.role not in USER_ROLES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"角色必须是 {sorted(USER_ROLES)} 之一",
+        )
+
+    # 计算变更后是否会导致最后一个 active admin 流失
+    target_currently_admin = (target.role == USER_ROLE_ADMIN and target.is_active)
+    new_role = body.role if body.role is not None else target.role
+    new_active = body.is_active if body.is_active is not None else target.is_active
+    target_after_admin = (new_role == USER_ROLE_ADMIN and new_active)
+
+    if target_currently_admin and not target_after_admin:
+        # 该用户即将从 active admin 变为非 admin / 禁用 — 检查池子里还有别人吗
+        remaining = _count_active_admins(session, exclude_user_id=target.id)
+        if remaining < 1:
+            raise HTTPException(
+                status_code=400,
+                detail="至少需要保留 1 个 active admin",
+            )
+
+    if body.role is not None:
+        target.role = body.role
+    if body.is_active is not None:
+        target.is_active = body.is_active
+
+    session.add(target)
+    session.commit()
+    session.refresh(target)
+    return target
+
+
+@router.delete("/{user_id}", status_code=204)
+def delete_user(
+    user_id: int,
+    current_user: User = Depends(get_current_admin),
+    session: Session = Depends(get_session),
+):
+    """admin 真删除用户。
+
+    先 NULL 掉外键引用（lead.assigned_to_user_id / invoice.paid_by_admin），
+    再 DELETE。保护规则：
+    - 不能删除自己
+    - 不能删除最后一个 active admin
+    """
+    target = session.get(User, user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    if target.id == current_user.id:
+        raise HTTPException(status_code=400, detail="不能删除自己")
+
+    # 删除后是否还有 active admin?
+    if target.role == USER_ROLE_ADMIN and target.is_active:
+        remaining = _count_active_admins(session, exclude_user_id=target.id)
+        if remaining < 1:
+            raise HTTPException(
+                status_code=400,
+                detail="至少需要保留 1 个 active admin",
+            )
+
+    # 先解除外键引用（保留历史业务数据但清空 FK）
+    session.exec(
+        update(Lead).where(Lead.assigned_to_user_id == user_id).values(assigned_to_user_id=None)
+    )
+    session.exec(
+        update(Invoice).where(Invoice.paid_by_admin == user_id).values(paid_by_admin=None)
+    )
+
+    session.delete(target)
+    session.commit()
+    return None
+
+
+@router.post("/{user_id}/reset-password", response_model=PasswordChangeResponse)
+def admin_reset_password(
+    user_id: int,
+    body: AdminResetPasswordRequest,
+    current_user: User = Depends(get_current_admin),
+    session: Session = Depends(get_session),
+):
+    """admin 替别人重置密码（无需提供当前密码）。
+
+    密码强度校验复用 change-password 的规则。
+    不记录密码明文到任何日志。
+    """
+    target = session.get(User, user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    err = _validate_password_strength(body.new_password)
+    if err:
+        raise HTTPException(status_code=400, detail=err)
+
+    target.hashed_password = get_password_hash(body.new_password)
+    session.add(target)
+    session.commit()
+    return PasswordChangeResponse(
+        success=True,
+        message=f"已重置 {target.username} 的密码",
+    )

@@ -66,7 +66,9 @@ class ScriptService:
         """
         
         try:
-            response = await self.llm.get_response(user_prompt, system_prompt)
+            response = await self.llm.get_response(
+                user_prompt, system_prompt, source="script_generation",
+            )
             if not response:
                 raise ValueError("Empty response from LLM")
                 

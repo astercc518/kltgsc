@@ -86,11 +86,27 @@ celery_app.conf.update(
             "schedule": 21600.0,        # 每 6 小时：真实 Pyrogram 连接检测
             "options": {"queue": "low_priority"},
         },
-        # ── 主动发言 ──────────────────────────────────────────
-        "proactive-speaker": {
-            "task": "app.tasks.account_tasks.proactive_speaker_check",
-            "schedule": 1800.0,         # 每 30 分钟：随机让一个账号主动发话题
+        # ── 主动发言（已禁用：导致跑题 + actor 互相接话） ─────────────
+        # "proactive-speaker": {
+        #     "task": "app.tasks.account_tasks.proactive_speaker_check",
+        #     "schedule": 1800.0,
+        #     "options": {"queue": "default"},
+        # },
+        # ── Epic 2.5: 计费自动化 ──────────────────────────────────────
+        "expire-pending-invoices": {
+            "task": "app.tasks.billing_tasks.expire_pending_invoices",
+            "schedule": 300.0,          # 每 5 分钟
             "options": {"queue": "default"},
+        },
+        "sweep-expired-subscriptions": {
+            "task": "app.tasks.billing_tasks.sweep_expired_subscriptions",
+            "schedule": 3600.0,         # 每 1 小时
+            "options": {"queue": "default"},
+        },
+        "send-renewal-reminders": {
+            "task": "app.tasks.billing_tasks.send_renewal_reminders",
+            "schedule": 86400.0,        # 每天一次
+            "options": {"queue": "low_priority"},
         },
     },
 

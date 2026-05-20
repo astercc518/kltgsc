@@ -1,0 +1,1549 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <title>TGSC 商业计划书</title>
+    <style>
+@page {
+    size: A4;
+    margin: 22mm 18mm 22mm 18mm;
+}
+* { box-sizing: border-box; }
+html, body {
+    font-family: "Noto Sans CJK SC", "Noto Sans", "PingFang SC",
+                 "Microsoft YaHei", sans-serif;
+    color: #1f2937;
+    line-height: 1.7;
+    font-size: 10.5pt;
+    margin: 0;
+    padding: 0;
+    -webkit-print-color-adjust: exact;
+}
+
+/* Cover */
+.cover {
+    page-break-after: always;
+    text-align: center;
+    padding-top: 18mm;
+}
+.cover .brand {
+    font-size: 56pt;
+    font-weight: 900;
+    color: #0f172a;
+    letter-spacing: 1pt;
+    margin-bottom: 6mm;
+    line-height: 1;
+}
+.cover .brand .dot { color: #0066FF; }
+.cover .brand .tld {
+    color: #0066FF;
+    font-size: 38pt;
+    vertical-align: 6pt;
+    font-weight: 800;
+}
+.cover .tagline {
+    font-size: 12pt;
+    color: #475569;
+    margin-bottom: 8mm;
+    letter-spacing: 1.5pt;
+    text-transform: uppercase;
+}
+.cover .badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #2563eb, #7c3aed);
+    color: #fff;
+    padding: 3mm 8mm;
+    border-radius: 30px;
+    font-size: 11pt;
+    margin-bottom: 14mm;
+}
+.cover .title {
+    font-size: 26pt;
+    color: #111827;
+    margin: 0 0 6mm 0;
+    font-weight: 700;
+}
+.cover .subtitle {
+    font-size: 13pt;
+    color: #475569;
+    margin-bottom: 30mm;
+}
+.cover .meta-box {
+    margin: 0 auto;
+    width: 70%;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 8mm;
+    background: #f9fafb;
+    font-size: 11pt;
+}
+.cover .meta-box table { width: 100%; }
+.cover .meta-box td { padding: 2mm 0; text-align: left; }
+.cover .meta-box td:first-child { color: #64748b; width: 40%; }
+.cover .meta-box td:last-child { color: #0f172a; font-weight: 600; }
+.cover .footer {
+    margin-top: 35mm;
+    color: #94a3b8;
+    font-size: 9pt;
+}
+
+/* Content */
+h1 {
+    font-size: 20pt;
+    color: #0f172a;
+    border-bottom: 3px solid #2563eb;
+    padding-bottom: 3mm;
+    margin-top: 12mm;
+    margin-bottom: 6mm;
+    page-break-before: always;
+    page-break-after: avoid;
+}
+h1:first-of-type { page-break-before: avoid; }
+h2 {
+    font-size: 15pt;
+    color: #1e3a8a;
+    margin-top: 9mm;
+    margin-bottom: 4mm;
+    padding-left: 3mm;
+    border-left: 4px solid #2563eb;
+    page-break-after: avoid;
+}
+h3 {
+    font-size: 12pt;
+    color: #1e40af;
+    margin-top: 6mm;
+    margin-bottom: 3mm;
+    page-break-after: avoid;
+}
+h4 { font-size: 11pt; color: #334155; margin: 4mm 0 2mm 0; }
+
+p { margin: 2mm 0; text-align: justify; }
+strong { color: #0f172a; font-weight: 700; }
+em { color: #475569; }
+
+blockquote {
+    border-left: 4px solid #60a5fa;
+    background: #eff6ff;
+    padding: 3mm 5mm;
+    margin: 4mm 0;
+    color: #1e3a8a;
+    font-style: normal;
+}
+
+ul, ol { margin: 2mm 0 4mm 0; padding-left: 8mm; }
+li { margin: 1mm 0; }
+
+a { color: #2563eb; text-decoration: none; }
+
+/* Code */
+code {
+    background: #f1f5f9;
+    color: #be123c;
+    padding: 0.5mm 1.5mm;
+    border-radius: 2px;
+    font-family: "Menlo", "Consolas", monospace;
+    font-size: 9.5pt;
+}
+pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 4mm;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 8.5pt;
+    line-height: 1.5;
+    page-break-inside: avoid;
+}
+pre code {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+}
+
+/* Tables */
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 4mm 0;
+    font-size: 9.5pt;
+    page-break-inside: avoid;
+}
+th {
+    background: #1e3a8a;
+    color: #fff;
+    padding: 2.5mm 3mm;
+    text-align: left;
+    font-weight: 600;
+    border: 1px solid #1e3a8a;
+}
+td {
+    padding: 2mm 3mm;
+    border: 1px solid #e2e8f0;
+    vertical-align: top;
+}
+tbody tr:nth-child(even) { background: #f8fafc; }
+tbody tr:hover { background: #eff6ff; }
+
+/* Horizontal rule */
+hr {
+    border: none;
+    border-top: 1px dashed #cbd5e1;
+    margin: 8mm 0;
+}
+
+/* Footer / page numbers handled by wkhtmltopdf */
+</style>
+</head>
+<body>
+
+<div class="cover">
+    <div class="brand">TG1<span class="tld">.AI</span></div>
+    <div class="tagline">The #1 AI Growth OS for Telegram</div>
+    <div class="badge">Angel Round</div>
+    <div class="title">Business Plan</div>
+    <div class="subtitle">Multi-Account TG Orchestration + AI Lead Generation<br/>System Account Licensing · From $199/mo</div>
+    <div class="meta-box">
+        <table>
+
+            <tr><td>Project</td><td>TG1 (Telegram Growth Intelligence)</td></tr>
+            <tr><td>Domain</td><td>tg1.ai</td></tr>
+            <tr><td>Version</td><td>v3.1</td></tr>
+            <tr><td>Date</td><td>2026-05-18</td></tr>
+            <tr><td>Round</td><td>Angel</td></tr>
+            <tr><td>Raise</td><td>¥500k CNY (~$71k USD)</td></tr>
+            <tr><td>Post-money</td><td>¥4.5M</td></tr>
+            <tr><td>Equity Offered</td><td>11.1% (negotiable)</td></tr>
+    
+        </table>
+    </div>
+    <div class="footer">
+        Confidential. For qualified investor due diligence only.<br/>Unauthorized copying or distribution is prohibited.
+    </div>
+</div>
+
+<div class="content">
+<h1 id="tg1-business-plan-angel-round">TG1 Business Plan (Angel Round)</h1>
+<blockquote>
+<p><strong>TG1 (Telegram Growth Intelligence)</strong><br />
+<strong>Multi-Account TG Orchestration + AI Lead Generation Platform</strong><br />
+Business Model: <strong>System Account Licensing</strong> — Monthly subscription for customized TG accounts + AI personas + industry knowledge base + massive group coverage</p>
+<p>Document Version: v3.0 ｜ Date: 2026-05-18 ｜ Round: Angel</p>
+</blockquote>
+<hr />
+<h2 id="1-executive-summary">1. Executive Summary</h2>
+<h3 id="11-one-liner">1.1 One-Liner</h3>
+<p><strong>TG1 sells the right to use "customized TG accounts + AI personas + industry knowledge bases + thousands of target groups" as a monthly subscription. Starting at $199/month, customers log in and start acquiring leads.</strong></p>
+<h3 id="12-business-model-at-a-glance">1.2 Business Model at a Glance</h3>
+<pre><code>            ┌──────────────────────────────────────────────┐
+            │           TG1 Platform (Seller)             │
+            │  • Pool of 1000+ pre-warmed TG accounts      │
+            │  • Massive industry group library (5000+)    │
+            │  • AI persona customization + auto-KB        │
+            │  • AI lead-gen (KB+RAG+Intent+Copilot)       │
+            │  • Sales Workbench (CRM + Inbox)             │
+            └──────────────────┬───────────────────────────┘
+                               │ Monthly Subscription
+                               │ $199 / $299 / $599
+                ┌──────────────▼──────────────┐
+                │      Customer (Buyer)       │
+                │  • Crypto / Web3 projects   │
+                │  • Cross-border e-commerce  │
+                │  • B2B exporters            │
+                │  • Global SaaS / gaming     │
+                └─────────────────────────────┘
+</code></pre>
+<p><strong>Customers don't buy a tool — they buy a 7×24 AI-driven lead-gen team.</strong></p>
+<h3 id="13-three-subscription-tiers-core-pricing">1.3 Three Subscription Tiers (Core Pricing)</h3>
+<table>
+<thead>
+<tr>
+<th>Plan</th>
+<th>Monthly</th>
+<th>TG Accounts</th>
+<th>AI Target Groups</th>
+<th>Target Customer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Starter</strong></td>
+<td><strong>$199 / mo</strong></td>
+<td>3 custom accounts</td>
+<td>500</td>
+<td>Solo / small teams</td>
+</tr>
+<tr>
+<td><strong>Growth</strong></td>
+<td><strong>$299 / mo</strong></td>
+<td>5 custom accounts</td>
+<td>1,000</td>
+<td>Mid-size export / e-com</td>
+</tr>
+<tr>
+<td><strong>Pro</strong></td>
+<td><strong>$599 / mo</strong></td>
+<td>10 custom accounts</td>
+<td>3,000</td>
+<td>Crypto projects / large clients</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Every tier includes</strong>:<br />
+- ✅ <strong>Industry-customized TG accounts</strong> (username / avatar / bio / language matched)<br />
+- ✅ <strong>AI persona customization</strong> (Pro Sales / Technical Analyst / Active Member, etc.)<br />
+- ✅ <strong>Auto-generated industry knowledge base</strong> (scraping + Vertex AI Embedding)<br />
+- ✅ <strong>AI precision lead-gen</strong> (group monitoring + intent detection + opener generation + multi-turn negotiation)<br />
+- ✅ <strong>Sales takeover workbench</strong> (CRM + Inbox Copilot mode)<br />
+- ✅ <strong>Auto-replacement for banned accounts</strong></p>
+<h3 id="14-why-this-model-works">1.4 Why This Model Works</h3>
+<table>
+<thead>
+<tr>
+<th>Build It Yourself</th>
+<th>Use TG1</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Register accounts (SMS + proxies + device fingerprints)</td>
+<td>✅ Platform supplies pre-warmed accounts</td>
+</tr>
+<tr>
+<td>Buy proxies (IP2World / 911s5)</td>
+<td>✅ Platform's proxy pool already bound</td>
+</tr>
+<tr>
+<td>Warm up accounts for 30+ days</td>
+<td>✅ Accounts already past warm-up</td>
+</tr>
+<tr>
+<td>Find industry groups (manual search + join rate limits)</td>
+<td>✅ <strong>500-3000 industry groups instantly covered</strong></td>
+</tr>
+<tr>
+<td>Curate industry knowledge base</td>
+<td>✅ <strong>AI auto-scrapes + embeds</strong></td>
+</tr>
+<tr>
+<td>Develop control scripts (6+ months)</td>
+<td>✅ 50+ services ready to use</td>
+</tr>
+<tr>
+<td>Integrate AI (GPT/Gemini)</td>
+<td>✅ Vertex AI Gemini integrated</td>
+</tr>
+<tr>
+<td>Banned = start over</td>
+<td>✅ Auto-replacement + role-based risk control</td>
+</tr>
+<tr>
+<td><strong>Cost</strong>: ¥300k upfront + 6 months + ongoing ops</td>
+<td><strong>Cost</strong>: $199/mo, 5-minute setup</td>
+</tr>
+</tbody>
+</table>
+<h3 id="15-key-achievements-already-built">1.5 Key Achievements (Already Built)</h3>
+<ul>
+<li><strong>All 9 development stages completed</strong>: account lifecycle, AI marketing, CRM, dashboard, monitoring</li>
+<li><strong>1000+ account capacity already implemented</strong>: Listener sharding, multi-replica workers, PG/Redis tuning</li>
+<li><strong>Complete AI pipeline</strong>: pgvector (HNSW 768d) + Vertex AI Gemini + Copilot mode</li>
+<li><strong>Code assets</strong>: 50+ backend services, 25+ frontend pages, Alembic migration framework</li>
+<li><strong>Production-ready deployment</strong>: Docker Compose + Nginx + Cloudflare + multi-replica</li>
+</ul>
+<h3 id="16-funding-request">1.6 Funding Request</h3>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Round</td>
+<td>Angel</td>
+</tr>
+<tr>
+<td>Amount</td>
+<td><strong>¥ 500,000 CNY (~$ 71,000 USD)</strong></td>
+</tr>
+<tr>
+<td>Valuation</td>
+<td>Pre-money ¥4M / Post-money ¥4.5M</td>
+</tr>
+<tr>
+<td>Equity offered</td>
+<td>~<strong>11.1%</strong> (negotiable 10-15%)</td>
+</tr>
+<tr>
+<td>Runway</td>
+<td><strong>12 months</strong></td>
+</tr>
+<tr>
+<td>Use of funds</td>
+<td>Account pool 30% / Team 25% / Infra 25% / Marketing 15% / Reserve 5%</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-market-opportunity">2. Market Opportunity</h2>
+<h3 id="21-industry-trends">2.1 Industry Trends</h3>
+<ul>
+<li><strong>Telegram MAU passed 900M (2025)</strong>, fastest-growing private-traffic channel for global teams</li>
+<li><strong>WeChat increasingly bans export accounts</strong>, driving export businesses to TG</li>
+<li><strong>Web3 / Crypto</strong>: 90% of projects use TG as their primary community channel</li>
+<li><strong>TG account price rising</strong>: high-quality aged accounts ¥100-500 each on black market, with supply heavily reliant on grey-market chains</li>
+</ul>
+<h3 id="22-target-customers-icp">2.2 Target Customers (ICP)</h3>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Profile</th>
+<th>Pain Point</th>
+<th>Monthly Budget</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Crypto / Web3 Projects</strong></td>
+<td>Exchanges, DeFi, NFT projects</td>
+<td>Community + high-ticket conversion</td>
+<td><strong>Pro $599+</strong> (multi-seat)</td>
+</tr>
+<tr>
+<td><strong>Cross-border E-commerce</strong></td>
+<td>Shopify sellers, DTC brands</td>
+<td>Funnel from TG to conversion</td>
+<td><strong>Growth $299</strong></td>
+</tr>
+<tr>
+<td><strong>B2B Exporters</strong></td>
+<td>SMB exporters, freelance traders</td>
+<td>Continuous overseas client acquisition</td>
+<td><strong>Starter $199</strong></td>
+</tr>
+<tr>
+<td><strong>Global Gaming / SaaS</strong></td>
+<td>Cross-border startups</td>
+<td>User acquisition + retention</td>
+<td><strong>Growth/Pro $299-599</strong></td>
+</tr>
+<tr>
+<td><strong>MCN / KOL Operators</strong></td>
+<td>TG channel matrix operators</td>
+<td>Multi-account matrix management</td>
+<td><strong>Pro $599+</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="23-market-sizing">2.3 Market Sizing</h3>
+<table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>Scope</th>
+<th>Estimate</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>TAM</strong></td>
+<td>Global TG private-traffic marketing tools</td>
+<td>USD 3B/year</td>
+</tr>
+<tr>
+<td><strong>SAM</strong></td>
+<td>Chinese cross-border teams + Web3 projects</td>
+<td>USD 600M/year</td>
+</tr>
+<tr>
+<td><strong>SOM</strong> (3-year achievable)</td>
+<td>Top 5-10% of Chinese export teams</td>
+<td>¥50M ARR (~$7M)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>A single city or vertical can support the angel-round target</strong>: Shenzhen cross-border e-commerce alone has 10,000+ willing-to-pay customers.</p>
+<hr />
+<h2 id="3-product-architecture">3. Product Architecture</h2>
+<h3 id="31-system-overview">3.1 System Overview</h3>
+<pre><code>┌────────────────────────────────────────────────────────────────┐
+│                Customer Web Frontend (React 18)                │
+│  Account Pool │ Campaign │ KB │ CRM │ Inbox │ Dashboard       │
+└────────────────────────┬───────────────────────────────────────┘
+                         │ REST + WebSocket
+┌────────────────────────▼───────────────────────────────────────┐
+│              FastAPI Backend (Python 3.10+ / asyncio)          │
+│   ┌──────────────────────────────────────────────────────┐     │
+│   │  API Layer  /api/v1/*  (25+ endpoints)               │     │
+│   └──────────────────────────────────────────────────────┘     │
+│   ┌──────────────────────────────────────────────────────┐     │
+│   │  Service Layer (50+ services)                        │     │
+│   │  • TG Client Pool (Pyrogram)                         │     │
+│   │  • Task Scheduling (Celery + Redis)                  │     │
+│   │  • AI Engine (Vertex AI / Gemini)                    │     │
+│   │  • Knowledge Base (pgvector HNSW 768d)               │     │
+│   │  • Proxy Pool (IP2World / 911s5)                     │     │
+│   │  • SMS (SMS-Activate)                                │     │
+│   └──────────────────────────────────────────────────────┘     │
+└──┬───────────┬──────────────┬────────────────┬────────────────┘
+   │           │              │                │
+   ▼           ▼              ▼                ▼
+┌──────┐  ┌────────┐    ┌─────────┐      ┌──────────┐
+│ PG16 │  │ Redis  │    │   TG    │      │Vertex AI │
+│pgvect│  │ Celery │    │ Servers │      │ Gemini   │
+└──────┘  └────────┘    └─────────┘      └──────────┘
+</code></pre>
+<h3 id="32-tech-stack">3.2 Tech Stack</h3>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Technology</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Backend</td>
+<td>FastAPI + SQLModel + Pyrogram</td>
+<td>Async-friendly, native fit for TG protocol</td>
+</tr>
+<tr>
+<td>Task Queue</td>
+<td>Celery + Redis</td>
+<td>Thousand-account concurrency, sharded scaling</td>
+</tr>
+<tr>
+<td>Database</td>
+<td>PostgreSQL 16 + pgvector + Alembic</td>
+<td>Single DB for business data + vector search</td>
+</tr>
+<tr>
+<td>AI</td>
+<td>Vertex AI (Gemini) + <code>gemini-embedding-001</code> 768d</td>
+<td>Enterprise SLA, no free-tier RPM limits</td>
+</tr>
+<tr>
+<td>Frontend</td>
+<td>React 18 + Vite + Ant Design</td>
+<td>Rapid admin UI iteration</td>
+</tr>
+<tr>
+<td>Deployment</td>
+<td>Docker Compose + Nginx + Cloudflare</td>
+<td>Single-host launch, no cloud lock-in</td>
+</tr>
+</tbody>
+</table>
+<h3 id="33-account-as-a-service-aaas-three-asset-layers">3.3 Account-as-a-Service (AaaS) — Three Asset Layers</h3>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Asset</th>
+<th>Customer View</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Account Layer</strong></td>
+<td>1000+ pre-warmed TG accounts, grouped by cannon/scout/actor/sniper</td>
+<td>Ready to use, auto-replaced on ban</td>
+</tr>
+<tr>
+<td><strong>Capability Layer</strong></td>
+<td>Full software stack: orchestration + AI lead-gen + sales handoff</td>
+<td>No coding, UI config</td>
+</tr>
+<tr>
+<td><strong>Service Layer</strong></td>
+<td>Customer success + risk advisor + script optimization</td>
+<td>Guided, never stranded</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-core-business-flows">4. Core Business Flows</h2>
+<h3 id="41-customer-purchase-onboarding-flow">4.1 Customer Purchase &amp; Onboarding Flow</h3>
+<pre><code>Customer visits site → selects plan (by accounts + groups) → pays monthly fee
+    ↓
+Platform allocates dedicated account pool (tenant-isolated)
+    ↓
+Customer logs in → uploads KB (PDF/Word/web) → configures AI persona → sets script
+    ↓
+Customer configures hunting grounds (competitor / industry group links)
+    ↓
+Platform launches Scout monitoring + AI scoring + Sniper outreach
+    ↓
+High-intent leads → sales takes over in Inbox → Copilot-assisted closing
+</code></pre>
+<h3 id="42-three-core-lead-gen-pipelines">4.2 Three Core Lead-Gen Pipelines</h3>
+<p><strong>A. Competitor Interception (Real-Time)</strong></p>
+<pre><code>Scout joins competitor group → listens for new members → AI scoring
+  → Sniper DMs within 5 minutes → user replies → AI multi-turn negotiation
+  → high-intent alert → sales takes over → closes deal
+</code></pre>
+<p><strong>B. Bulk Group Washing (Weekly)</strong></p>
+<pre><code>Scout bulk-scrapes public groups (500-1000 members each) → AI batch scoring
+  → Tier-A direct DM / Tier-B funnel into nurture group / Tier-C discard
+  → Actors run hype scripts in nurture group → engaged users harvested by Sniper
+</code></pre>
+<p><strong>C. AI Service + Sales Takeover (Core Commercialization Loop)</strong></p>
+<pre><code>Inbound TG DM → KB retrieval (pgvector) → intent analysis → AI reply
+  → intent=purchase + is_high_value → WebSocket high-intent alert
+  → Sales clicks &quot;Take Over&quot; → Lead.ai_enabled=false
+  → AI switches to Copilot (no auto-send, generates drafts + live negotiation summary)
+  → Sales one-click send / edit-and-send → deal closed
+</code></pre>
+<hr />
+<h2 id="5-module-functionality-matrix">5. Module Functionality Matrix</h2>
+<h3 id="51-backend-services-50">5.1 Backend Services (50+)</h3>
+<table>
+<thead>
+<tr>
+<th>Module Group</th>
+<th>Key Services</th>
+<th>Function</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Account Lifecycle</strong></td>
+<td><code>auto_register</code> <code>device_generator</code> <code>session_*</code> <code>warmup_service</code></td>
+<td>Registration, device fingerprint, session, warm-up</td>
+</tr>
+<tr>
+<td><strong>Proxy Network</strong></td>
+<td><code>proxy_fetcher</code> <code>proxy_checker</code> <code>proxy_assigner</code></td>
+<td>API fetch, connectivity check, ISP binding</td>
+</tr>
+<tr>
+<td><strong>TG Communication</strong></td>
+<td><code>telegram_client</code> <code>client_pool</code> <code>listener_service</code></td>
+<td>Pyrogram pool, 5-shard listener</td>
+</tr>
+<tr>
+<td><strong>Task Scheduling</strong></td>
+<td><code>safe_send_dispatcher</code> <code>shill_dispatcher</code> <code>script_executor</code> <code>workflow_engine</code></td>
+<td>Rate-limited send, hype, script, workflow</td>
+</tr>
+<tr>
+<td><strong>AI Engine</strong></td>
+<td><code>ai_engine</code> <code>llm</code> <code>ai_reply_service</code> <code>conversation_director</code></td>
+<td>LLM routing, reply generation, dialog state</td>
+</tr>
+<tr>
+<td><strong>Knowledge Base</strong></td>
+<td><code>embedding_service</code> <code>kb_retrieval</code> <code>qa_extractor</code></td>
+<td>Vertex Embedding, vector recall, Q&amp;A extraction</td>
+</tr>
+<tr>
+<td><strong>Acquisition &amp; Marketing</strong></td>
+<td><code>scraper</code> <code>intercept_service</code> <code>keyword_monitor_service</code> <code>invite_service</code></td>
+<td>Group scraping, interception, keywords, invites</td>
+</tr>
+<tr>
+<td><strong>CRM &amp; Profiling</strong></td>
+<td><code>score_service</code> <code>persona_profile</code></td>
+<td>User scoring, persona profile</td>
+</tr>
+<tr>
+<td><strong>Billing &amp; Quota</strong></td>
+<td><code>pricing</code> <code>usage_tracker</code> <code>permission_service</code></td>
+<td>LLM billing, tenant quota (core monetization)</td>
+</tr>
+<tr>
+<td><strong>Infrastructure</strong></td>
+<td><code>websocket_manager</code> <code>system_config_service</code> <code>mega_importer</code></td>
+<td>Realtime push, dynamic config, bulk import</td>
+</tr>
+</tbody>
+</table>
+<h3 id="52-frontend-pages-25">5.2 Frontend Pages (25+)</h3>
+<table>
+<thead>
+<tr>
+<th>Module</th>
+<th>Page</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Account Pool</td>
+<td>AccountList / AutoRegister / ProxyList / Warmup</td>
+<td>Customer sees rented account status</td>
+</tr>
+<tr>
+<td>Campaign</td>
+<td>CampaignPage / TasksPage / Marketing / ScriptPage</td>
+<td>Customer configures campaigns</td>
+</tr>
+<tr>
+<td>Hunting Ground</td>
+<td>SourceGroupPage / FunnelGroupPage / Scraping / InvitePage</td>
+<td>Customer configures target groups</td>
+</tr>
+<tr>
+<td>AI Center</td>
+<td>AIPage / KnowledgeBasePage / PersonaPage / <code>ai/*</code></td>
+<td>Customer trains own AI</td>
+</tr>
+<tr>
+<td>Sales Workbench</td>
+<td>CRM / Inbox (Copilot)</td>
+<td>Sales execution</td>
+</tr>
+<tr>
+<td>Data</td>
+<td>Dashboard / MonitoringDashboard / MonitorPage / LogsPage</td>
+<td>Customer views ROI</td>
+</tr>
+<tr>
+<td>System</td>
+<td>Login / SystemConfigPage</td>
+<td>Customer admin</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-business-model-core-chapter">6. Business Model (Core Chapter)</h2>
+<h3 id="61-pricing-model-system-account-licensing">6.1 Pricing Model: System Account Licensing</h3>
+<p><strong>Three Standard Tiers (USD-denominated, global customers)</strong></p>
+<table>
+<thead>
+<tr>
+<th>Plan</th>
+<th>Monthly</th>
+<th>TG Accounts</th>
+<th>AI Target Groups</th>
+<th>Avg Groups/Account</th>
+<th>AI Token Included</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Starter</strong></td>
+<td><strong>$199 / mo</strong></td>
+<td>3</td>
+<td>500</td>
+<td>167 grp/acc</td>
+<td>2M tokens</td>
+</tr>
+<tr>
+<td><strong>Growth</strong></td>
+<td><strong>$299 / mo</strong></td>
+<td>5</td>
+<td>1,000</td>
+<td>200 grp/acc</td>
+<td>5M tokens</td>
+</tr>
+<tr>
+<td><strong>Pro</strong></td>
+<td><strong>$599 / mo</strong></td>
+<td>10</td>
+<td>3,000</td>
+<td>300 grp/acc</td>
+<td>15M tokens</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>"AI Target Groups" defined</strong>: max number of TG groups monitored &amp; engaged for the customer, including competitor / industry / general-traffic groups. Customer filters by industry; platform accounts auto-join and run AI lead-gen.</p>
+</blockquote>
+<h3 id="62-what-each-plan-delivers-standardized-sku">6.2 What Each Plan Delivers (Standardized SKU)</h3>
+<table>
+<thead>
+<tr>
+<th>Deliverable</th>
+<th>Starter</th>
+<th>Growth</th>
+<th>Pro</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Customized TG accounts (industry-matched username/avatar/bio)</td>
+<td>3</td>
+<td>5</td>
+<td>10</td>
+</tr>
+<tr>
+<td>AI persona customization (Sales / Analyst / Active Member)</td>
+<td>1 set</td>
+<td>2 sets</td>
+<td>3 sets</td>
+</tr>
+<tr>
+<td>Auto-generated industry KB (scrape + embed)</td>
+<td>1</td>
+<td>2</td>
+<td>5</td>
+</tr>
+<tr>
+<td>AI target group coverage</td>
+<td>500</td>
+<td>1,000</td>
+<td>3,000</td>
+</tr>
+<tr>
+<td>AI auto-reply + Copilot</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>CRM + Inbox sales workbench seats</td>
+<td>1</td>
+<td>3</td>
+<td>10</td>
+</tr>
+<tr>
+<td>Auto-replacement SLA on ban</td>
+<td>24h</td>
+<td>12h</td>
+<td>4h</td>
+</tr>
+<tr>
+<td>Customer success</td>
+<td>Ticket</td>
+<td>Ticket + monthly review</td>
+<td>1-on-1 dedicated CSM</td>
+</tr>
+</tbody>
+</table>
+<h3 id="63-add-on-revenue">6.3 Add-On Revenue</h3>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Pricing</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AI token overage</td>
+<td>$5 / million tokens</td>
+</tr>
+<tr>
+<td>Extra accounts</td>
+<td>Starter $50/acc, Growth $45/acc, Pro $40/acc (tiered)</td>
+</tr>
+<tr>
+<td>Extra target groups</td>
+<td>$20 / 100 groups / month</td>
+</tr>
+<tr>
+<td>Custom KB import service</td>
+<td>$80 / batch (PDF &lt;100 pages free)</td>
+</tr>
+<tr>
+<td>Residential proxy upgrade</td>
+<td>$5 / account / month</td>
+</tr>
+<tr>
+<td>Self-hosted deployment</td>
+<td>From $12,000 / year</td>
+</tr>
+<tr>
+<td>Industry template customization (script + KB + persona)</td>
+<td>$300 / batch</td>
+</tr>
+</tbody>
+</table>
+<h3 id="64-per-account-per-group-cost-structure">6.4 Per-Account / Per-Group Cost Structure</h3>
+<p><strong>TG account monthly amortized cost</strong> (SMS + warm-up + proxy + infra):</p>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Cost (¥)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Registration (SMS-Activate + one-time proxy)</td>
+<td>15</td>
+</tr>
+<tr>
+<td>Warm-up amortization (30 days)</td>
+<td>7</td>
+</tr>
+<tr>
+<td>Monthly ops (proxy + server)</td>
+<td>15</td>
+</tr>
+<tr>
+<td>Avg lifecycle 4 months → monthly amortized</td>
+<td><strong>¥ 25 ≈ $ 3.6</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Per-group monthly cost</strong>:<br />
+- Join + message monitoring + Listener shard overhead → ~¥0.05 / group / month (marginal cost near zero)</p>
+<p><strong>Per-customer AI token cost</strong> (Vertex AI Gemini):<br />
+- 200-1500M tokens included, avg Vertex price ¥0.7 / M output tokens → ¥10-100/mo cost</p>
+<h3 id="65-per-plan-unit-economics-critical">6.5 Per-Plan Unit Economics (Critical)</h3>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Starter</th>
+<th>Growth</th>
+<th>Pro</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Monthly fee (USD)</td>
+<td>$ 199</td>
+<td>$ 299</td>
+<td>$ 599</td>
+</tr>
+<tr>
+<td>Monthly fee (¥, @ 7.0)</td>
+<td>¥ 1,393</td>
+<td>¥ 2,093</td>
+<td>¥ 4,193</td>
+</tr>
+<tr>
+<td>Account cost</td>
+<td>¥ 75</td>
+<td>¥ 125</td>
+<td>¥ 250</td>
+</tr>
+<tr>
+<td>Group coverage cost</td>
+<td>¥ 25</td>
+<td>¥ 50</td>
+<td>¥ 150</td>
+</tr>
+<tr>
+<td>AI token cost</td>
+<td>¥ 25</td>
+<td>¥ 60</td>
+<td>¥ 180</td>
+</tr>
+<tr>
+<td>Customer success amortized</td>
+<td>¥ 30</td>
+<td>¥ 80</td>
+<td>¥ 250</td>
+</tr>
+<tr>
+<td><strong>Total direct cost</strong></td>
+<td><strong>¥ 155</strong></td>
+<td><strong>¥ 315</strong></td>
+<td><strong>¥ 830</strong></td>
+</tr>
+<tr>
+<td><strong>Monthly gross profit</strong></td>
+<td><strong>¥ 1,238</strong></td>
+<td><strong>¥ 1,778</strong></td>
+<td><strong>¥ 3,363</strong></td>
+</tr>
+<tr>
+<td><strong>Gross margin</strong></td>
+<td><strong>89%</strong></td>
+<td><strong>85%</strong></td>
+<td><strong>80%</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Blended gross margin ≈ 84%</strong> (well above SaaS industry average 70-80%, thanks to near-zero marginal cost on account + group assets + automated ops).</p>
+<h3 id="66-blended-arpu-ltvcac">6.6 Blended ARPU &amp; LTV/CAC</h3>
+<p><strong>Plan mix assumption</strong>: Starter 50% / Growth 30% / Pro 20%</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Blended monthly fee</td>
+<td>$199×0.5 + $299×0.3 + $599×0.2 = <strong>$ 308 ≈ ¥ 2,160</strong></td>
+</tr>
+<tr>
+<td>Blended monthly gross profit</td>
+<td><strong>¥ 1,790</strong></td>
+</tr>
+<tr>
+<td>CAC</td>
+<td>¥ 1,500 / customer</td>
+</tr>
+<tr>
+<td>Monthly retention</td>
+<td>90%</td>
+</tr>
+<tr>
+<td>Avg lifecycle</td>
+<td>10 months</td>
+</tr>
+<tr>
+<td>LTV</td>
+<td>≈ ¥ 2,160 × 10 × 0.84 ≈ <strong>¥ 18,144</strong></td>
+</tr>
+<tr>
+<td><strong>LTV / CAC</strong></td>
+<td><strong>≈ 12</strong></td>
+</tr>
+<tr>
+<td><strong>Payback period</strong></td>
+<td><strong>&lt; 1 month</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="67-three-year-revenue-forecast">6.7 Three-Year Revenue Forecast</h3>
+<table>
+<thead>
+<tr>
+<th>Year</th>
+<th>Paying Customers</th>
+<th>Blended ARPU (USD)</th>
+<th>MRR (USD)</th>
+<th>ARR (USD)</th>
+<th>ARR (¥)</th>
+<th>Milestone</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Y1 (2026)</strong></td>
+<td>60</td>
+<td>$ 308</td>
+<td>$ 18.5k</td>
+<td>$ 222k</td>
+<td>¥1.55M</td>
+<td>PMF validated, account pool 2000</td>
+</tr>
+<tr>
+<td><strong>Y2 (2027)</strong></td>
+<td>280</td>
+<td>$ 350</td>
+<td>$ 98k</td>
+<td>$ 1.18M</td>
+<td>¥8.25M</td>
+<td>Crypto + cross-border head customers</td>
+</tr>
+<tr>
+<td><strong>Y3 (2028)</strong></td>
+<td>900</td>
+<td>$ 400</td>
+<td>$ 360k</td>
+<td>$ 4.32M</td>
+<td>¥30.24M</td>
+<td>Series A / overseas expansion</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7-technical-moats-differentiation">7. Technical Moats &amp; Differentiation</h2>
+<h3 id="71-three-moats">7.1 Three Moats</h3>
+<p><strong>① Account Supply &amp; Warm-up Engineering (Highest Barrier)</strong></p>
+<p>Hardest part for competitors to replicate:<br />
+- Auto-registration: SMS-Activate + IP2World + device fingerprint → ¥15/account cost<br />
+- Auto warm-up: <code>warmup_service</code> simulates human behavior for 30-60 days<br />
+- Risk tiering: cannon/scout/actor/sniper 4 roles + health score + auto-demotion<br />
+- Replacement supply: auto-replace banned accounts in customer pool within 1 hour</p>
+<p><strong>② 1000+ Account Real Engineering Capability</strong></p>
+<ul>
+<li>Listener sharded by <code>account.id % N</code>, 5 shards support 1000+ long connections</li>
+<li>Multi-replica Workers + <code>max-tasks-per-child=200</code> prevents Pyrogram memory leaks</li>
+<li>PG <code>max_connections=500</code>, Redis <code>maxmemory=4G</code> <code>noeviction</code></li>
+<li>Most TG control tools stop at 50-200 accounts</li>
+</ul>
+<p><strong>③ AI Copilot + Sales Collaboration Product Form</strong></p>
+<ul>
+<li>Competitor A (pure orchestration): only "blast tool", no AI, no sales handoff</li>
+<li>Competitor B (AI service SaaS): ChatGPT wrapper, no sales collaboration</li>
+<li><strong>TG1</strong>: AI handles 80% long-tail traffic + auto-alert sales on high-intent + AI continuously generates drafts/summaries</li>
+</ul>
+<h3 id="72-network-effect-moat">7.2 Network Effect Moat</h3>
+<p><strong>Pre-warmed account inventory is a network effect</strong>:<br />
+- More customers → faster pool churn → lower marginal cost/account → better pricing<br />
+- Different customers have different account requirements → secondary account flow (used Cannons demoted and reused)</p>
+<hr />
+<h2 id="8-competitive-landscape">8. Competitive Landscape</h2>
+<h3 id="81-comparison-table">8.1 Comparison Table</h3>
+<table>
+<thead>
+<tr>
+<th>Dimension</th>
+<th>TG1</th>
+<th>Competitor A (Scripts)</th>
+<th>Competitor B (AI Service)</th>
+<th>Self-Build</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Account supply</td>
+<td><strong>Platform-supplied, leased</strong></td>
+<td>Customer brings own</td>
+<td>–</td>
+<td>Customer builds (hardest)</td>
+</tr>
+<tr>
+<td>Account scale</td>
+<td><strong>1000+ pre-warmed pool</strong></td>
+<td>Customer's own (&lt;200)</td>
+<td>–</td>
+<td>6 months to start</td>
+</tr>
+<tr>
+<td>AI lead-gen</td>
+<td><strong>KB+RAG+Intent+Copilot</strong></td>
+<td>None</td>
+<td>ChatGPT wrapper</td>
+<td>–</td>
+</tr>
+<tr>
+<td>Sales handoff</td>
+<td><strong>Copilot mode</strong></td>
+<td>None</td>
+<td>Simple human escalation</td>
+<td>Manual</td>
+</tr>
+<tr>
+<td>Risk tiering</td>
+<td><strong>4 roles + health score</strong></td>
+<td>Basic rate limit</td>
+<td>–</td>
+<td>Experience-dependent</td>
+</tr>
+<tr>
+<td>Customer onboarding</td>
+<td><strong>$199/mo, 5 min</strong></td>
+<td>¥5-50k tool fee</td>
+<td>¥500-5000/mo</td>
+<td>¥300k + 6 months</td>
+</tr>
+<tr>
+<td>Auto-replacement</td>
+<td><strong>Automatic</strong></td>
+<td>Customer bears</td>
+<td>–</td>
+<td>Customer bears</td>
+</tr>
+<tr>
+<td>Deployment</td>
+<td>SaaS lease + self-hosted</td>
+<td>Local only</td>
+<td>SaaS only</td>
+<td>Self-build</td>
+</tr>
+</tbody>
+</table>
+<h3 id="82-positioning">8.2 Positioning</h3>
+<blockquote>
+<p><strong>TG1 = "The Cloud of TG Marketing"</strong></p>
+<p>Competitors sell "control scripts" = sell physical servers<br />
+TG1 sells "accounts + compute + AI" = sells cloud services</p>
+</blockquote>
+<p><strong>Don't compete on price with orchestration tools</strong> — we sell "end-to-end lead-gen + ongoing supply"<br />
+<strong>Don't compete on models with AI service SaaS</strong> — our value is "account inventory + engineering + sales collaboration"<br />
+<strong>Differentiate on onboarding + ongoing operations</strong> — customer math: self-build ¥300k vs lease ¥2,100/mo</p>
+<hr />
+<h2 id="9-product-roadmap">9. Product Roadmap</h2>
+<h3 id="completed-stage-1-8-part-of-stage-9">Completed (Stage 1-8 + part of Stage 9)</h3>
+<p>✅ Account full lifecycle / proxy pool / session management<br />
+✅ AI marketing / hype / keyword monitoring / interception<br />
+✅ CRM customer management / Inbox unified chat<br />
+✅ Dashboard / realtime monitoring / alerts<br />
+✅ pgvector vector retrieval + Vertex AI unified integration<br />
+✅ 1000+ account capacity expansion (code shipped, prod compose pending switch)</p>
+<h3 id="within-12-months-funding-cycle">Within 12 Months (Funding Cycle)</h3>
+<p><strong>Q1 (M1-M3) — PMF Validation</strong><br />
+- 🚧 Multi-tenant isolation (account pool per customer, quota management)<br />
+- 🚧 Self-service signup + billing (per account + usage)<br />
+- 🚧 Sales Copilot UI polish (AI on/off + draft suggestions + live summary)<br />
+- 🚧 Onboard 3-5 seed customers in private beta</p>
+<p><strong>Q2 (M4-M6) — Commercial Launch</strong><br />
+- 📅 Multi-source KB import (PDF/Word/web/chat-history extraction)<br />
+- 📅 Negotiation stage modeling (need discovery → quote → bargain → close)<br />
+- 📅 Public launch + price-list rollout<br />
+- 📅 Target: 20+ paying customers, MRR &gt; ¥100k</p>
+<p><strong>Q3 (M7-M9) — Scaling</strong><br />
+- 📅 Auto-replacement mechanism (auto-replace banned accounts)<br />
+- 📅 Customer success system<br />
+- 📅 Target: 40+ paying customers, MRR &gt; ¥200k</p>
+<p><strong>Q4 (M10-M12) — Series A Prep</strong><br />
+- 📅 Multi-language expansion (RU/EN/AR)<br />
+- 📅 Multi-channel planning (WhatsApp / Discord)<br />
+- 📅 Target: 60+ paying customers, MRR &gt; ¥300k, initiate Series A</p>
+<hr />
+<h2 id="10-team">10. Team</h2>
+<blockquote>
+<p><em>Placeholder — please fill with actual details</em></p>
+</blockquote>
+<h3 id="current-team-recommended-size-3-4">Current Team (Recommended Size: 3-4)</h3>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Responsibility</th>
+<th>Background</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Founder / CEO</strong></td>
+<td>Strategy, commercialization, sales</td>
+<td>5+ yrs TG private-traffic / export</td>
+<td>–</td>
+</tr>
+<tr>
+<td><strong>CTO / Full-stack</strong></td>
+<td>Architecture, platform engineering</td>
+<td>5+ yrs Python + distributed</td>
+<td>–</td>
+</tr>
+<tr>
+<td><strong>AI / Backend</strong></td>
+<td>AI pipeline, RAG, risk control</td>
+<td>2+ yrs LLM application</td>
+<td>–</td>
+</tr>
+<tr>
+<td><strong>Ops / CS</strong></td>
+<td>Account supply, customer support</td>
+<td>TG marketing operations</td>
+<td>–</td>
+</tr>
+</tbody>
+</table>
+<h3 id="post-funding-expansion-12-months">Post-Funding Expansion (12 months)</h3>
+<p>Hire 2-3: 1 sales + 1 CS + 1 senior backend</p>
+<hr />
+<h2 id="11-financial-projection">11. Financial Projection</h2>
+<h3 id="111-12-month-mrr-forecast-usd-cny-dual">11.1 12-Month MRR Forecast (USD / CNY dual)</h3>
+<p>Exchange rate: 1 USD = 7.0 CNY; blended ARPU uses 50%/30%/20% plan mix.</p>
+<table>
+<thead>
+<tr>
+<th>Month</th>
+<th>Cumulative Customers</th>
+<th>Blended ARPU (USD)</th>
+<th>MRR (USD)</th>
+<th>MRR (¥)</th>
+<th>Cumulative ARR (¥)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>M1-M3</td>
+<td>3-5 (seed, half-price/free)</td>
+<td>–</td>
+<td>&lt; $1k</td>
+<td>&lt; ¥7k</td>
+<td>–</td>
+</tr>
+<tr>
+<td>M4</td>
+<td>10</td>
+<td>$ 250</td>
+<td>$ 2.5k</td>
+<td>¥17.5k</td>
+<td>¥210k</td>
+</tr>
+<tr>
+<td>M6</td>
+<td>25</td>
+<td>$ 280</td>
+<td>$ 7.0k</td>
+<td>¥49k</td>
+<td>¥590k</td>
+</tr>
+<tr>
+<td>M9</td>
+<td>45</td>
+<td>$ 300</td>
+<td>$ 13.5k</td>
+<td>¥95k</td>
+<td>¥1.13M</td>
+</tr>
+<tr>
+<td><strong>M12</strong></td>
+<td><strong>60</strong></td>
+<td><strong>$ 308</strong></td>
+<td><strong>$ 18.5k</strong></td>
+<td><strong>¥130k</strong></td>
+<td><strong>¥1.56M</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="112-12-month-pl-forecast-ten-thousands">11.2 12-Month P&amp;L Forecast (¥ ten thousands / 万)</h3>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>M1-M3</th>
+<th>M4-M6</th>
+<th>M7-M9</th>
+<th>M10-M12</th>
+<th>Full Year</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Revenue</td>
+<td>0.5</td>
+<td>7</td>
+<td>20</td>
+<td>35</td>
+<td><strong>62.5</strong></td>
+</tr>
+<tr>
+<td>Direct cost (accounts + proxy + AI + CS)</td>
+<td>1</td>
+<td>2</td>
+<td>3.5</td>
+<td>5.5</td>
+<td>12</td>
+</tr>
+<tr>
+<td><strong>Gross profit</strong></td>
+<td>-0.5</td>
+<td>5</td>
+<td>16.5</td>
+<td>29.5</td>
+<td><strong>50.5</strong></td>
+</tr>
+<tr>
+<td>People cost</td>
+<td>8</td>
+<td>10</td>
+<td>12</td>
+<td>14</td>
+<td>44</td>
+</tr>
+<tr>
+<td>Server &amp; infra</td>
+<td>2</td>
+<td>2</td>
+<td>3</td>
+<td>4</td>
+<td>11</td>
+</tr>
+<tr>
+<td>Marketing acquisition</td>
+<td>1</td>
+<td>4</td>
+<td>6</td>
+<td>8</td>
+<td>19</td>
+</tr>
+<tr>
+<td>Other</td>
+<td>1</td>
+<td>2</td>
+<td>2</td>
+<td>3</td>
+<td>8</td>
+</tr>
+<tr>
+<td><strong>EBITDA</strong></td>
+<td>-12.5</td>
+<td>-13</td>
+<td>-6.5</td>
+<td>0.5</td>
+<td><strong>-31.5</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Key Milestones</strong>:<br />
+- <strong>M10-M12</strong> approaching monthly EBITDA breakeven<br />
+- <strong>Y2 Q1</strong> sustained profitability, Series A prep<br />
+- <strong>3-year blended gross margin 84%</strong> is top-decile SaaS, thanks to ultra-low marginal cost on accounts + groups</p>
+<blockquote>
+<p>Note: Y1 EBITDA loss is normal for angel-stage PMF validation. ¥315k loss is within ¥500k raise.</p>
+</blockquote>
+<hr />
+<h2 id="12-investment-plan">12. Investment Plan</h2>
+<h3 id="121-round-terms">12.1 Round Terms</h3>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Round</td>
+<td>Angel</td>
+</tr>
+<tr>
+<td>Amount</td>
+<td><strong>¥ 500,000 CNY (~$ 71,000 USD)</strong></td>
+</tr>
+<tr>
+<td>Pre-money valuation</td>
+<td>¥ 4,000,000</td>
+</tr>
+<tr>
+<td>Post-money valuation</td>
+<td>¥ 4,500,000</td>
+</tr>
+<tr>
+<td>Equity offered</td>
+<td><strong>11.1%</strong> (negotiable 10-15%)</td>
+</tr>
+<tr>
+<td>Runway</td>
+<td><strong>12 months</strong></td>
+</tr>
+<tr>
+<td>Board seat</td>
+<td>Observer seat (non-controlling, no day-to-day decisions)</td>
+</tr>
+<tr>
+<td>Anti-dilution</td>
+<td>Weighted-average anti-dilution</td>
+</tr>
+</tbody>
+</table>
+<h3 id="122-use-of-funds-500k-12-months">12.2 Use of Funds (¥500k / 12 months)</h3>
+<pre><code>┌─────────────────────────────────────────────────────────┐
+│  30%  Account Pool (¥ 150k)                             │
+│       • Cumulative 2000 accounts purchased (SMS ¥30k)   │
+│       • Warm-up period proxy + servers (¥80k)           │
+│       • Reserve pool (¥40k)                             │
+├─────────────────────────────────────────────────────────┤
+│  25%  Team (¥ 125k)                                     │
+│       • Founder + 1 co-founder 12-month sub-stipend     │
+│       • Part-time AI / frontend engineer                │
+├─────────────────────────────────────────────────────────┤
+│  25%  Infrastructure (¥ 125k)                           │
+│       • Servers (PG + Redis + Worker cluster) ¥50k      │
+│       • Vertex AI Token (Embedding + LLM) ¥50k          │
+│       • Premium residential proxies (IP2World) ¥25k     │
+├─────────────────────────────────────────────────────────┤
+│  15%  Marketing Cold Start (¥ 75k)                      │
+│       • Industry-group placement / KOL ¥30k             │
+│       • Content marketing / case studies ¥20k           │
+│       • Crypto / cross-border events ¥25k               │
+├─────────────────────────────────────────────────────────┤
+│   5%  Reserve (¥ 25k)                                   │
+└─────────────────────────────────────────────────────────┘
+</code></pre>
+<h3 id="123-exit-strategy">12.3 Exit Strategy</h3>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Timeframe</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Series A</strong></td>
+<td>12-15 months</td>
+<td>Target raise ¥5-10M, valuation ¥30-50M</td>
+</tr>
+<tr>
+<td><strong>Strategic M&amp;A</strong></td>
+<td>3-5 years</td>
+<td>Potential acquirers: CRM giants, Web3 infra, cross-border SaaS</td>
+</tr>
+<tr>
+<td><strong>Continued dividend</strong></td>
+<td>–</td>
+<td>Early dividend possible (84% gross margin, fast payback)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="13-risk-mitigation">13. Risk &amp; Mitigation</h2>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Severity</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>TG policy change / mass bans</strong></td>
+<td>High</td>
+<td>4-role tiering + health score + ISP binding + auto-replacement; plan multi-channel (WhatsApp/Discord)</td>
+</tr>
+<tr>
+<td><strong>Account supply source cut off</strong></td>
+<td>Medium</td>
+<td>Multi-platform SMS backup (SMS-Activate / 5sim / smshub); build small in-house registration</td>
+</tr>
+<tr>
+<td><strong>AI cost increase</strong></td>
+<td>Low</td>
+<td>Already on Vertex optimal tier; plan self-hosted Qwen/Llama as fallback</td>
+</tr>
+<tr>
+<td><strong>Compliance risk (data/marketing)</strong></td>
+<td>Medium</td>
+<td>Reject illegal customers; ToS prohibits gambling/scam use</td>
+</tr>
+<tr>
+<td><strong>Competitor copies business model</strong></td>
+<td>Medium</td>
+<td>Account supply chain + warm-up engineering is high barrier; first-mover advantage locks head customers</td>
+</tr>
+<tr>
+<td><strong>Customer willingness below expectation</strong></td>
+<td>Medium</td>
+<td>M1-M3 beta validates PMF; flexible pricing (Starter $199 lowers barrier)</td>
+</tr>
+<tr>
+<td><strong>Founding team stability</strong></td>
+<td>High</td>
+<td>4-year vesting + 1-year cliff; raise covers 12 months</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="14-appendix">14. Appendix</h2>
+<h3 id="a-technical-documentation-index">A. Technical Documentation Index</h3>
+<ul>
+<li><a href="./ARCHITECTURE.md">ARCHITECTURE.md</a> — Technical architecture</li>
+<li><a href="./STRATEGIC_PLAN.md">STRATEGIC_PLAN.md</a> — 3D Matrix + AI Strategy</li>
+<li><a href="./DEV_PLAN.md">DEV_PLAN.md</a> — 9-stage development plan</li>
+<li><a href="./TASKS.md">TASKS.md</a> — Task list and acceptance criteria</li>
+<li><a href="./REQUIREMENTS.md">REQUIREMENTS.md</a> — Functional requirements</li>
+<li><a href="./WEB_ACCEPTANCE_REPORT.md">WEB_ACCEPTANCE_REPORT.md</a> — Web acceptance report</li>
+</ul>
+<h3 id="b-core-code-assets-for-due-diligence">B. Core Code Assets (for due diligence)</h3>
+<ul>
+<li>Backend services: <a href="./backend/app/services/">backend/app/services/</a> (50+ modules)</li>
+<li>API endpoints: <a href="./backend/app/api/v1/endpoints/">backend/app/api/v1/endpoints/</a> (25+)</li>
+<li>DB migrations: <a href="./backend/alembic/versions/">backend/alembic/versions/</a></li>
+<li>Frontend pages: <a href="./frontend/src/pages/">frontend/src/pages/</a> (25+)</li>
+<li>Deployment: <a href="./docker-compose.prod.yml">docker-compose.prod.yml</a></li>
+</ul>
+<h3 id="c-operating-data-to-be-filled">C. Operating Data (to be filled)</h3>
+<ul>
+<li>Current account pool size: [TBD]</li>
+<li>Current paying customers: [TBD]</li>
+<li>Current MRR: [TBD]</li>
+<li>Avg account lifecycle: [TBD]</li>
+</ul>
+<h3 id="d-contact">D. Contact</h3>
+<ul>
+<li>Project Lead: [TBD]</li>
+<li>Email: [TBD]</li>
+<li>Telegram: [TBD]</li>
+<li>WeChat: [TBD]</li>
+</ul>
+<hr />
+<blockquote>
+<p><em>This document is confidential and intended solely for qualified investors conducting due diligence. Unauthorized copying or distribution is prohibited.</em></p>
+</blockquote>
+</div>
+</body>
+</html>

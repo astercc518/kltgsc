@@ -1,24 +1,31 @@
 """
-Embedding 服务 — Gemini gemini-embedding-001 截到 768 维
+Embedding 服务 — gemini-embedding-001 截到 768 维
 
-调用 Google GenAI SDK 的 embed_content 接口（v1beta endpoint）。
+调用 Google GenAI SDK 的 embed_content 接口。优先走 Vertex AI（与 LLM 共用 GCP
+项目计费、无 AI Studio 免费档 RPM 限制），找不到 vertex 配置时回退到 AI Studio
+Gemini API key。
+
 模型默认输出 3072 维；通过 EmbedContentConfig.output_dimensionality=768
 利用 MRL 截断到 768 维，与 DB 的 Vector(768) 对齐。
 
-⚠️ Gemini 免费档对 embed_content 有 100 RPM 限制。
-   付费档（Pay-As-You-Go）可达 3000 RPM，强烈建议在生产环境启用。
-
-批量调用、失败重试、并发限速。与 [llm.py](app/services/llm.py) 共享 AIConfig 配置表，
-若没有 provider=gemini 的 AIConfig，回退到 SystemConfig 'llm_api_key'。
+配置加载优先级：
+  1. AIConfig.provider="vertex"（推荐，付费档 GCP 配额）
+  2. AIConfig.provider="gemini"（AI Studio key，免费档 100 RPM）
+  3. SystemConfig llm_api_key（legacy 兼容，仅当 llm_provider=gemini）
 """
 import asyncio
+import json
 import logging
+import os
+import tempfile
 from typing import List, Optional
 
 from sqlmodel import Session, select
 
 from app.models.ai_config import AIConfig
 from app.models.system_config import SystemConfig
+from app.services.pricing import estimate_embedding_tokens
+from app.services.usage_tracker import record_usage
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +55,7 @@ class EmbeddingService:
         self.session = db_session
         self.model = model
         self.client = None
+        self.provider: Optional[str] = None
         self.api_key: Optional[str] = None
         self._sem = asyncio.Semaphore(MAX_CONCURRENCY)
         self._init_client()
@@ -56,31 +64,108 @@ class EmbeddingService:
         if not GEMINI_AVAILABLE:
             return
 
-        api_key = self._load_gemini_api_key()
-        if not api_key:
-            logger.warning("Gemini API key not configured; embedding service inactive")
+        cfg = self._load_ai_config()
+        if cfg is None:
+            logger.warning(
+                "No Vertex/Gemini AIConfig found and no legacy SystemConfig; "
+                "embedding service inactive"
+            )
             return
 
+        provider, payload = cfg
         try:
-            self.api_key = api_key
-            self.client = genai.Client(api_key=api_key)
-            logger.info(f"Embedding client initialized with model: {self.model}")
+            if provider == "vertex":
+                self.client = self._build_vertex_client(payload)
+            else:
+                self.api_key = payload
+                self.client = genai.Client(api_key=payload)
+            self.provider = provider
+            logger.info(
+                f"Embedding client initialized: provider={provider} model={self.model}"
+            )
         except Exception as e:
-            logger.error(f"Embedding client init failed: {e}")
+            logger.error(f"Embedding client init failed (provider={provider}): {e}")
             self.client = None
 
-    def _load_gemini_api_key(self) -> Optional[str]:
+    def _build_vertex_client(self, cfg: AIConfig):
+        """
+        Vertex AI client. base_url 期望是 JSON {project_id, location}；
+        api_key 是 Service Account JSON 字符串。回退到 SystemConfig
+        gcp_project_id / gcp_service_account_json / gcp_location（与 llm.py 一致）。
+        """
+        project_id = None
+        location = "us-central1"
+        sa_json_str = None
+
+        if cfg.base_url:
+            try:
+                parsed = json.loads(cfg.base_url)
+                project_id = parsed.get("project_id")
+                location = parsed.get("location", location)
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        if cfg.api_key:
+            stripped = cfg.api_key.strip()
+            if stripped.startswith("{"):
+                sa_json_str = stripped
+
+        if not project_id:
+            project_id = self._get_system_config("gcp_project_id")
+        if not sa_json_str:
+            sa_json_str = self._get_system_config("gcp_service_account_json")
+        if location == "us-central1":
+            sys_loc = self._get_system_config("gcp_location")
+            if sys_loc:
+                location = sys_loc
+
+        if not project_id:
+            raise RuntimeError("Vertex embedding: gcp_project_id not configured")
+
+        if sa_json_str:
+            sa_data = json.loads(sa_json_str)
+            tf = tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", delete=False, prefix="tgsc_emb_sa_"
+            )
+            json.dump(sa_data, tf)
+            tf.close()
+            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = tf.name
+            logger.info(f"Vertex embedding using service account: {tf.name}")
+        else:
+            logger.info("Vertex embedding using Application Default Credentials (ADC)")
+
+        return genai.Client(vertexai=True, project=project_id, location=location)
+
+    def _load_ai_config(self):
+        """
+        返回 (provider, payload):
+          - ("vertex", AIConfig)        — Vertex 走 SA / ADC，payload 是配置对象
+          - ("gemini", api_key_string)  — AI Studio 走 API key
+          - None                         — 没有可用配置
+        """
         try:
-            cfg = self.session.exec(
+            vertex_cfg = self.session.exec(
+                select(AIConfig)
+                .where(AIConfig.provider == "vertex")
+                .where(AIConfig.is_active == True)  # noqa: E712
+                .order_by(AIConfig.is_default.desc())
+            ).first()
+            if vertex_cfg:
+                return ("vertex", vertex_cfg)
+        except Exception as e:
+            logger.debug(f"Vertex AIConfig lookup failed: {e}")
+
+        try:
+            gemini_cfg = self.session.exec(
                 select(AIConfig)
                 .where(AIConfig.provider == "gemini")
                 .where(AIConfig.is_active == True)  # noqa: E712
                 .order_by(AIConfig.is_default.desc())
             ).first()
-            if cfg and cfg.api_key:
-                return cfg.api_key
+            if gemini_cfg and gemini_cfg.api_key:
+                return ("gemini", gemini_cfg.api_key)
         except Exception as e:
-            logger.debug(f"AIConfig lookup failed: {e}")
+            logger.debug(f"Gemini AIConfig lookup failed: {e}")
 
         try:
             row = self.session.exec(
@@ -91,10 +176,19 @@ class EmbeddingService:
                     select(SystemConfig).where(SystemConfig.key == "llm_provider")
                 ).first()
                 if provider_row and provider_row.value == "gemini":
-                    return row.value
+                    return ("gemini", row.value)
         except Exception:
             pass
         return None
+
+    def _get_system_config(self, key: str) -> Optional[str]:
+        try:
+            row = self.session.exec(
+                select(SystemConfig).where(SystemConfig.key == key)
+            ).first()
+            return row.value if row else None
+        except Exception:
+            return None
 
     def is_configured(self) -> bool:
         return self.client is not None
@@ -105,15 +199,30 @@ class EmbeddingService:
             return ""
         return text[:MAX_INPUT_CHARS]
 
-    async def embed(self, text: str) -> Optional[List[float]]:
+    async def embed(
+        self,
+        text: str,
+        source: str = "embedding_runtime",
+        account_id: Optional[int] = None,
+        chat_id: Optional[str] = None,
+    ) -> Optional[List[float]]:
         if not self.is_configured() or not text or not text.strip():
             return None
-        results = await self.embed_batch([text])
+        results = await self.embed_batch(
+            [text], source=source, account_id=account_id, chat_id=chat_id,
+        )
         return results[0] if results else None
 
-    async def embed_batch(self, texts: List[str]) -> List[Optional[List[float]]]:
+    async def embed_batch(
+        self,
+        texts: List[str],
+        source: str = "embedding_runtime",
+        account_id: Optional[int] = None,
+        chat_id: Optional[str] = None,
+    ) -> List[Optional[List[float]]]:
         """
         批量 embed。返回与输入等长的列表，失败项为 None。
+        每个成功的非空文本上报一次 usage（按 char→token 估算）。
         """
         if not self.is_configured():
             return [None] * len(texts)
@@ -128,6 +237,24 @@ class EmbeddingService:
 
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=False)
+
+        # 上报成功项的 usage（聚合成一条以减少写入次数）
+        total_tokens = 0
+        success_count = 0
+        for i, vec in enumerate(out):
+            if vec and cleaned[i]:
+                total_tokens += estimate_embedding_tokens(cleaned[i])
+                success_count += 1
+        if success_count > 0:
+            record_usage(
+                provider=self.provider or "vertex",
+                model=self.model,
+                source=source,
+                input_tokens=total_tokens,
+                output_tokens=0,
+                account_id=account_id,
+                chat_id=chat_id,
+            )
         return out
 
     async def _embed_chunk(

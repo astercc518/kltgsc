@@ -1,17 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  Card, Form, Input, Button, Select, Typography, Space, message, 
-  Modal, Table, Tag, Popconfirm, Row, Col, Badge, Tooltip, Alert
+import {
+  Card, Form, Input, Button, Select, Typography, Space, message,
+  Modal, Table, Tag, Popconfirm, Row, Col, Badge, Tooltip, Alert, Tabs
 } from 'antd';
-import { 
-  RobotOutlined, PlusOutlined, EditOutlined, DeleteOutlined, 
-  CheckCircleOutlined, ApiOutlined, StarOutlined, StarFilled
+import {
+  RobotOutlined, PlusOutlined, EditOutlined, DeleteOutlined,
+  CheckCircleOutlined, ApiOutlined, StarOutlined, StarFilled,
+  DollarCircleOutlined, SettingOutlined,
 } from '@ant-design/icons';
-import { 
-  getAIConfigs, createAIConfig, updateAIConfig, deleteAIConfig, 
+import {
+  getAIConfigs, createAIConfig, updateAIConfig, deleteAIConfig,
   setDefaultAIConfig, testAIConfigConnection,
   AIConfigData, AIConfigCreate, AIConfigUpdate
 } from '../services/api';
+import UsageDashboard from './ai/UsageDashboard';
 
 const { Paragraph } = Typography;
 
@@ -326,38 +328,56 @@ const AIPage: React.FC = () => {
 
   const selectedProvider = Form.useWatch('provider', form);
 
+  const configsTab = (
+    <Card
+      title={<span><RobotOutlined /> AI 配置管理</span>}
+      extra={
+        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+          添加配置
+        </Button>
+      }
+    >
+      <Paragraph>
+        管理多个 AI 服务配置，在不同功能模块中可选择使用不同的 AI 服务。
+      </Paragraph>
+
+      {configs.length === 0 && !loading && (
+        <Alert
+          title="尚未配置任何 AI 服务"
+          description="点击右上角「添加配置」按钮来添加您的第一个 AI 配置。"
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
+      <Table
+        columns={columns}
+        dataSource={configs}
+        rowKey="id"
+        loading={loading}
+        pagination={false}
+      />
+    </Card>
+  );
+
   return (
     <div>
-      <Card 
-        title={<span><RobotOutlined /> AI 配置管理</span>}
-        extra={
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-            添加配置
-          </Button>
-        }
-      >
-        <Paragraph>
-          管理多个 AI 服务配置，在不同功能模块中可选择使用不同的 AI 服务。
-        </Paragraph>
-
-        {configs.length === 0 && !loading && (
-          <Alert
-            title="尚未配置任何 AI 服务"
-            description="点击右上角「添加配置」按钮来添加您的第一个 AI 配置。"
-            type="info"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
-        )}
-
-        <Table
-          columns={columns}
-          dataSource={configs}
-          rowKey="id"
-          loading={loading}
-          pagination={false}
-        />
-      </Card>
+      <Tabs
+        defaultActiveKey="configs"
+        items={[
+          {
+            key: 'configs',
+            label: <span><SettingOutlined /> 配置管理</span>,
+            children: configsTab,
+          },
+          {
+            key: 'usage',
+            label: <span><DollarCircleOutlined /> 费用预估</span>,
+            children: <UsageDashboard />,
+          },
+        ]}
+      />
 
       <Modal
         title={editingConfig ? '编辑 AI 配置' : '添加 AI 配置'}
