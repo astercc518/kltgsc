@@ -27,6 +27,7 @@ import { Link, Outlet, useLocation, Navigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { authApi } from './api';
 import { logoutCustomer, isCustomerAuthenticated } from './auth';
+import LowBalanceBanner from './components/LowBalanceBanner';
 
 const { Header, Sider, Content } = Layout;
 
@@ -127,6 +128,7 @@ const PortalLayout: React.FC = () => {
           </Dropdown>
         </Header>
         <Content style={{ margin: 24, padding: 24, background: '#fff', minHeight: 'calc(100vh - 64px - 48px)' }}>
+          <LowBalanceBanner />
           {isLoading ? <Spin /> : <Outlet />}
         </Content>
       </Layout>

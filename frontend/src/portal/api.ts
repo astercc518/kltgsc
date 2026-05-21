@@ -180,12 +180,25 @@ export interface TopupResponse {
   expires_at: string;
 }
 
+export interface WalletReport {
+  month: string;
+  by_source: Record<string, number>; // cents
+  by_day: { date: string; topup: number; charge: number }[];
+  topup_total_cents: number;
+  charge_total_cents: number;
+  txn_count: number;
+}
+
 export const walletApi = {
   get: () => portalApi.get<Wallet>('/customer/wallet').then(r => r.data),
   topup: (amount_usd: number, network: string = 'TRC20') =>
     portalApi.post<TopupResponse>('/customer/wallet/topup', { amount_usd, network }).then(r => r.data),
   transactions: (params: { type?: string; skip?: number; limit?: number } = {}) =>
     portalApi.get<WalletTransaction[]>('/customer/wallet/transactions', { params }).then(r => r.data),
+  report: (month: string) =>
+    portalApi.get<WalletReport>('/customer/wallet/report', { params: { month } }).then(r => r.data),
+  reportCsvUrl: (month: string) =>
+    `/api/v1/customer/wallet/report.csv?month=${encodeURIComponent(month)}`,
 };
 
 // ─── Feature Pack (customer view) ────────────────────────────────────────

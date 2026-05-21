@@ -2,13 +2,18 @@ import React, { useState } from 'react';
 import {
   Card, Row, Col, Button, Typography, Tag, Space, Alert, Modal,
   Table, Statistic, message, Tooltip, Divider, Radio, Input,
-  Empty,
+  Empty, DatePicker,
 } from 'antd';
 import {
   CopyOutlined, WalletOutlined, GiftOutlined,
-  ArrowUpOutlined, ArrowDownOutlined,
+  ArrowUpOutlined, ArrowDownOutlined, DownloadOutlined, BarChartOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer,
+  Tooltip as ReTooltip, XAxis, YAxis,
+} from 'recharts';
+import dayjs from 'dayjs';
 import { walletApi, TopupResponse, WalletTransaction } from '../api';
 
 const { Title, Text, Paragraph } = Typography;
@@ -106,6 +111,126 @@ const TopupModal: React.FC<{ topup: TopupResponse | null; onClose: () => void }>
     </Modal>
   );
 };
+
+// ─── Monthly Report Card (S1.3) ─────────────────────────────────────────
+
+const SOURCE_LABEL: Record<string, string> = {
+  scrape: '群采集',
+  bulk_send: '群发',
+  invite: '群拉',
+  ai_marketing: 'AI 营销助手',
+  other_feature: '其他付费功能',
+  other: '其他',
+};
+
+const MonthlyReportCard: React.FC = () => {
+  const [month, setMonth] = useState<dayjs.Dayjs>(dayjs());
+  const monthStr = month.format('YYYY-MM');
+
+  const reportQuery = useQuery({
+    queryKey: ['portal', 'wallet', 'report', monthStr],
+    queryFn: () => walletApi.report(monthStr),
+  });
+
+  const report = reportQuery.data;
+  const sourceData = report
+    ? Object.entries(report.by_source)
+        .filter(([, c]) => c > 0)
+        .map(([k, c]) => ({
+          source: SOURCE_LABEL[k] || k,
+          key: k,
+          amount: c / 100,
+        }))
+    : [];
+
+  const handleDownloadCsv = () => {
+    // Same-origin /api/v1/customer/wallet/report.csv carries the bearer
+    // header via fetch, then trigger a Blob download.
+    const url = walletApi.reportCsvUrl(monthStr);
+    const token = localStorage.getItem('tg1_customer_token') || '';
+    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.blob();
+      })
+      .then(blob => {
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `wallet-${monthStr}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      })
+      .catch(e => message.error(`Download failed: ${e.message}`));
+  };
+
+  return (
+    <Card
+      title={
+        <Space>
+          <BarChartOutlined />
+          <span>月度报表</span>
+        </Space>
+      }
+      extra={
+        <Space>
+          <DatePicker
+            picker="month"
+            value={month}
+            onChange={d => d && setMonth(d)}
+            allowClear={false}
+          />
+          <Button icon={<DownloadOutlined />} onClick={handleDownloadCsv} disabled={!report}>
+            导出 CSV
+          </Button>
+        </Space>
+      }
+      loading={reportQuery.isLoading}
+      style={{ marginBottom: 24 }}
+    >
+      {report && (
+        <>
+          <Row gutter={16} style={{ marginBottom: 16 }}>
+            <Col span={6}>
+              <Statistic title="本月充值" value={report.topup_total_cents / 100} precision={2} prefix="$" valueStyle={{ color: '#22C55E' }} />
+            </Col>
+            <Col span={6}>
+              <Statistic title="本月消费" value={report.charge_total_cents / 100} precision={2} prefix="$" valueStyle={{ color: '#EF4444' }} />
+            </Col>
+            <Col span={6}>
+              <Statistic
+                title="净现金流"
+                value={(report.topup_total_cents - report.charge_total_cents) / 100}
+                precision={2} prefix="$"
+              />
+            </Col>
+            <Col span={6}>
+              <Statistic title="交易笔数" value={report.txn_count} />
+            </Col>
+          </Row>
+
+          {sourceData.length === 0 ? (
+            <Empty description="本月暂无消费" />
+          ) : (
+            <div style={{ width: '100%', height: 260 }}>
+              <ResponsiveContainer>
+                <BarChart data={sourceData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="source" />
+                  <YAxis tickFormatter={(v) => `$${v}`} />
+                  <ReTooltip formatter={(v: number) => `$${v.toFixed(2)}`} />
+                  <Legend />
+                  <Bar dataKey="amount" name="消费 (USD)" fill="#0066FF" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </>
+      )}
+    </Card>
+  );
+};
+
 
 const PortalWallet: React.FC = () => {
   const [selectedTier, setSelectedTier] = useState<number>(500);
@@ -306,6 +431,9 @@ const PortalWallet: React.FC = () => {
           Create Topup Invoice
         </Button>
       </Card>
+
+      {/* Monthly report */}
+      <MonthlyReportCard />
 
       {/* Transactions */}
       <Card title="Transaction History" loading={txnsQuery.isLoading}>
