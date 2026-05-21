@@ -56,6 +56,16 @@ class AccountBase(SQLModel):
     # session_string 是否已用 session_encryption_service 加密（向后兼容存量明文 session）
     session_string_encrypted: bool = Field(default=False)
 
+    # ── Phase G: account → sales user ownership ──
+    # NULL = pooled (admin-managed); set = this sales user owns daily ops on
+    # the account (run scrapes, join groups, attach monitor rules). Only
+    # meaningful for accounts inside an is_internal_pool=true customer for
+    # platform sales, or for accounts under a customer for customer sub-sales.
+    # The dual kind is needed because user_id collides between User and
+    # CustomerUser tables.
+    assigned_to_sales_user_id: Optional[int] = Field(default=None, index=True)
+    assigned_to_sales_kind: Optional[str] = Field(default=None, max_length=20)  # 'platform' | 'customer'
+
 
 class Account(AccountBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)

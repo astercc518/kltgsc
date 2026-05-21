@@ -62,6 +62,12 @@ class KeywordMonitorBase(SQLModel):
     # /sales/inbox 按业务组分流。手动配置，规则改 industry 不影响历史 lead。
     industry: Optional[str] = Field(default=None, max_length=50, index=True)
 
+    # Phase G: 销售自配的监控规则。NULL = 全局规则（admin 管理，所有账号都跑）；
+    # set = 仅在 created_by_sales_user_id == account.assigned_to_sales_user_id
+    # 的账号上触发。kind 区分 platform_sales (User) / customer_sales (CustomerUser)。
+    created_by_sales_user_id: Optional[int] = Field(default=None, index=True)
+    created_by_sales_kind: Optional[str] = Field(default=None, max_length=20)
+
 class KeywordMonitor(KeywordMonitorBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)

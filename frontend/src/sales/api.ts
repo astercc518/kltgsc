@@ -155,4 +155,88 @@ export function decodeJwtPayload(): SalesProfile | null {
   }
 }
 
+// ─── Phase G — sales monitors + assigned accounts ────────────────────────
+
+export interface SalesMonitor {
+  id: number;
+  keyword: string;
+  match_type: string;            // partial | exact | regex | semantic
+  target_groups: string | null;
+  industry: string | null;
+  is_active: boolean;
+  cooldown_seconds: number;
+  marketing_mode: string;        // 'passive' (sales-owned can't be 'active')
+  auto_capture_lead: boolean;
+  score_weight: number;
+  scenario_description: string | null;
+  similarity_threshold: number;
+  description: string | null;
+  created_at: string;
+  created_by_sales_user_id: number | null;
+  created_by_sales_kind: string | null;
+}
+
+export interface SalesMonitorRecentHit {
+  id: number;
+  source_group_name: string | null;
+  source_user_name: string | null;
+  snippet: string;
+  detected_at: string;
+}
+
+export const monitorsApi = {
+  list: (params: { is_active?: boolean } = {}) =>
+    salesApi.get<SalesMonitor[]>('/sales/monitors', { params }).then(r => r.data),
+  get: (id: number) =>
+    salesApi.get<SalesMonitor>(`/sales/monitors/${id}`).then(r => r.data),
+  create: (body: Partial<SalesMonitor>) =>
+    salesApi.post<SalesMonitor>('/sales/monitors', body).then(r => r.data),
+  update: (id: number, body: Partial<SalesMonitor>) =>
+    salesApi.put<SalesMonitor>(`/sales/monitors/${id}`, body).then(r => r.data),
+  remove: (id: number) =>
+    salesApi.delete(`/sales/monitors/${id}`).then(r => r.data),
+  recentHits: (id: number, hours: number = 24) =>
+    salesApi.get<SalesMonitorRecentHit[]>(`/sales/monitors/${id}/recent-hits`,
+      { params: { hours } }).then(r => r.data),
+};
+
+export interface SalesAccount {
+  id: number;
+  phone_number: string | null;
+  customized_username: string | null;
+  customized_first_name: string | null;
+  status: string;
+  role: string | null;
+  customer_id: number | null;
+  created_at: string;
+  daily_invite_count: number;
+  lead_count: number;
+}
+
+export interface ScrapeTaskRow {
+  id: number;
+  task_type: string;
+  status: string;
+  success_count: number;
+  fail_count: number;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export const accountsApi = {
+  list: () => salesApi.get<SalesAccount[]>('/sales/accounts').then(r => r.data),
+  joinGroup: (id: number, group_link: string) =>
+    salesApi.post(`/sales/accounts/${id}/join-group`, { group_link }).then(r => r.data),
+  scrape: (id: number, body: {
+    group_link: string;
+    limit?: number;
+    filter_active_only?: boolean;
+    filter_has_photo?: boolean;
+    filter_has_username?: boolean;
+  }) => salesApi.post(`/sales/accounts/${id}/scrape`, body).then(r => r.data),
+  scrapeTasks: (id: number, limit = 20) =>
+    salesApi.get<ScrapeTaskRow[]>(`/sales/accounts/${id}/scrape-tasks`,
+      { params: { limit } }).then(r => r.data),
+};
+
 export default salesApi;

@@ -134,7 +134,26 @@ class ListenerService:
             first_name = message.from_user.first_name if message.from_user else ""
             content = message.text
 
+            # Phase G — figure out which sales user (if any) owns this account.
+            # We use it to filter monitors: global (created_by_sales_user_id IS NULL)
+            # always fire; sales-authored rules fire ONLY on the same sales's
+            # assigned accounts.
+            account_obj = None
+            try:
+                client_name = getattr(client, "name", None) or ""
+                account_obj = self.client_accounts.get(client_name)
+            except Exception:
+                pass
+            owner_sales_id = getattr(account_obj, "assigned_to_sales_user_id", None)
+            owner_sales_kind = getattr(account_obj, "assigned_to_sales_kind", None)
+
             for monitor in active_monitors:
+                # Phase G — sales-ownership filter
+                if monitor.created_by_sales_user_id is not None:
+                    if (monitor.created_by_sales_user_id != owner_sales_id
+                            or monitor.created_by_sales_kind != owner_sales_kind):
+                        continue
+
                 # === Step 1: 检查目标群组过滤 ===
                 if not self._check_target_group(monitor, message):
                     continue
@@ -445,6 +464,15 @@ class ListenerService:
 
         if not lead:
             import json as _json
+            # Phase G — if the account is assigned to a platform sales, pre-claim
+            # the new lead to that sales so it shows up only in their inbox
+            # (no $0.50 charge — the charge is only on first /view).
+            preassign_uid = None
+            preassign_at = None
+            if (acc.assigned_to_sales_user_id
+                    and acc.assigned_to_sales_kind == "platform"):
+                preassign_uid = acc.assigned_to_sales_user_id
+                preassign_at = datetime.utcnow()
             lead = Lead(
                 account_id=acc.id,
                 telegram_user_id=sender_tg_user_id,
@@ -457,6 +485,8 @@ class ListenerService:
                 source="monitor",
                 industry=industry,
                 notes=f"From {chat_title!r}: {snippet}" if snippet else None,
+                assigned_to_user_id=preassign_uid,
+                claimed_at=preassign_at,
             )
             session.add(lead)
         else:

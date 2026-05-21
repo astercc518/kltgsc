@@ -9,6 +9,7 @@ import { Layout, Menu, Avatar, Dropdown, Tag, Typography, Segmented } from 'antd
 import {
   InboxOutlined, WalletOutlined, SettingOutlined,
   LogoutOutlined, UserOutlined, GlobalOutlined,
+  ThunderboltOutlined, PhoneOutlined,
 } from '@ant-design/icons';
 import { Link, Outlet, useLocation, Navigate } from 'react-router-dom';
 import { decodeJwtPayload } from './api';
@@ -27,6 +28,8 @@ const SalesShell: React.FC = () => {
 
   const menuItems = [
     { key: '/sales/inbox',    icon: <InboxOutlined />,    label: <Link to="/sales/inbox">{t('nav.inbox')}</Link> },
+    { key: '/sales/monitors', icon: <ThunderboltOutlined />, label: <Link to="/sales/monitors">{t('nav.monitors')}</Link> },
+    { key: '/sales/accounts', icon: <PhoneOutlined />,    label: <Link to="/sales/accounts">{t('nav.accounts')}</Link> },
     { key: '/sales/wallet',   icon: <WalletOutlined />,   label: <Link to="/sales/wallet">{t('nav.wallet')}</Link> },
     { key: '/sales/settings', icon: <SettingOutlined />,  label: <Link to="/sales/settings">{t('nav.settings')}</Link> },
   ];

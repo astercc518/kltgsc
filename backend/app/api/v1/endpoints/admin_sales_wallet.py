@@ -204,3 +204,109 @@ def sales_performance(
         })
     rows.sort(key=lambda r: r["converted_count"], reverse=True)
     return {"days": days, "sales": rows}
+
+
+# ── Phase G — assign TG accounts to a platform sales user ───────────────
+
+
+class AssignAccountsRequest(BaseModel):
+    user_id: int = Field(description="platform sales user (User.id with role='sales')")
+    account_ids: list[int] = Field(default_factory=list,
+        description="set of Account.id to assign; replaces existing assignment")
+
+
+@router.post("/assign-accounts")
+def assign_accounts_to_sales(
+    payload: AssignAccountsRequest,
+    admin: User = Depends(_require_admin),
+    session: Session = Depends(get_session),
+) -> Any:
+    """Bind the given Account rows to a platform sales user. The sales user
+    gets day-to-day ops rights on these accounts (join/leave groups, run
+    scrapes, attach their own monitor rules). Replaces any previously
+    assigned set — pass [] to unassign everything for this user.
+
+    Accounts must already belong to an internal pool (Customer.is_internal_pool=true)
+    or be unallocated. Won't reassign across pools — call the admin
+    /admin/accounts reassign flow first.
+    """
+    from app.models.account import Account
+    from app.models.customer import Customer
+
+    target = session.get(User, payload.user_id)
+    if not target or target.role != "sales":
+        raise HTTPException(status_code=400, detail="target user is not a platform sales")
+
+    # Clear previous assignments for this user
+    prev = session.exec(
+        select(Account).where(
+            Account.assigned_to_sales_user_id == payload.user_id,
+            Account.assigned_to_sales_kind == "platform",
+        )
+    ).all()
+    for a in prev:
+        a.assigned_to_sales_user_id = None
+        a.assigned_to_sales_kind = None
+        session.add(a)
+
+    # Apply new assignment with validation
+    assigned: list[int] = []
+    skipped: list[dict] = []
+    for aid in payload.account_ids:
+        acc = session.get(Account, aid)
+        if not acc:
+            skipped.append({"account_id": aid, "reason": "not found"})
+            continue
+        if acc.customer_id:
+            cust = session.get(Customer, acc.customer_id)
+            if not cust or not cust.is_internal_pool:
+                skipped.append({"account_id": aid, "reason": "not in internal pool"})
+                continue
+        # Accept unallocated accounts too (admin's call)
+        acc.assigned_to_sales_user_id = payload.user_id
+        acc.assigned_to_sales_kind = "platform"
+        session.add(acc)
+        assigned.append(aid)
+
+    session.commit()
+    return {
+        "ok": True,
+        "user_id": payload.user_id,
+        "username": target.username,
+        "assigned_count": len(assigned),
+        "assigned_account_ids": assigned,
+        "skipped": skipped,
+    }
+
+
+@router.get("/assignments")
+def list_assignments(
+    _admin: User = Depends(_require_admin),
+    session: Session = Depends(get_session),
+) -> Any:
+    """Per-sales-user account-assignment summary for the admin UI."""
+    from sqlalchemy import func
+    from app.models.account import Account
+
+    rows = session.exec(
+        select(
+            Account.assigned_to_sales_user_id,
+            func.count(Account.id),
+        )
+        .where(Account.assigned_to_sales_kind == "platform")
+        .group_by(Account.assigned_to_sales_user_id)
+    ).all()
+    by_user = {uid: cnt for uid, cnt in rows if uid is not None}
+
+    sales = session.exec(select(User).where(User.role == "sales")).all()
+    return {
+        "sales": [
+            {
+                "user_id": u.id,
+                "username": u.username,
+                "is_active": u.is_active,
+                "assigned_account_count": by_user.get(u.id, 0),
+            }
+            for u in sales
+        ],
+    }

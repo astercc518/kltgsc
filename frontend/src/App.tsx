@@ -71,6 +71,8 @@ import SalesInbox from './sales/pages/Inbox';
 import SalesLeadDetail from './sales/pages/LeadDetail';
 import SalesWalletPage from './sales/pages/Wallet';
 import SalesSettings from './sales/pages/Settings';
+import SalesMonitors from './sales/pages/Monitors';
+import SalesAccounts from './sales/pages/Accounts';
 import { isSalesAuthenticated } from './sales/auth';
 import { isCustomerAuthenticated } from './portal/auth';
 import { setSalesToken } from './sales/auth';
@@ -453,6 +455,8 @@ const App: React.FC = () => {
           <Route index element={<Navigate to="/sales/inbox" replace />} />
           <Route path="inbox" element={<SalesInbox />} />
           <Route path="leads/:id" element={<SalesLeadDetail />} />
+          <Route path="monitors" element={<SalesMonitors />} />
+          <Route path="accounts" element={<SalesAccounts />} />
           <Route path="wallet" element={<SalesWalletPage />} />
           <Route path="settings" element={<SalesSettings />} />
         </Route>
