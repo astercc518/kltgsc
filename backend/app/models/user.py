@@ -16,3 +16,8 @@ class User(SQLModel, table=True):
     is_active: bool = True
     is_superuser: bool = False
     role: str = Field(default=USER_ROLE_ADMIN, index=True)
+
+    # Phase F3: industry filter for platform sales — JSON-serialized list
+    # of Lead.industry values this user wants to see in /sales/inbox.
+    # Empty list / NULL = no filter (see all internal-pool leads).
+    industry_filter_json: str = Field(default="[]", max_length=500)

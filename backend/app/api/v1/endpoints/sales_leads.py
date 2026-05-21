@@ -127,13 +127,21 @@ def _owner_type_for(sales: SalesContext) -> str:
 
 
 def _industry_filter_for(session: Session, sales: SalesContext) -> Optional[List[str]]:
-    """Customer-sales sub-users may have a self-set industry_filter."""
-    if sales.kind != "customer":
+    """Per-user industry_filter applied to /sales/leads.
+
+    customer_sales → CustomerUser.industry_filter_json
+    platform_sales → User.industry_filter_json (F3)
+    """
+    if sales.kind == "customer":
+        cu = session.get(CustomerUser, sales.user_id)
+        arr = json.loads(cu.industry_filter_json or "[]") if cu else []
+        return arr if arr else None
+    # platform
+    from app.models.user import User
+    u = session.get(User, sales.user_id)
+    if not u:
         return None
-    cu = session.get(CustomerUser, sales.user_id)
-    if not cu:
-        return None
-    arr = json.loads(cu.industry_filter_json or "[]")
+    arr = json.loads(getattr(u, "industry_filter_json", "") or "[]")
     return arr if arr else None
 
 

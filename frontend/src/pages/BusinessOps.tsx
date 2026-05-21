@@ -44,6 +44,11 @@ const opsApi = {
   pool: () => api.get('/admin/dashboard/account-pool').then(r => r.data),
   llmCost: (days = 14) => api.get(`/admin/dashboard/llm-usage?days=${days}`).then(r => r.data),
   handover: (days = 30) => api.get(`/admin/dashboard/handover-stats?days=${days}`).then(r => r.data),
+  // F3: platform sales rollup
+  salesPerformance: (days = 30) =>
+    api.get(`/admin/sales-wallet/performance?days=${days}`).then(r => r.data),
+  bulkMonthlyCredit: (amount_usd: number, period_tag: string) =>
+    api.post('/admin/sales-wallet/bulk-monthly-credit', { amount_usd, period_tag }).then(r => r.data),
 };
 
 // ── KPI cards ───────────────────────────────────────────────────────────
@@ -467,6 +472,105 @@ const CustomerTable: React.FC<{ data: any[] }> = ({ data }) => (
   </Card>
 );
 
+// ── F3 — Platform sales performance panel ──────────────────────────────
+const SalesPerformancePanel: React.FC = () => {
+  const qc = useQueryClient();
+  const [creditOpen, setCreditOpen] = React.useState(false);
+  const [creditForm] = Form.useForm();
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['ops', 'sales-performance'],
+    queryFn: () => opsApi.salesPerformance(30),
+  });
+
+  const mut = useMutation({
+    mutationFn: ({ amount, tag }: { amount: number; tag: string }) =>
+      opsApi.bulkMonthlyCredit(amount, tag),
+    onSuccess: (resp) => {
+      message.success(`Credited ${resp.credited_count} sales × $${creditForm.getFieldValue('amount')}`);
+      setCreditOpen(false);
+      creditForm.resetFields();
+      qc.invalidateQueries({ queryKey: ['ops', 'sales-performance'] });
+    },
+    onError: (e: any) => message.error(e?.response?.data?.detail || 'Credit failed'),
+  });
+
+  return (
+    <Card
+      title={<><UserOutlined /> Platform Sales Performance (30d)</>}
+      extra={
+        <Button size="small" type="primary" icon={<DollarOutlined />}
+          onClick={() => setCreditOpen(true)}>
+          Bulk Monthly Credit
+        </Button>
+      }
+    >
+      <Table
+        dataSource={data?.sales || []}
+        rowKey="user_id"
+        loading={isLoading}
+        size="small"
+        pagination={false}
+        columns={[
+          { title: 'Sales', dataIndex: 'username',
+            render: (n: string, r: any) => (
+              <Space>
+                <Text strong>{n}</Text>
+                {!r.is_active && <Tag color="red">inactive</Tag>}
+              </Space>
+            )},
+          { title: 'Balance', dataIndex: 'balance_cents',
+            render: (c: number) => `$${(c/100).toFixed(2)}` },
+          { title: 'Spend (30d)', dataIndex: 'spend_cents',
+            render: (c: number) => (
+              <Text type={c > 0 ? 'danger' : undefined}>
+                ${(c/100).toFixed(2)}
+              </Text>
+            )},
+          { title: 'Claimed', dataIndex: 'claimed_count' },
+          { title: 'Converted', dataIndex: 'converted_count',
+            render: (n: number) => (
+              <Text strong style={{ color: n > 0 ? '#22C55E' : undefined }}>{n}</Text>
+            )},
+          { title: 'Convert%', dataIndex: 'conversion_pct',
+            render: (n: number) => `${n}%` },
+        ]}
+      />
+      <Modal
+        title="Bulk Monthly Credit"
+        open={creditOpen}
+        onCancel={() => setCreditOpen(false)}
+        onOk={async () => {
+          try {
+            const v = await creditForm.validateFields();
+            mut.mutate({ amount: v.amount, tag: v.tag });
+          } catch {}
+        }}
+        confirmLoading={mut.isPending}
+      >
+        <Alert
+          type="info" showIcon
+          message="Idempotent on period_tag"
+          description="Re-running with the same period tag is a no-op — safe to retry. Use e.g. '2026-05' for May."
+          style={{ marginBottom: 16 }}
+        />
+        <Form form={creditForm} layout="vertical"
+          initialValues={{ amount: 50, tag: new Date().toISOString().slice(0, 7) }}>
+          <Form.Item name="amount" label="Amount per sales (USD)"
+            rules={[{ required: true }]}>
+            <InputNumber min={1} max={1000} step={10} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="tag" label="Period tag"
+            rules={[{ required: true }]}>
+            <Input placeholder="e.g. 2026-05" />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </Card>
+  );
+};
+
+
 // ── Page root ───────────────────────────────────────────────────────────
 const BusinessOps: React.FC = () => {
   const overview = useQuery({ queryKey: ['ops', 'overview'], queryFn: opsApi.overview, refetchInterval: REFETCH });
@@ -503,6 +607,10 @@ const BusinessOps: React.FC = () => {
           {llm.data && <LLMCostPanel data={llm.data} />}
         </Col>
       </Row>
+
+      <div style={{ marginTop: 16 }}>
+        <SalesPerformancePanel />
+      </div>
 
       <div style={{ marginTop: 16 }}>
         {customers.data && <CustomerTable data={customers.data} />}

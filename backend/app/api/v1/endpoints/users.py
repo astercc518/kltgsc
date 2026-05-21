@@ -298,3 +298,38 @@ def admin_reset_password(
         success=True,
         message=f"已重置 {target.username} 的密码",
     )
+
+
+# ── Phase F3: industry filter for platform sales ────────────────────────
+
+
+class IndustryFilterRequest(BaseModel):
+    industry_filter: list[str]
+
+
+@router.patch("/{user_id}/industry-filter")
+def set_industry_filter(
+    user_id: int,
+    body: IndustryFilterRequest,
+    _admin: User = Depends(get_current_admin),
+    session: Session = Depends(get_session),
+):
+    """Set the per-user industry_filter for a platform sales account.
+    Only meaningful when target.role='sales'. Stored as JSON array on
+    User.industry_filter_json — empty list = see all internal-pool leads.
+    """
+    import json
+    target = session.get(User, user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="user not found")
+    if target.role != "sales" and not target.is_superuser:
+        raise HTTPException(status_code=400, detail="user is not a sales/admin")
+    target.industry_filter_json = json.dumps(body.industry_filter or [])
+    session.add(target)
+    session.commit()
+    return {
+        "ok": True,
+        "user_id": target.id,
+        "username": target.username,
+        "industry_filter": body.industry_filter,
+    }
