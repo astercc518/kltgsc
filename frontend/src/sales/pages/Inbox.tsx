@@ -7,6 +7,7 @@ import { EyeOutlined, ReloadOutlined, CheckCircleOutlined } from '@ant-design/ic
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { LeadCard, leadsApi, walletApi } from '../api';
+import { useT } from '../i18n';
 
 const { Title, Text } = Typography;
 
@@ -21,6 +22,7 @@ const STATUS_COLOR: Record<string, string> = {
 
 const Inbox: React.FC = () => {
   const nav = useNavigate();
+  const t = useT();
   const [industry, setIndustry] = React.useState<string | undefined>(undefined);
   const [status, setStatus] = React.useState<string | undefined>(undefined);
   const [search, setSearch] = React.useState('');
@@ -57,40 +59,40 @@ const Inbox: React.FC = () => {
 
   const columns = [
     {
-      title: 'Lead',
+      title: t('inbox.col.lead'),
       key: 'name',
       render: (_: any, r: LeadCard) => (
         <Space direction="vertical" size={0}>
           <Text strong>{r.first_name_hint || '—'} · {r.username_hint || '—'}</Text>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            phone {r.phone_hint || '—'} · lead #{r.id}
+            {t('inbox.phone')} {r.phone_hint || '—'} · {t('inbox.lead')} #{r.id}
           </Text>
         </Space>
       ),
     },
     {
-      title: 'Industry',
+      title: t('inbox.col.industry'),
       dataIndex: 'industry',
       key: 'industry',
       render: (i: string | null) => i ? <Tag color="cyan">{i}</Tag> : '—',
     },
     {
-      title: 'Source',
+      title: t('inbox.col.source'),
       dataIndex: 'source',
       render: (s: string) => <Tag>{s}</Tag>,
     },
     {
-      title: 'Status',
+      title: t('inbox.col.status'),
       dataIndex: 'status',
       render: (s: string) => <Tag color={STATUS_COLOR[s] || 'default'}>{s}</Tag>,
     },
     {
-      title: 'Views',
+      title: t('inbox.col.views'),
       dataIndex: 'view_count',
       render: (n: number) => n,
     },
     {
-      title: 'Last',
+      title: t('inbox.col.last'),
       key: 'last',
       render: (_: any, r: LeadCard) => (
         <Tooltip title={new Date(r.last_interaction_at).toLocaleString()}>
@@ -108,7 +110,7 @@ const Inbox: React.FC = () => {
           icon={r.already_viewed_today ? <CheckCircleOutlined /> : <EyeOutlined />}
           onClick={() => nav(`/sales/leads/${r.id}`)}
         >
-          {r.already_viewed_today ? 'Open (free)' : 'View ($0.50)'}
+          {r.already_viewed_today ? t('inbox.action.openFree') : t('inbox.action.view')}
         </Button>
       ),
     },
@@ -118,32 +120,29 @@ const Inbox: React.FC = () => {
     <div>
       <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
         <Col>
-          <Title level={3} style={{ margin: 0 }}>Lead Inbox</Title>
-          <Text type="secondary">
-            Click View to unlock contact info — $0.50 per lead per day.
-            Same-day re-opens are free.
-          </Text>
+          <Title level={3} style={{ margin: 0 }}>{t('inbox.title')}</Title>
+          <Text type="secondary">{t('inbox.subtitle')}</Text>
         </Col>
         <Col>
           <Space>
             <Statistic
               valueStyle={{ fontSize: 16 }}
-              title="Balance"
+              title={t('inbox.balance')}
               value={wallet ? `$${(wallet.balance_cents / 100).toFixed(2)}` : '—'}
             />
-            <Button icon={<ReloadOutlined />} onClick={() => refetch()}>Refresh</Button>
+            <Button icon={<ReloadOutlined />} onClick={() => refetch()}>{t('common.refresh')}</Button>
           </Space>
         </Col>
       </Row>
 
       <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={6}><Card><Statistic title="Total" value={stats.total} /></Card></Col>
-        <Col span={6}><Card><Statistic title="Viewed Today" value={stats.viewed} /></Card></Col>
-        <Col span={6}><Card><Statistic title="Replied/Interested" value={stats.replied} /></Card></Col>
+        <Col span={6}><Card><Statistic title={t('inbox.stat.total')} value={stats.total} /></Card></Col>
+        <Col span={6}><Card><Statistic title={t('inbox.stat.viewedToday')} value={stats.viewed} /></Card></Col>
+        <Col span={6}><Card><Statistic title={t('inbox.stat.replied')} value={stats.replied} /></Card></Col>
         <Col span={6}>
           <Card>
             <Statistic
-              title="Industries"
+              title={t('inbox.stat.industries')}
               value={industries.length}
               suffix={industries.length ? `(${industries.map(i => i.industry).join(', ')})` : ''}
               valueStyle={{ fontSize: 16 }}
@@ -155,14 +154,14 @@ const Inbox: React.FC = () => {
       <Card>
         <Space style={{ marginBottom: 16 }}>
           <Select
-            allowClear placeholder="Industry"
+            allowClear placeholder={t('inbox.filter.industry')}
             value={industry}
             onChange={setIndustry}
             style={{ width: 200 }}
             options={industries.map(i => ({ value: i.industry, label: `${i.industry} (${i.count})` }))}
           />
           <Select
-            allowClear placeholder="Status"
+            allowClear placeholder={t('inbox.filter.status')}
             value={status}
             onChange={setStatus}
             style={{ width: 160 }}
@@ -170,7 +169,7 @@ const Inbox: React.FC = () => {
               .map(s => ({ value: s, label: s }))}
           />
           <Input.Search
-            placeholder="Search masked hints"
+            placeholder={t('inbox.filter.search')}
             value={search}
             onChange={e => setSearch(e.target.value)}
             style={{ width: 240 }}
@@ -181,7 +180,7 @@ const Inbox: React.FC = () => {
           dataSource={filtered}
           columns={columns}
           loading={isLoading}
-          locale={{ emptyText: <Empty description="No leads in your scope" /> }}
+          locale={{ emptyText: <Empty description={t('inbox.empty')} /> }}
           pagination={{ pageSize: 20 }}
         />
       </Card>

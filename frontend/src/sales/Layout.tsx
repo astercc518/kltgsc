@@ -5,36 +5,35 @@
  * gives us role/email/customer_id for the header chip without a server call.
  */
 import React from 'react';
-import { Layout, Menu, Avatar, Dropdown, Tag, Typography } from 'antd';
+import { Layout, Menu, Avatar, Dropdown, Tag, Typography, Segmented } from 'antd';
 import {
   InboxOutlined, WalletOutlined, SettingOutlined,
-  LogoutOutlined, UserOutlined,
+  LogoutOutlined, UserOutlined, GlobalOutlined,
 } from '@ant-design/icons';
 import { Link, Outlet, useLocation, Navigate } from 'react-router-dom';
 import { decodeJwtPayload } from './api';
 import { isSalesAuthenticated, logoutSales } from './auth';
+import { SalesI18nProvider, useLang, useT } from './i18n';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
 
-const SalesLayout: React.FC = () => {
+const SalesShell: React.FC = () => {
   const location = useLocation();
-
-  if (!isSalesAuthenticated()) {
-    return <Navigate to="/login" replace />;
-  }
+  const t = useT();
+  const { lang, setLang } = useLang();
 
   const profile = decodeJwtPayload();
 
   const menuItems = [
-    { key: '/sales/inbox',    icon: <InboxOutlined />,    label: <Link to="/sales/inbox">Lead Inbox</Link> },
-    { key: '/sales/wallet',   icon: <WalletOutlined />,   label: <Link to="/sales/wallet">My Wallet</Link> },
-    { key: '/sales/settings', icon: <SettingOutlined />,  label: <Link to="/sales/settings">Settings</Link> },
+    { key: '/sales/inbox',    icon: <InboxOutlined />,    label: <Link to="/sales/inbox">{t('nav.inbox')}</Link> },
+    { key: '/sales/wallet',   icon: <WalletOutlined />,   label: <Link to="/sales/wallet">{t('nav.wallet')}</Link> },
+    { key: '/sales/settings', icon: <SettingOutlined />,  label: <Link to="/sales/settings">{t('nav.settings')}</Link> },
   ];
 
   const userMenu = {
     items: [
-      { key: 'logout', icon: <LogoutOutlined />, label: 'Logout', danger: true,
+      { key: 'logout', icon: <LogoutOutlined />, label: t('common.logout'), danger: true,
         onClick: () => logoutSales() },
     ],
   };
@@ -46,20 +45,31 @@ const SalesLayout: React.FC = () => {
         background: '#001529', padding: '0 24px',
       }}>
         <div style={{ color: '#fff', fontSize: 18, fontWeight: 600 }}>
-          TG1.AI · Sales
+          {t('app.brand')}
           {profile?.kind === 'platform' && (
-            <Tag color="purple" style={{ marginLeft: 12 }}>PLATFORM</Tag>
+            <Tag color="purple" style={{ marginLeft: 12 }}>{t('app.platform')}</Tag>
           )}
           {profile?.kind === 'customer' && (
-            <Tag color="cyan" style={{ marginLeft: 12 }}>TENANT</Tag>
+            <Tag color="cyan" style={{ marginLeft: 12 }}>{t('app.tenant')}</Tag>
           )}
         </div>
-        <Dropdown menu={userMenu} placement="bottomRight">
-          <div style={{ cursor: 'pointer', color: '#fff' }}>
-            <Avatar icon={<UserOutlined />} style={{ background: '#1677ff' }} />
-            <Text style={{ color: '#fff', marginLeft: 8 }}>{profile?.email || ''}</Text>
-          </div>
-        </Dropdown>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <Segmented
+            size="small"
+            value={lang}
+            onChange={(v) => setLang(v as any)}
+            options={[
+              { value: 'zh-CN', label: <><GlobalOutlined /> 中文</> },
+              { value: 'en',    label: <><GlobalOutlined /> EN</> },
+            ]}
+          />
+          <Dropdown menu={userMenu} placement="bottomRight">
+            <div style={{ cursor: 'pointer', color: '#fff' }}>
+              <Avatar icon={<UserOutlined />} style={{ background: '#1677ff' }} />
+              <Text style={{ color: '#fff', marginLeft: 8 }}>{profile?.email || ''}</Text>
+            </div>
+          </Dropdown>
+        </div>
       </Header>
       <Layout>
         <Sider width={220} style={{ background: '#fff' }}>
@@ -77,6 +87,18 @@ const SalesLayout: React.FC = () => {
         </Content>
       </Layout>
     </Layout>
+  );
+};
+
+const SalesLayout: React.FC = () => {
+  if (!isSalesAuthenticated()) {
+    return <Navigate to="/login" replace />;
+  }
+  // Provider wraps the entire sales subtree so every page can call useT().
+  return (
+    <SalesI18nProvider>
+      <SalesShell />
+    </SalesI18nProvider>
   );
 };
 

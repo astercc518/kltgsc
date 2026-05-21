@@ -6,6 +6,7 @@ import {
 import { PlusOutlined, ReloadOutlined, DollarOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { decodeJwtPayload, SalesWalletTxn, walletApi } from '../api';
+import { useT } from '../i18n';
 
 const { Title, Text } = Typography;
 
@@ -13,6 +14,7 @@ const fmtUsd = (cents: number) => `$${(cents/100).toFixed(2)}`;
 
 const SalesWalletPage: React.FC = () => {
   const qc = useQueryClient();
+  const t = useT();
   const profile = decodeJwtPayload();
   const [topupOpen, setTopupOpen] = React.useState(false);
   const [topupResp, setTopupResp] = React.useState<any>(null);
@@ -32,23 +34,23 @@ const SalesWalletPage: React.FC = () => {
       walletApi.topup(data.amount, data.network),
     onSuccess: (data) => {
       setTopupResp(data);
-      message.success('Invoice created — send USDT to complete topup');
+      message.success(t('wallet.invoiceSuccess'));
       refetchWallet(); refetchTxns();
     },
-    onError: (e: any) => message.error(e?.response?.data?.detail || 'Topup failed'),
+    onError: (e: any) => message.error(e?.response?.data?.detail || t('wallet.topupFailed')),
   });
 
   if (profile?.kind === 'platform') {
     return (
       <Result
         status="info"
-        title="Platform sales wallet"
-        subTitle="Self-topup isn't enabled for platform sales accounts. Ask an admin to credit your viewing budget."
+        title={t('wallet.platformTitle')}
+        subTitle={t('wallet.platformDesc')}
         extra={
           <Card style={{ maxWidth: 480, margin: '0 auto', textAlign: 'left' }}>
-            <Statistic title="Current balance" value={wallet ? fmtUsd(wallet.balance_cents) : '—'} />
-            <Statistic title="Total credited" value={wallet ? fmtUsd(wallet.total_topup_cents) : '—'} />
-            <Statistic title="Total spent" value={wallet ? fmtUsd(wallet.total_spent_cents) : '—'} />
+            <Statistic title={t('wallet.currentBalance')} value={wallet ? fmtUsd(wallet.balance_cents) : '—'} />
+            <Statistic title={t('wallet.totalCredited')} value={wallet ? fmtUsd(wallet.total_topup_cents) : '—'} />
+            <Statistic title={t('wallet.totalSpent')} value={wallet ? fmtUsd(wallet.total_spent_cents) : '—'} />
           </Card>
         }
       />
@@ -59,18 +61,16 @@ const SalesWalletPage: React.FC = () => {
     <div>
       <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
         <Col>
-          <Title level={3} style={{ margin: 0 }}>My Wallet</Title>
-          <Text type="secondary">
-            Lead views are billed from this wallet (default $0.50/view, $0 for same-day re-views).
-          </Text>
+          <Title level={3} style={{ margin: 0 }}>{t('wallet.title')}</Title>
+          <Text type="secondary">{t('wallet.subtitle')}</Text>
         </Col>
         <Col>
           <Space>
             <Button icon={<ReloadOutlined />} onClick={() => { refetchWallet(); refetchTxns(); }}>
-              Refresh
+              {t('common.refresh')}
             </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setTopupOpen(true)}>
-              Topup
+              {t('wallet.topup')}
             </Button>
           </Space>
         </Col>
@@ -80,7 +80,7 @@ const SalesWalletPage: React.FC = () => {
         <Col span={8}>
           <Card>
             <Statistic
-              title="Balance"
+              title={t('wallet.balance')}
               value={wallet ? fmtUsd(wallet.balance_cents) : '—'}
               valueStyle={{ color: (wallet?.balance_cents || 0) < 500 ? '#cf1322' : '#3f8600' }}
               prefix={<DollarOutlined />}
@@ -89,43 +89,43 @@ const SalesWalletPage: React.FC = () => {
         </Col>
         <Col span={8}>
           <Card>
-            <Statistic title="Total topped up" value={wallet ? fmtUsd(wallet.total_topup_cents) : '—'} />
+            <Statistic title={t('wallet.totalCredited')} value={wallet ? fmtUsd(wallet.total_topup_cents) : '—'} />
           </Card>
         </Col>
         <Col span={8}>
           <Card>
-            <Statistic title="Total spent" value={wallet ? fmtUsd(wallet.total_spent_cents) : '—'} />
+            <Statistic title={t('wallet.totalSpent')} value={wallet ? fmtUsd(wallet.total_spent_cents) : '—'} />
           </Card>
         </Col>
       </Row>
 
-      <Card title="Transactions">
+      <Card title={t('wallet.txTable')}>
         <Table
           rowKey="id"
           dataSource={txns}
-          locale={{ emptyText: <Empty description="No transactions yet" /> }}
+          locale={{ emptyText: <Empty description={t('wallet.txEmpty')} /> }}
           pagination={{ pageSize: 20 }}
           columns={[
-            { title: 'Type', dataIndex: 'type',
-              render: (t: string) => <Tag color={t === 'topup' ? 'green' : t === 'charge' ? 'red' : 'default'}>{t}</Tag> },
-            { title: 'Amount', dataIndex: 'amount_cents',
+            { title: t('wallet.col.type'), dataIndex: 'type',
+              render: (typ: string) => <Tag color={typ === 'topup' ? 'green' : typ === 'charge' ? 'red' : 'default'}>{typ}</Tag> },
+            { title: t('wallet.col.amount'), dataIndex: 'amount_cents',
               render: (c: number) => (
                 <Text type={c > 0 ? 'success' : 'danger'}>
                   {c > 0 ? '+' : ''}{fmtUsd(c)}
                 </Text>
               )},
-            { title: 'Balance after', dataIndex: 'balance_after_cents',
+            { title: t('wallet.col.balanceAfter'), dataIndex: 'balance_after_cents',
               render: fmtUsd },
-            { title: 'Description', dataIndex: 'description' },
-            { title: 'Lead', dataIndex: 'lead_id', render: (n: number | null) => n ?? '—' },
-            { title: 'When', key: 'when',
+            { title: t('wallet.col.desc'), dataIndex: 'description' },
+            { title: t('wallet.col.lead'), dataIndex: 'lead_id', render: (n: number | null) => n ?? '—' },
+            { title: t('wallet.col.when'), key: 'when',
               render: (_: any, r: SalesWalletTxn) => new Date(r.created_at).toLocaleString() },
           ]}
         />
       </Card>
 
       <Modal
-        title="Topup sales wallet"
+        title={t('wallet.modal.title')}
         open={topupOpen}
         onCancel={() => { setTopupOpen(false); setTopupResp(null); form.resetFields(); }}
         onOk={async () => {
@@ -135,30 +135,30 @@ const SalesWalletPage: React.FC = () => {
           } catch {}
         }}
         confirmLoading={topupMut.isPending}
-        okText="Create invoice"
+        okText={t('wallet.modal.create')}
       >
         <Form form={form} layout="vertical" initialValues={{ amount: 50, network: 'TRC20' }}>
-          <Form.Item name="amount" label="Amount (USD)" rules={[{ required: true }]}>
+          <Form.Item name="amount" label={t('wallet.modal.amount')} rules={[{ required: true }]}>
             <InputNumber min={20} max={5000} step={10} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="network" label="USDT network" rules={[{ required: true }]}>
+          <Form.Item name="network" label={t('wallet.modal.network')} rules={[{ required: true }]}>
             <Select options={['TRC20', 'ERC20', 'BEP20'].map(n => ({ value: n, label: n }))} />
           </Form.Item>
         </Form>
         {topupResp && (
           <Alert
             type="success" showIcon style={{ marginTop: 16 }}
-            message={<>Invoice #{topupResp.invoice.id} created</>}
+            message={<>{t('wallet.modal.invoiceCreated')}{topupResp.invoice.id}{t('wallet.modal.invoiceCreated2')}</>}
             description={
               <div>
-                Send <b>{topupResp.invoice.amount_crypto} USDT</b> on{' '}
-                <b>{topupResp.invoice.network}</b> to:
+                {t('wallet.modal.sendUsdt')} <b>{topupResp.invoice.amount_crypto} USDT</b>{' '}
+                {t('wallet.modal.on')} <b>{topupResp.invoice.network}</b> {t('wallet.modal.to')}
                 <pre style={{ background: '#f5f5f5', padding: 8, marginTop: 8 }}>
                   {topupResp.invoice.payment_address}
                 </pre>
                 {topupResp.bonus_cents > 0 && (
                   <Text type="secondary">
-                    +{fmtUsd(topupResp.bonus_cents)} bonus ({topupResp.bonus_pct}%) on confirmation.
+                    +{fmtUsd(topupResp.bonus_cents)} {t('wallet.modal.bonus')} ({topupResp.bonus_pct}%).
                   </Text>
                 )}
               </div>
