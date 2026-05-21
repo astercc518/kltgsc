@@ -44,6 +44,11 @@ from app.services.billing_service import BillingError, activate_invoice
 from app.services.wallet_service import (
     WALLET_TOPUP_PLAN, WalletError, credit_wallet_from_invoice,
 )
+from app.services.sales_wallet_service import (
+    SALES_WALLET_TOPUP_PLAN,
+    SalesWalletError,
+    credit_sales_wallet_from_invoice,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -146,9 +151,9 @@ async def nowpayments_webhook(
         )
         return {"status": "rejected", "invoice_status": invoice.status}
 
-    # Route by invoice.plan: wallet topup vs subscription
-    if invoice.plan == WALLET_TOPUP_PLAN:
-        # Mark invoice paid, then credit wallet (idempotent on invoice.id).
+    # Route by invoice.plan: wallet topup vs sales topup vs subscription
+    if invoice.plan in (WALLET_TOPUP_PLAN, SALES_WALLET_TOPUP_PLAN):
+        # Mark invoice paid, then credit the correct wallet (idempotent on invoice.id).
         invoice.status = INV_PAID
         invoice.tx_hash = tx_hash
         invoice.paid_at = datetime.utcnow()
@@ -156,15 +161,18 @@ async def nowpayments_webhook(
         session.commit()
 
         try:
-            txn = credit_wallet_from_invoice(session, invoice)
-        except WalletError as e:
+            if invoice.plan == SALES_WALLET_TOPUP_PLAN:
+                txn = credit_sales_wallet_from_invoice(session, invoice)
+            else:
+                txn = credit_wallet_from_invoice(session, invoice)
+        except (WalletError, SalesWalletError) as e:
             logger.error("nowpayments_webhook: wallet credit failed for invoice %s: %s",
                          invoice.id, e)
             raise HTTPException(status_code=400, detail=str(e))
 
         logger.info(
-            "nowpayments_webhook: invoice %s -> wallet credited %d cents (txn %s)",
-            invoice.id, txn.amount_cents, txn.id,
+            "nowpayments_webhook: invoice %s -> %s credited %d cents (txn %s)",
+            invoice.id, invoice.plan, txn.amount_cents, txn.id,
         )
         return {
             "status": "wallet_credited",

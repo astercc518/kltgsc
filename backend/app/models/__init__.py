@@ -66,3 +66,8 @@ from .customer_user import (
     CustomerUser, CustomerUserCreate, CustomerUserUpdate, CustomerUserRead,
     CU_ROLE_SALES,
 )
+from .sales_wallet import (
+    SalesWallet, SalesWalletTransaction,
+    SalesWalletRead, SalesWalletTopupRequest, SalesWalletTransactionRead,
+    OWNER_CUSTOMER_SALES, OWNER_PLATFORM_SALES, SALES_OWNER_TYPES,
+)

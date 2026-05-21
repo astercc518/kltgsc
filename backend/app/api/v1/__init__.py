@@ -9,7 +9,7 @@ from app.api.v1.endpoints import (
     customer_wallet, admin_features, customer_features,
     customer_bulk, admin_bulk,
     customer_scrape, customer_invite,
-    customer_sales_users,
+    customer_sales_users, sales_wallet, admin_sales_wallet,
 )
 from app.api.deps import get_current_user
 from app.core.config import settings
@@ -254,6 +254,19 @@ router.include_router(
     customer_sales_users.router,
     prefix="/customer/sales-users",
     tags=["customer-sales-users"],
+)
+# Epic C2 — sales personal wallet (both customer_sales and platform_sales)
+router.include_router(
+    sales_wallet.router,
+    prefix="/sales/wallet",
+    tags=["sales-wallet"],
+)
+# Epic C2 — admin credit endpoint for platform_sales wallets
+router.include_router(
+    admin_sales_wallet.router,
+    prefix="/admin/sales-wallet",
+    tags=["admin-sales-wallet"],
+    dependencies=auth_deps,
 )
 # Epic 6.0 — admin business-ops dashboard
 router.include_router(

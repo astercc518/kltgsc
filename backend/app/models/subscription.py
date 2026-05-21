@@ -86,6 +86,12 @@ class Invoice(SQLModel, table=True):
     paid_at: Optional[datetime] = None
     paid_by_admin: Optional[int] = Field(default=None, foreign_key="user.id")
 
+    # Epic C2 — when set, this invoice credits a SalesWallet keyed by
+    # (sales_owner_type, sales_owner_id) instead of CustomerWallet.
+    # NULL → legacy customer-wallet topup or subscription invoice.
+    sales_owner_type: Optional[str] = Field(default=None, max_length=20)
+    sales_owner_id: Optional[int] = Field(default=None)
+
     created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
     expires_at: datetime
 
