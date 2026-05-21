@@ -226,32 +226,67 @@ def view_lead(
 ) -> Any:
     """Open a lead's full detail.
 
-    Charges LEAD_VIEW_PRICE_CENTS from the sales wallet — idempotent per
-    (viewer, lead, UTC date). Returns 402 if balance insufficient.
+    Phase F2 semantics:
+      - First open by anyone: row-locks Lead, charges LEAD_VIEW_PRICE_CENTS,
+        sets assigned_to_user_id / claimed_at to this sales user.
+      - Re-open by the same sales user (any time, not just same UTC day):
+        free — they already paid and own the claim. view_count not bumped.
+      - Attempt by a different sales user when lead is claimed by someone
+        else (and not released): 409 Conflict, no charge.
+
+    customer_sales: still scoped to own tenant, claim/release semantics
+    only apply within the same tenant. Charge per-day idempotency still
+    used as a safety net.
     """
-    lead = session.get(Lead, lead_id)
+    # SELECT FOR UPDATE the lead row so concurrent views serialize cleanly.
+    lead = session.exec(
+        select(Lead).where(Lead.id == lead_id).with_for_update()
+    ).first()
     if not lead:
         raise HTTPException(status_code=404, detail="lead not found")
     if sales.kind == "customer" and lead.customer_id != sales.customer_id:
         raise HTTPException(status_code=404, detail="lead not found")
     if sales.kind == "platform":
-        # F1: platform_sales only opens leads belonging to an internal pool
         from app.models.customer import Customer
         owner = session.get(Customer, lead.customer_id) if lead.customer_id else None
         if not owner or not owner.is_internal_pool:
             raise HTTPException(status_code=404, detail="lead not found")
 
+    # F2 claim semantics: only meaningful for platform_sales (single owner
+    # space = User table). customer_sales uses CustomerUser.id which collides
+    # with User.id space, so we keep the older same-day-idempotent behavior
+    # there. Platform sales is the priority use case (internal team).
     owner_type = _owner_type_for(sales)
     today = date.today().isoformat()
     idem = f"lead-view:{owner_type}:{sales.user_id}:{lead_id}:{today}"
 
-    # Pre-check balance (only charge if we haven't already today)
-    already = _already_viewed_today(session, sales, lead_id)
+    is_platform = (sales.kind == "platform")
+    if is_platform:
+        # Has someone else already claimed this lead?
+        if (lead.assigned_to_user_id is not None
+                and lead.assigned_to_user_id != sales.user_id):
+            raise HTTPException(
+                status_code=409,
+                detail=f"Lead already claimed by user {lead.assigned_to_user_id}",
+            )
+        already_claimed_by_me = (lead.assigned_to_user_id == sales.user_id)
+    else:
+        already_claimed_by_me = False
+
+    # Charge rule:
+    #   platform_sales: charge once when claim is established. Re-views by
+    #     the same owner are free regardless of date.
+    #   customer_sales: charge once per UTC day (legacy Epic D behavior).
+    if is_platform:
+        already_paid = already_claimed_by_me
+    else:
+        already_paid = _already_viewed_today(session, sales, lead_id)
+
     charged_cents = 0
-    charge_skipped = already
-    if not already:
+    charge_skipped = already_paid
+    if not already_paid:
         try:
-            txn = swsvc.charge_sales(
+            swsvc.charge_sales(
                 session,
                 owner_type=owner_type, owner_id=sales.user_id,
                 amount_cents=LEAD_VIEW_PRICE_CENTS,
@@ -262,6 +297,10 @@ def view_lead(
             charged_cents = LEAD_VIEW_PRICE_CENTS
             # Bump view_count only on first-of-day view
             lead.view_count = (lead.view_count or 0) + 1
+            if is_platform:
+                # Establish claim atomically with charge.
+                lead.assigned_to_user_id = sales.user_id
+                lead.claimed_at = datetime.utcnow()
             session.add(lead)
             session.commit()
         except swsvc.InsufficientSalesBalanceError as e:
@@ -332,3 +371,121 @@ def list_industries(
     stmt = _scope_to_sales(stmt, sales).group_by(Lead.industry)
     rows = session.exec(stmt).all()
     return [IndustryStat(industry=row[0], count=row[1]) for row in rows if row[0]]
+
+
+# ── F2 — sales lead actions (status/notes/claim release/convert) ──────────
+
+
+class LeadPatchRequest(BaseModel):
+    status: Optional[str] = None         # contacted/replied/interested/...
+    category: Optional[str] = None       # free-text secondary tag
+    notes: Optional[str] = None
+
+
+def _resolve_owned_lead(session: Session, sales: SalesContext, lead_id: int) -> Lead:
+    """Load + permission-check + (for platform_sales) claim-ownership-check.
+
+    customer_sales: just verify Lead.customer_id == sales.customer_id.
+    platform_sales: verify lead is in an internal pool AND, if claimed, is
+    claimed by this same user. Unclaimed leads can be patched (assists
+    triaging without paying view).
+    """
+    lead = session.get(Lead, lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="lead not found")
+    if sales.kind == "customer":
+        if lead.customer_id != sales.customer_id:
+            raise HTTPException(status_code=404, detail="lead not found")
+        return lead
+    # platform
+    from app.models.customer import Customer
+    owner = session.get(Customer, lead.customer_id) if lead.customer_id else None
+    if not owner or not owner.is_internal_pool:
+        raise HTTPException(status_code=404, detail="lead not found")
+    if (lead.assigned_to_user_id is not None
+            and lead.assigned_to_user_id != sales.user_id):
+        raise HTTPException(
+            status_code=403,
+            detail=f"lead is claimed by user {lead.assigned_to_user_id}",
+        )
+    return lead
+
+
+@router.patch("/{lead_id}", response_model=LeadFullView)
+def patch_lead(
+    lead_id: int,
+    payload: LeadPatchRequest,
+    sales: SalesContext = Depends(get_current_sales),
+    session: Session = Depends(get_session),
+) -> Any:
+    """Update lead status / category / notes. Caller must own the claim
+    (platform_sales) or be in the owning tenant (customer_sales)."""
+    lead = _resolve_owned_lead(session, sales, lead_id)
+
+    if payload.status is not None:
+        lead.status = payload.status[:30]
+    if payload.category is not None:
+        lead.category = payload.category[:50] if payload.category else None
+    if payload.notes is not None:
+        lead.notes = payload.notes
+    lead.last_interaction_at = datetime.utcnow()
+    session.add(lead)
+    session.commit()
+    session.refresh(lead)
+
+    return LeadFullView(
+        id=lead.id, industry=lead.industry, category=lead.category,
+        source=lead.source, bulk_batch_id=lead.bulk_batch_id,
+        status=lead.status, telegram_user_id=lead.telegram_user_id,
+        username=lead.username, first_name=lead.first_name,
+        last_name=lead.last_name, phone=lead.phone, notes=lead.notes,
+        view_count=lead.view_count, customer_id=lead.customer_id,
+        account_id=lead.account_id, tags=json.loads(lead.tags_json or "[]"),
+        last_interaction_at=lead.last_interaction_at,
+        created_at=lead.created_at, interactions=[],
+    )
+
+
+@router.post("/{lead_id}/release")
+def release_lead(
+    lead_id: int,
+    sales: SalesContext = Depends(get_current_sales),
+    session: Session = Depends(get_session),
+) -> Any:
+    """Drop the claim so other platform sales can pick this lead up.
+    Customer sales (no claim concept) get a no-op success."""
+    lead = _resolve_owned_lead(session, sales, lead_id)
+    if sales.kind == "platform" and lead.assigned_to_user_id == sales.user_id:
+        lead.assigned_to_user_id = None
+        lead.claimed_at = None
+        session.add(lead)
+        session.commit()
+    return {"ok": True, "lead_id": lead_id}
+
+
+@router.post("/{lead_id}/convert")
+def convert_lead(
+    lead_id: int,
+    sales: SalesContext = Depends(get_current_sales),
+    session: Session = Depends(get_session),
+) -> Any:
+    """Mark a lead as closed-won. Sets status='converted' + records
+    timestamp; keeps the claim for attribution in the ROI dashboard."""
+    lead = _resolve_owned_lead(session, sales, lead_id)
+    lead.status = "converted"
+    lead.last_interaction_at = datetime.utcnow()
+    # If platform_sales hasn't claimed yet (e.g. converted off-platform
+    # before opening view), record them as the closer now.
+    if sales.kind == "platform" and lead.assigned_to_user_id is None:
+        lead.assigned_to_user_id = sales.user_id
+        lead.claimed_at = datetime.utcnow()
+    session.add(lead)
+    session.commit()
+    session.refresh(lead)
+    return {
+        "ok": True,
+        "lead_id": lead_id,
+        "status": lead.status,
+        "assigned_to_user_id": lead.assigned_to_user_id,
+        "converted_at": lead.last_interaction_at.isoformat(),
+    }
