@@ -246,22 +246,28 @@ def activate_invoice(
     session.commit()
     session.refresh(subscription)
 
-    # ── S2.3: auto-enable AI marketing assistant for paid subscribers ──
-    # All three tiers include the assistant in the bundle (price gating
-    # happens via the per-reply / per-lead slugs, which stay disabled by
-    # default and require admin to override per-customer if they want to
-    # charge for them).
+    # ── S2.3 + S2.4: auto-enable AI marketing assistant + per-unit
+    # billing slugs for paid subscribers.  The gate (ai_marketing_assistant)
+    # controls UI access; the per-reply / per-lead slugs are what the
+    # listener actually charges against on each event, so they MUST be
+    # enabled or the charges will silently no-op and we'll give away the
+    # service for free.
     try:
         from app.services import feature_billing as fb
-        fb.upsert_customer_feature(
-            session, customer.id, "ai_marketing_assistant",
-            enabled=True,
-            notes=f"auto-enabled on activation of {subscription.plan} plan",
-        )
+        for slug in (
+            "ai_marketing_assistant",
+            "ai_marketing_group_reply",
+            "ai_marketing_lead_created",
+        ):
+            fb.upsert_customer_feature(
+                session, customer.id, slug,
+                enabled=True,
+                notes=f"auto-enabled on activation of {subscription.plan} plan",
+            )
     except Exception as e:  # noqa: BLE001
         import logging
         logging.getLogger(__name__).warning(
-            "Failed to auto-enable ai_marketing_assistant for customer %s: %s",
+            "Failed to auto-enable AI marketing features for customer %s: %s",
             customer.id, e,
         )
 

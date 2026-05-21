@@ -26,6 +26,13 @@ from sqlmodel import Session, SQLModel, create_engine
 from sqlmodel.pool import StaticPool
 from fastapi.testclient import TestClient
 
+# Eagerly import every model so SQLModel.metadata sees every table
+# before create_all runs. Without this, only the models that get
+# imported by individual fixtures end up in the metadata, and any FK
+# referencing one of the unimported tables (e.g. account.customer_id →
+# customer) fails to resolve at create_all time.
+import app.models  # noqa: F401
+
 
 @pytest.fixture
 def engine():
