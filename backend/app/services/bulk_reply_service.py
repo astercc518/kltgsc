@@ -106,6 +106,11 @@ def handle_inbound_dm(
     ).first()
 
     if not lead:
+        # Epic D — inherit industry from parent customer so the sales
+        # workbench can group by industry without back-filling.
+        from app.models.customer import Customer
+        parent = session.get(Customer, batch.customer_id)
+        industry = parent.industry if parent else None
         lead = Lead(
             account_id=account.id,
             telegram_user_id=sender_tg_user_id,
@@ -117,6 +122,7 @@ def handle_inbound_dm(
             customer_id=batch.customer_id,
             source="bulk",
             bulk_batch_id=batch.id,
+            industry=industry,
         )
         session.add(lead)
     else:

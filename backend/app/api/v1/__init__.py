@@ -10,6 +10,7 @@ from app.api.v1.endpoints import (
     customer_bulk, admin_bulk,
     customer_scrape, customer_invite,
     customer_sales_users, sales_wallet, admin_sales_wallet,
+    sales_leads,
 )
 from app.api.deps import get_current_user
 from app.core.config import settings
@@ -260,6 +261,12 @@ router.include_router(
     sales_wallet.router,
     prefix="/sales/wallet",
     tags=["sales-wallet"],
+)
+# Epic D — sales-facing lead inbox with per-view charging
+router.include_router(
+    sales_leads.router,
+    prefix="/sales/leads",
+    tags=["sales-leads"],
 )
 # Epic C2 — admin credit endpoint for platform_sales wallets
 router.include_router(

@@ -293,7 +293,12 @@ class AIReplyService:
         intent = analysis.get("intent")
         
         if not lead:
-            # Create new lead
+            # Epic D — inherit industry + customer scope from the account's
+            # owning Customer so /sales/leads can filter immediately.
+            from app.models.account import Account as _Acc
+            from app.models.customer import Customer as _Cust
+            acc_row = self.session.get(_Acc, account_id)
+            cust_row = self.session.get(_Cust, acc_row.customer_id) if (acc_row and acc_row.customer_id) else None
             lead = Lead(
                 account_id=account_id,
                 telegram_user_id=target_user_id,
@@ -301,7 +306,9 @@ class AIReplyService:
                 first_name=first_name,
                 status="new",
                 tags_json=json.dumps(tags),
-                last_interaction_at=datetime.utcnow()
+                last_interaction_at=datetime.utcnow(),
+                customer_id=acc_row.customer_id if acc_row else None,
+                industry=cust_row.industry if cust_row else None,
             )
             self.session.add(lead)
         else:

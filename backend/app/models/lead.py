@@ -37,6 +37,14 @@ class LeadBase(SQLModel):
     source: str = Field(default="monitor", max_length=20, index=True)
     bulk_batch_id: Optional[int] = Field(default=None, foreign_key="bulk_batch.id", index=True)
 
+    # ── Epic D: 业务分类 + 查看计费 ──
+    # industry: 主分类（与 Customer.industry 同枚举），用于销售按业务过滤
+    # category: 自由文本二级分类（销售自定义）
+    # view_count: 累计被查看次数（每次 /sales/leads/{id}/view 调用 +1）
+    industry: Optional[str] = Field(default=None, max_length=50, index=True)
+    category: Optional[str] = Field(default=None, max_length=50, index=True)
+    view_count: int = Field(default=0)
+
 class Lead(LeadBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     interactions: List["LeadInteraction"] = Relationship(back_populates="lead")
