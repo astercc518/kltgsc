@@ -216,6 +216,57 @@ def credit_wallet_from_invoice(
     return txn
 
 
+# ── Admin direct credit (no invoice; for manual provisioning) ──────────
+
+
+def admin_credit_wallet(
+    session: Session,
+    customer_id: int,
+    amount_cents: int,
+    description: str,
+    idempotency_key: str,
+) -> WalletTransaction:
+    """Admin tops up a customer wallet directly, bypassing the USDT invoice
+    flow. Used for trials / promo credits / migration imports. Idempotent
+    on idempotency_key (use a unique key per grant)."""
+    if amount_cents <= 0:
+        raise WalletError("amount_cents must be positive")
+
+    existing = session.exec(
+        select(WalletTransaction).where(
+            WalletTransaction.idempotency_key == idempotency_key
+        )
+    ).first()
+    if existing:
+        return existing
+
+    get_or_create_wallet(session, customer_id)
+    wallet = session.exec(
+        select(CustomerWallet)
+        .where(CustomerWallet.customer_id == customer_id)
+        .with_for_update()
+    ).one()
+
+    wallet.balance_cents += amount_cents
+    wallet.total_topup_cents += amount_cents
+    wallet.updated_at = datetime.utcnow()
+    wallet.low_balance_notified_at = None  # clear low-balance flag
+
+    txn = WalletTransaction(
+        customer_id=customer_id,
+        type=TXN_ADJUST,
+        amount_cents=amount_cents,
+        balance_after_cents=wallet.balance_cents,
+        description=description[:200],
+        idempotency_key=idempotency_key,
+    )
+    session.add(wallet)
+    session.add(txn)
+    session.commit()
+    session.refresh(txn)
+    return txn
+
+
 # ── Charge wallet (used by Bulk Send W3) ────────────────────────────────
 
 

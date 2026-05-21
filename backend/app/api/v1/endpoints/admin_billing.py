@@ -189,3 +189,167 @@ def regenerate_kb(
         "skipped": result.skipped,
         "kb_ids": [k.id for k in result.created],
     }
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Quick-provision (admin one-click setup)
+# ──────────────────────────────────────────────────────────────────────────
+
+from pydantic import BaseModel, Field
+from datetime import datetime, timedelta
+
+from app.core import security
+from app.models.customer import (
+    PLAN_CODES, PLAN_PRICE_USD, PLAN_QUOTA, STATUS_ACTIVE,
+)
+from app.models.subscription import (
+    SUB_ACTIVE, INV_PAID, NETWORK_TRC20,
+)
+from app.services.wallet_service import admin_credit_wallet
+
+
+class QuickProvisionRequest(BaseModel):
+    # Either pick an existing customer...
+    customer_id: int | None = None
+    # ...or create one inline:
+    new_customer_email: str | None = None
+    new_customer_password: str | None = Field(default=None, min_length=8)
+    new_customer_name: str | None = None
+    new_customer_industry: str | None = None
+
+    # Subscription: leave plan=None to skip
+    plan: str | None = None    # 'starter' | 'growth' | 'pro'
+
+    # Wallet credit (cents). 0 = skip
+    wallet_credit_cents: int = Field(default=0, ge=0, le=10_000_000)
+    note: str = Field(default="admin quick-provision", max_length=200)
+
+
+@router.post("/quick-provision")
+def quick_provision(
+    payload: QuickProvisionRequest,
+    admin: User = Depends(get_current_admin),
+    session: Session = Depends(get_session),
+) -> Any:
+    """One-call admin setup: create-or-pick customer, activate subscription
+    (bypassing USDT payment, marked tx_hash='admin_manual'), credit wallet,
+    and trigger Epic 3 allocation + Epic 4 KB generation.
+
+    Use for: trial onboarding, internal QA, migration imports, or whenever
+    a sales rep wants to spin up a customer without making them pay first.
+    Every side effect is idempotent on the underlying invoice/transaction
+    keys, so calling twice with the same inputs won't double-bill.
+    """
+    from app.models.customer import Customer, STATUS_PENDING
+    from app.services.billing_service import create_pending_invoice
+
+    # Step 1 — resolve or create customer
+    customer: Customer | None = None
+    created_customer = False
+    if payload.customer_id:
+        customer = session.get(Customer, payload.customer_id)
+        if not customer:
+            raise HTTPException(status_code=404, detail="customer not found")
+    else:
+        if not (payload.new_customer_email and payload.new_customer_password):
+            raise HTTPException(
+                status_code=400,
+                detail="provide customer_id, or new_customer_email + new_customer_password",
+            )
+        email = payload.new_customer_email.lower().strip()
+        existing = session.exec(
+            select(Customer).where(Customer.email == email)
+        ).first()
+        if existing:
+            customer = existing
+        else:
+            customer = Customer(
+                email=email,
+                hashed_password=security.get_password_hash(payload.new_customer_password),
+                name=payload.new_customer_name or email.split("@", 1)[0],
+                industry=payload.new_customer_industry,
+                status=STATUS_PENDING,
+            )
+            session.add(customer)
+            session.commit()
+            session.refresh(customer)
+            created_customer = True
+            security.create_log(
+                session, "admin_quick_provision_create_customer",
+                customer.email, f"id={customer.id} by admin {admin.username}",
+                None, "success",
+            )
+
+    # Step 2 — activate subscription (if plan given AND customer doesn't
+    # already have an active matching one — otherwise no-op to keep this
+    # endpoint safely re-callable as a "make sure it's set up" idempotent op).
+    activated_plan = None
+    if payload.plan:
+        if payload.plan not in PLAN_CODES:
+            raise HTTPException(status_code=400, detail=f"unknown plan: {payload.plan}")
+        from app.models.subscription import Subscription
+        already_on_plan = session.exec(
+            select(Subscription).where(
+                Subscription.customer_id == customer.id,
+                Subscription.status == SUB_ACTIVE,
+                Subscription.plan == payload.plan,
+            )
+        ).first()
+        if already_on_plan:
+            activated_plan = None  # skipped — already on this plan
+        else:
+            # Reuse the same pending-invoice path then activate it. This way
+            # Subscription / Invoice / Customer.status / quota / Epic 3
+            # allocation / Epic 4 KB all fire through their normal codepaths.
+            try:
+                invoice = create_pending_invoice(session, customer, payload.plan, NETWORK_TRC20)
+                activate_invoice(
+                    session, invoice=invoice,
+                    tx_hash=f"admin_manual:{admin.id}:{invoice.id}",
+                    admin_user_id=admin.id,
+                )
+                activated_plan = payload.plan
+            except BillingError as e:
+                raise HTTPException(status_code=400, detail=f"activate: {e}")
+
+    # Step 3 — wallet credit (if > 0)
+    wallet_credit_txn_id = None
+    if payload.wallet_credit_cents > 0:
+        idem = f"admin-credit:{customer.id}:{admin.id}:{payload.wallet_credit_cents}:{int(datetime.utcnow().timestamp())}"
+        txn = admin_credit_wallet(
+            session,
+            customer_id=customer.id,
+            amount_cents=payload.wallet_credit_cents,
+            description=f"{payload.note} (admin {admin.username})",
+            idempotency_key=idem,
+        )
+        wallet_credit_txn_id = txn.id
+
+    session.refresh(customer)
+
+    # Return a summary so the admin UI can show "what just happened".
+    from app.models.wallet import CustomerWallet
+    wallet = session.get(CustomerWallet, customer.id)
+    from app.models.subscription import Subscription
+    sub = session.exec(
+        select(Subscription).where(
+            Subscription.customer_id == customer.id,
+            Subscription.status == SUB_ACTIVE,
+        ).order_by(Subscription.created_at.desc())
+    ).first()
+
+    return {
+        "ok": True,
+        "customer_id": customer.id,
+        "customer_email": customer.email,
+        "customer_status": customer.status,
+        "created_customer": created_customer,
+        "plan_activated": activated_plan,
+        "subscription_id": sub.id if sub else None,
+        "current_period_end": sub.period_end.isoformat() if sub and sub.period_end else None,
+        "account_quota": customer.account_quota,
+        "account_used": customer.account_used,
+        "group_quota": customer.group_quota,
+        "wallet_balance_cents": wallet.balance_cents if wallet else 0,
+        "wallet_credit_txn_id": wallet_credit_txn_id,
+    }

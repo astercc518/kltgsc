@@ -12,13 +12,14 @@
 import React from 'react';
 import {
   Card, Row, Col, Statistic, Table, Tag, Typography, Spin, Empty, Tooltip, Progress,
+  Button, Modal, Form, Input, InputNumber, Select, Switch, Space, Alert, message, Divider,
 } from 'antd';
 import {
   UserOutlined, DollarOutlined, TeamOutlined, MessageOutlined,
   WarningOutlined, ThunderboltOutlined, CheckCircleOutlined,
-  RocketOutlined,
+  RocketOutlined, PlusOutlined,
 } from '@ant-design/icons';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip as ChartTip, ResponsiveContainer,
   Cell, PieChart, Pie, Legend,
@@ -256,9 +257,173 @@ const HandoverPanel: React.FC<{ data: any }> = ({ data }) => (
   </Card>
 );
 
+// ── Quick-Provision modal (admin one-click setup) ──────────────────────
+const QuickProvisionButton: React.FC = () => {
+  const qc = useQueryClient();
+  const [open, setOpen] = React.useState(false);
+  const [mode, setMode] = React.useState<'new' | 'existing'>('new');
+  const [form] = Form.useForm();
+  const [result, setResult] = React.useState<any>(null);
+
+  const mut = useMutation({
+    mutationFn: (body: any) =>
+      api.post('/admin/billing/quick-provision', body).then(r => r.data),
+    onSuccess: (data) => {
+      setResult(data);
+      message.success(`Customer ${data.customer_id} provisioned`);
+      qc.invalidateQueries({ queryKey: ['ops'] });
+    },
+    onError: (e: any) =>
+      message.error(e?.response?.data?.detail || 'Provision failed'),
+  });
+
+  const handleSubmit = async () => {
+    try {
+      const v = await form.validateFields();
+      const body: any = {
+        plan: v.plan || null,
+        wallet_credit_cents: (v.wallet_usd || 0) * 100,
+        note: v.note || 'admin quick-provision',
+      };
+      if (mode === 'new') {
+        body.new_customer_email = v.email;
+        body.new_customer_password = v.password;
+        body.new_customer_name = v.name;
+        body.new_customer_industry = v.industry;
+      } else {
+        body.customer_id = v.customer_id;
+      }
+      mut.mutate(body);
+    } catch (_) {}
+  };
+
+  return (
+    <>
+      <Button type="primary" icon={<PlusOutlined />} onClick={() => setOpen(true)}>
+        Quick-Provision
+      </Button>
+      <Modal
+        title="Quick-Provision Customer"
+        open={open}
+        onCancel={() => { setOpen(false); setResult(null); form.resetFields(); }}
+        onOk={handleSubmit}
+        okText={mode === 'new' ? 'Create + Activate' : 'Activate'}
+        confirmLoading={mut.isPending}
+        width={620}
+      >
+        <Alert
+          type="info" showIcon style={{ marginBottom: 16 }}
+          message="One-call setup"
+          description="Creates or picks a customer, activates a plan (bypassing USDT payment), and credits the wallet. Auto-allocates TG accounts (Epic 3) and generates industry KB (Epic 4). Idempotent — safe to re-call."
+        />
+
+        <Space style={{ marginBottom: 16 }}>
+          <Text strong>Mode:</Text>
+          <Switch
+            checkedChildren="New customer"
+            unCheckedChildren="Existing"
+            checked={mode === 'new'}
+            onChange={(b) => setMode(b ? 'new' : 'existing')}
+          />
+        </Space>
+
+        <Form form={form} layout="vertical" initialValues={{
+          plan: 'growth', wallet_usd: 200, industry: 'crypto',
+        }}>
+          {mode === 'new' ? (
+            <>
+              <Form.Item name="email" label="Email"
+                rules={[{ required: true, type: 'email', message: 'Valid email required' }]}>
+                <Input placeholder="customer@example.com" />
+              </Form.Item>
+              <Form.Item name="password" label="Initial password"
+                rules={[{ required: true, min: 8 }]}>
+                <Input.Password placeholder="min 8 chars" />
+              </Form.Item>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item name="name" label="Display name">
+                    <Input placeholder="auto-derived from email if blank" />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item name="industry" label="Industry">
+                    <Select options={['crypto', 'forex', 'gambling', 'ecommerce', 'saas', 'other']
+                      .map(v => ({ value: v, label: v }))} />
+                  </Form.Item>
+                </Col>
+              </Row>
+            </>
+          ) : (
+            <Form.Item name="customer_id" label="Customer ID"
+              rules={[{ required: true, message: 'Required' }]}>
+              <InputNumber style={{ width: '100%' }} placeholder="e.g. 37" />
+            </Form.Item>
+          )}
+
+          <Divider />
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="plan" label="Subscription plan"
+                extra="Leave blank to skip; existing same-plan sub is reused.">
+                <Select allowClear options={[
+                  { value: 'starter', label: 'Starter — $199 / 3 acc' },
+                  { value: 'growth',  label: 'Growth — $299 / 5 acc' },
+                  { value: 'pro',     label: 'Pro — $599 / 10 acc' },
+                ]} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="wallet_usd" label="Wallet credit (USD)"
+                extra="For group-control billing. 0 = skip.">
+                <InputNumber min={0} max={50000} step={10} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="note" label="Note (audit log)">
+            <Input placeholder="e.g. trial onboarding for ACME" />
+          </Form.Item>
+        </Form>
+
+        {result && (
+          <Alert
+            style={{ marginTop: 12 }}
+            type="success" showIcon
+            message={`✓ Customer #${result.customer_id} — ${result.customer_email}`}
+            description={
+              <div style={{ lineHeight: 2 }}>
+                <Tag color={result.created_customer ? 'green' : 'blue'}>
+                  {result.created_customer ? 'NEW' : 'EXISTING'}
+                </Tag>
+                Status: <Tag color="green">{result.customer_status}</Tag>{' '}
+                Plan: {result.plan_activated
+                  ? <Tag color="cyan">{result.plan_activated} activated</Tag>
+                  : <Tag>plan unchanged</Tag>}
+                <br />
+                Accounts: <b>{result.account_used}/{result.account_quota}</b>{' '}
+                · Group quota: <b>{result.group_quota}</b>
+                <br />
+                Wallet balance: <b>${(result.wallet_balance_cents / 100).toFixed(2)}</b>
+                {result.wallet_credit_txn_id
+                  ? <> (credited via txn #{result.wallet_credit_txn_id})</>
+                  : <> (no credit applied this call)</>}
+              </div>
+            }
+          />
+        )}
+      </Modal>
+    </>
+  );
+};
+
+
 // ── Customer health table ───────────────────────────────────────────────
 const CustomerTable: React.FC<{ data: any[] }> = ({ data }) => (
-  <Card title={<><UserOutlined /> Customer Health</>}>
+  <Card
+    title={<><UserOutlined /> Customer Health</>}
+    extra={<QuickProvisionButton />}
+  >
     <Table
       dataSource={data}
       rowKey="id"
