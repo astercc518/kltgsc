@@ -26,7 +26,6 @@ const AccountList: React.FC = () => {
   // Filters
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
   const [roleFilter, setRoleFilter] = useState<string | undefined>(undefined);
-  const [tierFilter, setTierFilter] = useState<string | undefined>(undefined);
 
   // Modal visibility states
   const [isUploadModalVisible, setIsUploadModalVisible] = useState(false);
@@ -51,10 +50,7 @@ const AccountList: React.FC = () => {
     try {
       const skip = (page - 1) * pageSize;
       const data = await getAccounts(skip, pageSize, statusFilter, roleFilter);
-      const filteredData = tierFilter
-        ? data.filter(acc => (acc.tier || 'tier3') === tierFilter)
-        : data;
-      setAccounts(filteredData);
+      setAccounts(data);
 
       const count = await getAccountCount(statusFilter);
       setPagination(prev => ({ ...prev, current: page, pageSize, total: count.total }));
@@ -63,7 +59,7 @@ const AccountList: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, roleFilter, tierFilter]);
+  }, [statusFilter, roleFilter]);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -87,7 +83,7 @@ const AccountList: React.FC = () => {
   useEffect(() => {
     fetchAccounts();
     fetchStats();
-  }, [statusFilter, roleFilter, tierFilter]);
+  }, [statusFilter, roleFilter]);
 
   // --- Modal show helpers with validation ---
   const handleShowMessageModal = () => {
@@ -173,8 +169,6 @@ const AccountList: React.FC = () => {
         setStatusFilter={setStatusFilter}
         roleFilter={roleFilter}
         setRoleFilter={setRoleFilter}
-        tierFilter={tierFilter}
-        setTierFilter={setTierFilter}
       />
 
       <AccountUploader

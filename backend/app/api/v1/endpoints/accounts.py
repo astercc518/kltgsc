@@ -12,6 +12,7 @@ from pydantic import BaseModel
 
 from app.core.db import get_session
 from app.core import security
+from app.core.account_roles import VALID_ROLES, tier_for_role
 from app.models.account import Account, AccountCreate, AccountRead
 from app.models.proxy import Proxy
 from app.services.proxy_assigner import auto_assign_proxy
@@ -62,6 +63,7 @@ class BatchAutoUpdateRequest(BaseModel):
 class MegaImportRequest(BaseModel):
     urls: List[str]
     target_channels: Optional[str] = "kltgsc"  # 养号目标频道，逗号分隔
+    role: Optional[str] = None  # 导入后默认角色（worker/master/support/sales/listener/collector）
     # 安全默认值：导入后不自动触碰 Telegram
     auto_check: bool = False   # 导入完成后自动验活（低风险验活模式）
     auto_warmup: bool = False  # 导入完成后自动启动养号/热身任务
@@ -69,7 +71,7 @@ class MegaImportRequest(BaseModel):
 class RoleTagsUpdate(BaseModel):
     role: Optional[str] = None
     tags: Optional[str] = None
-    tier: Optional[str] = None
+
 
 @router.get("/", response_model=List[AccountRead])
 def get_accounts(
@@ -267,24 +269,20 @@ def update_account_role(
     update_data: RoleTagsUpdate,
     session: Session = Depends(get_session)
 ):
-    """更新账号角色、标签和分级"""
+    """更新账号角色和标签（tier 自动按角色推导）"""
     account = session.get(Account, account_id)
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
-    
+
     if update_data.role is not None:
-        if update_data.role not in ["worker", "master", "support", "sales", "collector"]:
+        if update_data.role not in VALID_ROLES:
             raise HTTPException(status_code=400, detail="Invalid role")
         account.role = update_data.role
-    
+        account.tier = tier_for_role(update_data.role)
+
     if update_data.tags is not None:
         account.tags = update_data.tags
 
-    if update_data.tier is not None:
-        if update_data.tier not in ["tier1", "tier2", "tier3"]:
-             raise HTTPException(status_code=400, detail="Invalid tier")
-        account.tier = update_data.tier
-        
     session.add(account)
     session.commit()
     session.refresh(account)
@@ -295,30 +293,25 @@ def update_accounts_role_batch(
     request: dict = Body(...),
     session: Session = Depends(get_session)
 ):
-    """批量更新账号角色"""
+    """批量更新账号角色（tier 自动按角色推导）"""
     account_ids = request.get("account_ids", [])
     role = request.get("role")
     tags = request.get("tags")
-    tier = request.get("tier")
-    
+
     if not account_ids:
         raise HTTPException(status_code=400, detail="account_ids required")
-    
-    if role and role not in ["worker", "master", "support", "sales", "collector"]:
+
+    if role and role not in VALID_ROLES:
         raise HTTPException(status_code=400, detail="Invalid role")
-        
-    if tier and tier not in ["tier1", "tier2", "tier3"]:
-        raise HTTPException(status_code=400, detail="Invalid tier")
-    
+
     accounts = session.exec(select(Account).where(Account.id.in_(account_ids))).all()
     updated = 0
     for account in accounts:
         if role:
             account.role = role
+            account.tier = tier_for_role(role)
         if tags is not None:
             account.tags = tags
-        if tier:
-            account.tier = tier
         session.add(account)
         updated += 1
 
@@ -329,9 +322,12 @@ def update_accounts_role_batch(
 async def upload_session(
     request: Request,
     file: UploadFile = File(...),
+    role: Optional[str] = Query(None),
     session: Session = Depends(get_session)
 ):
     """上传单个 Session 文件"""
+    if role and role not in VALID_ROLES:
+        raise HTTPException(status_code=400, detail="Invalid role")
     os.makedirs("sessions", exist_ok=True)
 
     # 安全: 防止路径穿越，仅使用文件名的基本部分
@@ -366,6 +362,9 @@ async def upload_session(
     if existing:
         existing.session_file_path = file_location
         existing.status = "uploaded"
+        if role:
+            existing.role = role
+            existing.tier = tier_for_role(role)
         session.add(existing)
         session.commit()
         return {"message": "账号已更新", "account_id": existing.id, "encrypted": True}
@@ -374,7 +373,9 @@ async def upload_session(
             phone_number=parsed_phone,
             session_file_path=file_location,
             session_string="",
-            status="uploaded"
+            status="uploaded",
+            role=role or "worker",
+            tier=tier_for_role(role or "worker"),
         )
         session.add(account)
         session.commit()
@@ -397,12 +398,15 @@ async def upload_session(
 def upload_sessions_batch(
     request: Request,
     files: List[UploadFile] = File(...),
+    role: Optional[str] = Query(None),
     session: Session = Depends(get_session)
 ):
     """
     批量上传 Session 文件
     支持同时上传同名的 .json 文件以导入 API 信息
     """
+    if role and role not in VALID_ROLES:
+        raise HTTPException(status_code=400, detail="Invalid role")
     os.makedirs("sessions", exist_ok=True)
     
     results = {
@@ -471,6 +475,9 @@ def upload_sessions_batch(
             if existing:
                 existing.session_file_path = file_location
                 existing.status = "uploaded"
+                if role:
+                    existing.role = role
+                    existing.tier = tier_for_role(role)
                 if api_id: existing.api_id = api_id
                 if api_hash: existing.api_hash = api_hash
                 if device_model and not existing.device_model: existing.device_model = device_model
@@ -488,7 +495,9 @@ def upload_sessions_batch(
                     api_hash=api_hash,
                     device_model=device_model,
                     system_version=system_version,
-                    app_version=app_version
+                    app_version=app_version,
+                    role=role or "worker",
+                    tier=tier_for_role(role or "worker"),
                 )
                 session.add(account)
                 results["created"] += 1
@@ -535,8 +544,11 @@ MAX_TDATA_FILE_SIZE = 500 * 1024 * 1024  # 500MB
 @router.post("/batch/upload-tdata")
 async def upload_tdata_batch(
     files: List[UploadFile] = File(...),
+    role: Optional[str] = Query(None),
 ):
     """批量上传 tdata 压缩包（ZIP/RAR）"""
+    if role and role not in VALID_ROLES:
+        raise HTTPException(status_code=400, detail="Invalid role")
     task_ids = []
     filenames = []
     errors = []
@@ -574,7 +586,7 @@ async def upload_tdata_batch(
             with open(tmp_path, "wb") as f:
                 f.write(content)
 
-            task = import_tdata_archive.delay(tmp_path, safe_filename)
+            task = import_tdata_archive.delay(tmp_path, safe_filename, role or None)
             task_ids.append(task.id)
             filenames.append(safe_filename)
         except Exception as e:
@@ -867,12 +879,15 @@ async def import_from_mega(
 ):
     """从 MEGA 链接导入账号"""
     from app.worker import create_warmup_after_imports
-    
+
+    if request.role and request.role not in VALID_ROLES:
+        raise HTTPException(status_code=400, detail="Invalid role")
+
     task_ids = []
     urls = []
     for url in request.urls:
         # 传递 target_channels 参数到 worker 任务
-        task = import_mega_accounts.delay(url, request.target_channels)
+        task = import_mega_accounts.delay(url, request.target_channels, request.role or None)
         task_ids.append(task.id)
         urls.append(url)
     

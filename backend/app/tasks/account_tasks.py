@@ -23,6 +23,7 @@ from celery.exceptions import SoftTimeLimitExceeded
 from sqlmodel import Session, select
 from app.core.db import engine
 from app.core.celery_app import celery_app
+from app.core.account_roles import VALID_ROLES, tier_for_role
 from app.models.account import Account
 from app.models.warmup_task import WarmupTask
 from app.services.telegram_client import (
@@ -162,8 +163,15 @@ def _schedule_auto_warmup(session: Session, account_id: int, phone_number: str):
         logger.error(f"Failed to auto-start warmup for {account_id}: {e}")
 
 
+def _apply_role_to_account(db_session, account, role):
+    """Apply role+derived tier to a fresh Account row before commit."""
+    if role and role in VALID_ROLES:
+        account.role = role
+        account.tier = tier_for_role(role)
+
+
 @celery_app.task(bind=True, max_retries=2, soft_time_limit=1800, time_limit=3600)
-def import_mega_accounts(self, mega_url: str, target_channels: str = "kltgsc"):
+def import_mega_accounts(self, mega_url: str, target_channels: str = "kltgsc", role: str = None):
     """
     从 MEGA 链接导入账号
     """
@@ -202,7 +210,7 @@ def import_mega_accounts(self, mega_url: str, target_channels: str = "kltgsc"):
             
             # Process files
             imported_count, imported_account_ids, errors = _process_downloaded_files(
-                temp_dir, self, mega_url
+                temp_dir, self, mega_url, role=role
             )
             
             return {
@@ -228,7 +236,7 @@ def import_mega_accounts(self, mega_url: str, target_channels: str = "kltgsc"):
         return {"success": False, "error": str(e), "url": mega_url}
 
 
-def _import_session_file(filepath: str, filename: str, imported_account_ids: list, errors: list, task, source_label: str) -> bool:
+def _import_session_file(filepath: str, filename: str, imported_account_ids: list, errors: list, task, source_label: str, role: str = None) -> bool:
     """导入单个 session 文件（模块级辅助函数，供 MEGA 导入和 tdata 上传复用）"""
     task.update_state(state='PROGRESS', meta={
         'status': 'converting',
@@ -270,6 +278,7 @@ def _import_session_file(filepath: str, filename: str, imported_account_ids: lis
                 status="init",
                 session_file_path=rel_path
             )
+            _apply_role_to_account(db_session, account, role)
             db_session.add(account)
             db_session.commit()
             db_session.refresh(account)
@@ -288,7 +297,7 @@ def _import_session_file(filepath: str, filename: str, imported_account_ids: lis
         return False
 
 
-def _process_downloaded_files(temp_dir: str, task, mega_url: str):
+def _process_downloaded_files(temp_dir: str, task, mega_url: str, role: str = None):
     """处理下载的文件"""
     import re as regex
 
@@ -322,7 +331,7 @@ def _process_downloaded_files(temp_dir: str, task, mega_url: str):
                     errors.append(f"Failed to extract {f}: {e}")
 
             elif f.endswith('.session'):
-                _import_session_file(filepath, f, imported_account_ids, errors, task, mega_url)
+                _import_session_file(filepath, f, imported_account_ids, errors, task, mega_url, role=role)
 
     # Process extracted files
     extract_dir = os.path.join(temp_dir, 'extracted')
@@ -342,7 +351,7 @@ def _process_downloaded_files(temp_dir: str, task, mega_url: str):
                     phone = f"imported_{os.urandom(4).hex()}"
 
                 _convert_and_import_tdata(
-                    tdata_path, phone, imported_account_ids, errors, task, mega_url
+                    tdata_path, phone, imported_account_ids, errors, task, mega_url, role=role
                 )
 
         # Check for session files
@@ -350,13 +359,13 @@ def _process_downloaded_files(temp_dir: str, task, mega_url: str):
             for f in files:
                 if f.endswith('.session'):
                     filepath = os.path.join(root, f)
-                    _import_session_file(filepath, f, imported_account_ids, errors, task, mega_url)
+                    _import_session_file(filepath, f, imported_account_ids, errors, task, mega_url, role=role)
 
     imported_count = len(imported_account_ids)
     return imported_count, imported_account_ids, errors
 
 
-def _convert_and_import_tdata(tdata_path, phone, imported_account_ids, errors, task, source_label):
+def _convert_and_import_tdata(tdata_path, phone, imported_account_ids, errors, task, source_label, role: str = None):
     """转换并导入 tdata"""
     sessions_dir = os.path.join(os.getcwd(), 'sessions')
     os.makedirs(sessions_dir, exist_ok=True)
@@ -417,6 +426,7 @@ def _convert_and_import_tdata(tdata_path, phone, imported_account_ids, errors, t
                             system_version="Windows 10",
                             app_version="4.16.8 x64"
                         )
+                        _apply_role_to_account(db_session, account, role)
                         db_session.add(account)
                         db_session.commit()
                         db_session.refresh(account)
@@ -451,7 +461,7 @@ def _convert_and_import_tdata(tdata_path, phone, imported_account_ids, errors, t
 
 
 @celery_app.task(bind=True, max_retries=1, soft_time_limit=1800, time_limit=3600)
-def import_tdata_archive(self, file_path: str, filename: str):
+def import_tdata_archive(self, file_path: str, filename: str, role: str = None):
     """
     从上传的压缩包中导入 tdata 账号
     支持 ZIP/RAR 格式，包含 tdata 目录和散落的 .session 文件
@@ -532,7 +542,7 @@ def import_tdata_archive(self, file_path: str, filename: str):
                         phone = '+' + phone
                 if not phone:
                     phone = f"imported_{os.urandom(4).hex()}"
-                _convert_and_import_tdata(tdata_path, phone, imported_account_ids, errors, self, filename)
+                _convert_and_import_tdata(tdata_path, phone, imported_account_ids, errors, self, filename, role=role)
 
             # Log the top-level structure to aid debugging
             top_entries = os.listdir(extract_dir)
@@ -565,7 +575,7 @@ def import_tdata_archive(self, file_path: str, filename: str):
                     if f.endswith('.session'):
                         filepath = os.path.join(root, f)
                         _import_session_file(
-                            filepath, f, imported_account_ids, errors, self, filename
+                            filepath, f, imported_account_ids, errors, self, filename, role=role
                         )
 
             logger.info(f"Import complete: {len(imported_account_ids)} accounts, {len(errors)} errors")

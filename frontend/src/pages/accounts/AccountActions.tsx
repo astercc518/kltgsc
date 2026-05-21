@@ -101,7 +101,6 @@ const AccountActions: React.FC<AccountActionsProps> = ({
 
   // Role state
   const [selectedRole, setSelectedRole] = useState<string>('worker');
-  const [selectedTier, setSelectedTier] = useState<string>('tier3');
   const [selectedTags, setSelectedTags] = useState<string>('');
   const [roleModalLoading, setRoleModalLoading] = useState(false);
 
@@ -341,8 +340,8 @@ const AccountActions: React.FC<AccountActionsProps> = ({
     setRoleModalLoading(true);
     try {
       const accountIds = selectedRowKeys as number[];
-      await updateAccountsRoleBatch(accountIds, selectedRole, selectedTags || undefined, selectedTier);
-      message.success(`成功更新 ${accountIds.length} 个账号的角色/分级`);
+      await updateAccountsRoleBatch(accountIds, selectedRole, selectedTags || undefined);
+      message.success(`成功更新 ${accountIds.length} 个账号的角色`);
       setIsRoleModalVisible(false);
       setSelectedRowKeys([]);
       fetchAccounts(pagination.current, pagination.pageSize);
@@ -677,19 +676,17 @@ const AccountActions: React.FC<AccountActionsProps> = ({
           <p>已选择 <strong>{selectedRowKeys.length}</strong> 个账号</p>
         </div>
         <Form layout="vertical">
-          <Form.Item label="账号分级 (Tier)" required>
-            <Select value={selectedTier} onChange={setSelectedTier} style={{ width: '100%' }}>
-              <Option value="tier3">Tier 3 (Worker) - 消耗品，用于批量任务</Option>
-              <Option value="tier2">Tier 2 (Support) - 辅助号，受限批量操作</Option>
-              <Option value="tier1">Tier 1 (Premium) - 精品号，禁止批量操作</Option>
-            </Select>
-          </Form.Item>
-          <Form.Item label="账号角色" required>
+          {/* `main` role is intentionally excluded — it's reserved for
+              customer QR-login bound main accounts. Backend VALID_ROLES
+              still accepts it for import flows. */}
+          <Form.Item label="账号角色" required help="分级 (tier) 将根据角色自动设置：master=tier1，support/sales/collector=tier2，worker/listener=tier3">
             <Select value={selectedRole} onChange={setSelectedRole} style={{ width: '100%' }}>
-              <Option value="worker">临时号 - 用于采集、群发等高风险操作</Option>
-              <Option value="master">主账号 - 核心资产，用于管理群组</Option>
-              <Option value="support">客服号 - 接待客户咨询</Option>
-              <Option value="sales">销售号 - 销售人员专用</Option>
+              <Option value="worker">临时号 (worker) - 用于采集、群发等高风险操作</Option>
+              <Option value="listener">监听号 (listener) - 监听群消息</Option>
+              <Option value="collector">采集号 (collector) - KB 历史数据采集</Option>
+              <Option value="support">客服号 (support) - 接待客户咨询</Option>
+              <Option value="sales">销售号 (sales) - 销售人员专用</Option>
+              <Option value="master">主账号 (master) - 核心资产，禁止批量</Option>
             </Select>
           </Form.Item>
           <Form.Item label="标签 (Tags)" help="用逗号分隔多个标签，如：US,Crypto,VIP">

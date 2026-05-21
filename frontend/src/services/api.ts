@@ -74,6 +74,7 @@ export interface AccountCreate {
     api_id?: number;
     api_hash?: string;
     session_string?: string;
+    role?: string;
 }
 
 export interface Proxy {
@@ -297,8 +298,8 @@ export const updateAccountRole = async (accountId: number, role: string, tags?: 
     return response.data;
 };
 
-export const updateAccountsRoleBatch = async (accountIds: number[], role: string, tags?: string, tier?: string): Promise<any> => {
-    const response = await api.post('/accounts/batch/role', { account_ids: accountIds, role, tags, tier });
+export const updateAccountsRoleBatch = async (accountIds: number[], role: string, tags?: string): Promise<any> => {
+    const response = await api.post('/accounts/batch/role', { account_ids: accountIds, role, tags });
     return response.data;
 };
 
@@ -316,21 +317,23 @@ export const deleteAbnormalAccounts = async (): Promise<{ message: string; delet
     return response.data;
 };
 
-export const uploadAccountSession = async (file: File, phoneNumber?: string): Promise<Account> => {
+export const uploadAccountSession = async (file: File, phoneNumber?: string, role?: string): Promise<Account> => {
     const formData = new FormData();
     formData.append('file', file);
     if (phoneNumber) formData.append('phone_number', phoneNumber);
     const response = await api.post('/accounts/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
+        params: role ? { role } : undefined,
     });
     return response.data;
 };
 
-export const uploadAccountSessionsBatch = async (files: File[]): Promise<any> => {
+export const uploadAccountSessionsBatch = async (files: File[], role?: string): Promise<any> => {
     const formData = new FormData();
     files.forEach(file => formData.append('files', file));
     const response = await api.post('/accounts/batch/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
+        params: role ? { role } : undefined,
     });
     return response.data;
 };
@@ -451,17 +454,19 @@ export const importMegaAccounts = async (
     urls: string[],
     target_channels?: string,
     auto_check: boolean = false,
-    auto_warmup: boolean = false
+    auto_warmup: boolean = false,
+    role?: string,
 ): Promise<{ task_ids: string[]; urls: string[]; message: string }> => {
-    const response = await api.post('/accounts/import/mega', { urls, target_channels, auto_check, auto_warmup });
+    const response = await api.post('/accounts/import/mega', { urls, target_channels, auto_check, auto_warmup, role });
     return response.data;
 };
 
-export const uploadTdataBatch = async (files: File[]): Promise<{ task_ids: string[]; filenames: string[]; message: string; errors: string[] }> => {
+export const uploadTdataBatch = async (files: File[], role?: string): Promise<{ task_ids: string[]; filenames: string[]; message: string; errors: string[] }> => {
     const formData = new FormData();
     files.forEach(file => formData.append('files', file));
     const response = await api.post('/accounts/batch/upload-tdata', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        params: role ? { role } : undefined,
         timeout: 5 * 60 * 1000, // 5 minutes for large uploads
     });
     return response.data;

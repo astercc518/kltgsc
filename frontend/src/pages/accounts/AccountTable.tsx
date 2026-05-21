@@ -73,8 +73,6 @@ interface AccountTableProps {
   setStatusFilter: React.Dispatch<React.SetStateAction<string | undefined>>;
   roleFilter: string | undefined;
   setRoleFilter: React.Dispatch<React.SetStateAction<string | undefined>>;
-  tierFilter: string | undefined;
-  setTierFilter: React.Dispatch<React.SetStateAction<string | undefined>>;
 }
 
 const AccountTable: React.FC<AccountTableProps> = ({
@@ -101,8 +99,6 @@ const AccountTable: React.FC<AccountTableProps> = ({
   setStatusFilter,
   roleFilter,
   setRoleFilter,
-  tierFilter,
-  setTierFilter,
 }) => {
   const [checking, setChecking] = useState<number[]>([]);
   const [syncing, setSyncing] = useState(false);
@@ -277,16 +273,6 @@ const AccountTable: React.FC<AccountTableProps> = ({
       key: 'role',
       width: 100,
       render: (role: string) => getRoleTag(role),
-    },
-    {
-      title: '分级',
-      dataIndex: 'tier',
-      key: 'tier',
-      width: 100,
-      render: (tier: string) => {
-        const color = tier === 'tier1' ? 'gold' : (tier === 'tier2' ? 'blue' : 'default');
-        return <Tag color={color}>{tier ? tier.toUpperCase() : 'TIER3'}</Tag>;
-      },
     },
     {
       title: '战斗角色',
@@ -564,22 +550,11 @@ const AccountTable: React.FC<AccountTableProps> = ({
             </Button>
           </Space>
           <Space>
+            {/* `main` role is intentionally excluded — it's reserved for
+                customer QR-login bound main accounts and shouldn't be a
+                manually-selectable filter. Backend VALID_ROLES still accepts it. */}
             <Select
-              style={{ width: 120 }}
-              placeholder="筛选分级"
-              allowClear
-              value={tierFilter}
-              onChange={(value) => {
-                setTierFilter(value);
-                setPagination(prev => ({ ...prev, current: 1 }));
-              }}
-            >
-              <Option value="tier1">Tier 1 (Premium)</Option>
-              <Option value="tier2">Tier 2 (Support)</Option>
-              <Option value="tier3">Tier 3 (Worker)</Option>
-            </Select>
-            <Select
-              style={{ width: 120 }}
+              style={{ width: 140 }}
               placeholder="筛选角色"
               allowClear
               value={roleFilter}
@@ -588,10 +563,12 @@ const AccountTable: React.FC<AccountTableProps> = ({
                 setPagination(prev => ({ ...prev, current: 1 }));
               }}
             >
-              <Option value="worker">临时号</Option>
-              <Option value="master">主账号</Option>
-              <Option value="support">客服号</Option>
-              <Option value="sales">销售号</Option>
+              <Option value="worker">临时号 (worker)</Option>
+              <Option value="listener">监听号 (listener)</Option>
+              <Option value="collector">采集号 (collector)</Option>
+              <Option value="support">客服号 (support)</Option>
+              <Option value="sales">销售号 (sales)</Option>
+              <Option value="master">主账号 (master)</Option>
             </Select>
             <Select
               style={{ width: 150 }}

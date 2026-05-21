@@ -141,12 +141,11 @@ export function useUpdateAccountsRoleBatch() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ accountIds, role, tags, tier }: { 
-      accountIds: number[]; 
-      role: string; 
+    mutationFn: ({ accountIds, role, tags }: {
+      accountIds: number[];
+      role: string;
       tags?: string;
-      tier?: string;
-    }) => updateAccountsRoleBatch(accountIds, role, tags, tier),
+    }) => updateAccountsRoleBatch(accountIds, role, tags),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all });
     },

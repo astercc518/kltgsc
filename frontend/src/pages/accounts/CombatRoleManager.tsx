@@ -403,10 +403,6 @@ const CombatRoleManager: React.FC<CombatRoleManagerProps> = ({
                         { title: 'ID', dataIndex: 'account_id', width: 60 },
                         { title: '手机号', dataIndex: 'phone', width: 140, ellipsis: true },
                         {
-                          title: 'Tier', dataIndex: 'tier', width: 80,
-                          render: (v: string) => <Tag color={v === 'tier1' ? 'red' : v === 'tier2' ? 'purple' : 'default'}>{v}</Tag>,
-                        },
-                        {
                           title: 'Combat Role', dataIndex: 'combat_role', width: 100,
                           render: (v: string) => <Tag color={v === 'scout' ? 'blue' : v === 'actor' ? 'purple' : 'red'}>{v}</Tag>,
                         },
