@@ -106,10 +106,20 @@ def _mask_phone(s: Optional[str]) -> Optional[str]:
 
 
 def _scope_to_sales(stmt, sales: SalesContext):
-    """Customer sales see only their tenant; platform sales see all."""
+    """Visibility rules:
+      - customer_sales → only leads of own tenant (Lead.customer_id = sales.customer_id)
+      - platform_sales → only leads whose customer is flagged is_internal_pool=true
+        (the company's own lead pool, never external customers' leads)
+    """
+    from app.models.customer import Customer
     if sales.kind == "customer":
         return stmt.where(Lead.customer_id == sales.customer_id)
-    return stmt
+    # platform_sales: subquery for internal-pool customer ids
+    return stmt.where(
+        Lead.customer_id.in_(
+            select(Customer.id).where(Customer.is_internal_pool.is_(True))
+        )
+    )
 
 
 def _owner_type_for(sales: SalesContext) -> str:
@@ -224,6 +234,12 @@ def view_lead(
         raise HTTPException(status_code=404, detail="lead not found")
     if sales.kind == "customer" and lead.customer_id != sales.customer_id:
         raise HTTPException(status_code=404, detail="lead not found")
+    if sales.kind == "platform":
+        # F1: platform_sales only opens leads belonging to an internal pool
+        from app.models.customer import Customer
+        owner = session.get(Customer, lead.customer_id) if lead.customer_id else None
+        if not owner or not owner.is_internal_pool:
+            raise HTTPException(status_code=404, detail="lead not found")
 
     owner_type = _owner_type_for(sales)
     today = date.today().isoformat()

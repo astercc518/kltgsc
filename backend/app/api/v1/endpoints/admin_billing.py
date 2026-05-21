@@ -353,3 +353,122 @@ def quick_provision(
         "wallet_balance_cents": wallet.balance_cents if wallet else 0,
         "wallet_credit_txn_id": wallet_credit_txn_id,
     }
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Phase F1 — internal lead pool provisioning
+# ──────────────────────────────────────────────────────────────────────────
+
+
+class ProvisionInternalPoolRequest(BaseModel):
+    email: str = Field(..., description="logical id for the pool, e.g. 'internal-crypto@platform.local'")
+    name: str = Field(..., description="display name in admin UI")
+    industry: str | None = Field(None, description="default industry for leads in this pool")
+    account_ids: list[int] = Field(default_factory=list,
+        description="TG accounts to assign to this pool (will set their customer_id)")
+
+
+@router.post("/provision-internal-pool")
+def provision_internal_pool(
+    payload: ProvisionInternalPoolRequest,
+    admin: User = Depends(get_current_admin),
+    session: Session = Depends(get_session),
+) -> Any:
+    """Create (or find) a Customer flagged is_internal_pool=true. Skips
+    subscription and wallet billing — internal pools are platform-owned
+    lead containers, not paying customers. Optionally reassigns TG
+    accounts into the pool so the listener starts collecting leads
+    under it.
+
+    Idempotent: if a Customer with this email already exists and is
+    flagged as internal pool, returns it; if it exists but isn't internal
+    pool, flips the flag.
+    """
+    from app.models.account import Account
+    from app.models.customer import Customer, STATUS_ACTIVE
+
+    email = payload.email.lower().strip()
+    cust = session.exec(select(Customer).where(Customer.email == email)).first()
+    created = False
+    if cust:
+        if not cust.is_internal_pool:
+            cust.is_internal_pool = True
+        cust.status = STATUS_ACTIVE  # internal pools always active
+        if payload.industry and not cust.industry:
+            cust.industry = payload.industry
+        session.add(cust)
+    else:
+        cust = Customer(
+            email=email,
+            hashed_password=security.get_password_hash("internal-pool-no-login-" + str(admin.id)),
+            name=payload.name,
+            industry=payload.industry,
+            status=STATUS_ACTIVE,
+            is_internal_pool=True,
+        )
+        session.add(cust)
+        created = True
+    session.commit()
+    session.refresh(cust)
+    security.create_log(
+        session, "admin_provision_internal_pool",
+        cust.email, f"id={cust.id} by admin {admin.username}",
+        None, "success",
+    )
+
+    # Reassign accounts (only if explicitly listed)
+    reassigned: list[int] = []
+    if payload.account_ids:
+        for aid in payload.account_ids:
+            acc = session.get(Account, aid)
+            if not acc:
+                continue
+            acc.customer_id = cust.id
+            session.add(acc)
+            reassigned.append(aid)
+        session.commit()
+
+    return {
+        "ok": True,
+        "customer_id": cust.id,
+        "customer_email": cust.email,
+        "is_internal_pool": cust.is_internal_pool,
+        "industry": cust.industry,
+        "created": created,
+        "reassigned_account_ids": reassigned,
+    }
+
+
+@router.get("/internal-pools")
+def list_internal_pools(
+    _admin: User = Depends(get_current_admin),
+    session: Session = Depends(get_session),
+) -> Any:
+    """List all is_internal_pool=true customers with their account / lead counts."""
+    from app.models.account import Account
+    from app.models.customer import Customer
+    from app.models.lead import Lead
+    from sqlalchemy import func
+
+    pools = session.exec(
+        select(Customer).where(Customer.is_internal_pool.is_(True))
+        .order_by(Customer.created_at.desc())
+    ).all()
+    out = []
+    for p in pools:
+        acc_count = session.exec(
+            select(func.count(Account.id)).where(Account.customer_id == p.id)
+        ).one()
+        lead_count = session.exec(
+            select(func.count(Lead.id)).where(Lead.customer_id == p.id)
+        ).one()
+        out.append({
+            "id": p.id,
+            "email": p.email,
+            "name": p.name,
+            "industry": p.industry,
+            "account_count": acc_count,
+            "lead_count": lead_count,
+            "created_at": p.created_at.isoformat(),
+        })
+    return out

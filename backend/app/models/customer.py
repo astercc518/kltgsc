@@ -69,6 +69,12 @@ class CustomerBase(SQLModel):
     token_used: int = Field(default=0)
     seat_used: int = Field(default=0)  # Epic C1: customer_user 行数计数
 
+    # Phase F1: 内部线索池标志。设为 true 的 Customer 不是付费客户，而是
+    # 平台自营的「内部销售线索池」容器：拥有监听 TG 账号、关联监控规则，
+    # 累积的 lead 只给 platform_sales 看。一个系统可有多个 internal pool
+    # （比如按团队/地区拆）。
+    is_internal_pool: bool = Field(default=False, index=True)
+
 
 class Customer(CustomerBase, table=True):
     __tablename__ = "customer"

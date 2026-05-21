@@ -58,6 +58,10 @@ class KeywordMonitorBase(SQLModel):
     # 直接指定 Persona（优先级高于 campaign 的 ai_persona_id）
     ai_persona_id: Optional[int] = Field(default=None, foreign_key="ai_persona.id")
 
+    # Phase F1: 业务分类 — 命中此规则创建的 lead 自动继承此 industry，供
+    # /sales/inbox 按业务组分流。手动配置，规则改 industry 不影响历史 lead。
+    industry: Optional[str] = Field(default=None, max_length=50, index=True)
+
 class KeywordMonitor(KeywordMonitorBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -99,6 +103,8 @@ class KeywordMonitorUpdate(SQLModel):
     # 战役 & Persona 关联
     campaign_id: Optional[int] = None
     ai_persona_id: Optional[int] = None
+    # F1: 业务分类
+    industry: Optional[str] = None
 
 
 class KeywordHitBase(SQLModel):
