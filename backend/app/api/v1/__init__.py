@@ -9,6 +9,7 @@ from app.api.v1.endpoints import (
     customer_wallet, admin_features, customer_features,
     customer_bulk, admin_bulk,
     customer_scrape, customer_invite,
+    customer_sales_users,
 )
 from app.api.deps import get_current_user
 from app.core.config import settings
@@ -247,6 +248,12 @@ router.include_router(
     customer_invite.router,
     prefix="/customer/invite",
     tags=["customer-invite"],
+)
+# Epic C1 — customer admin manages sales sub-users
+router.include_router(
+    customer_sales_users.router,
+    prefix="/customer/sales-users",
+    tags=["customer-sales-users"],
 )
 # Epic 6.0 — admin business-ops dashboard
 router.include_router(

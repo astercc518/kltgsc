@@ -436,8 +436,30 @@ def unified_login(
                 role="customer",
                 redirect_to="/portal/dashboard",
             )
+
+        # Epic C1: customer-internal sales (CustomerUser) fall-through
+        from app.models.customer_user import CustomerUser
+        from app.api.deps_sales import create_customer_sales_access_token
+        cu = session.exec(
+            select(CustomerUser).where(CustomerUser.email == email)
+        ).first()
+        if cu and cu.enabled and security.verify_password(pwd, cu.hashed_password):
+            cu.last_login_at = datetime.utcnow()
+            session.add(cu)
+            session.commit()
+            session.refresh(cu)
+            security.create_log(
+                session, "unified_login", cu.email,
+                f"customer_user id={cu.id} (customer {cu.customer_id})", ip, "success",
+            )
+            return UnifiedLoginResponse(
+                access_token=create_customer_sales_access_token(cu),
+                role="sales",
+                redirect_to="/sales/inbox",
+            )
+
         security.create_log(
-            session, "unified_login", email, "customer invalid", ip, "failed",
+            session, "unified_login", email, "customer/sales invalid", ip, "failed",
         )
         raise HTTPException(status_code=400, detail="Incorrect identifier or password")
 
@@ -468,5 +490,5 @@ def unified_login(
     return UnifiedLoginResponse(
         access_token=security.create_access_token(user.username),
         role=role,
-        redirect_to="/dashboard" if role == "admin" else "/inbox",
+        redirect_to="/dashboard" if role == "admin" else "/sales/inbox",
     )

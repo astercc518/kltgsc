@@ -62,3 +62,7 @@ from .scrape_batch import (
     SCRAPE_PENDING, SCRAPE_RUNNING, SCRAPE_COMPLETED,
     SCRAPE_FAILED, SCRAPE_CANCELED,
 )
+from .customer_user import (
+    CustomerUser, CustomerUserCreate, CustomerUserUpdate, CustomerUserRead,
+    CU_ROLE_SALES,
+)

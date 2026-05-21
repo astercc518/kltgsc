@@ -67,6 +67,7 @@ class CustomerBase(SQLModel):
     account_used: int = Field(default=0)
     group_used: int = Field(default=0)
     token_used: int = Field(default=0)
+    seat_used: int = Field(default=0)  # Epic C1: customer_user 行数计数
 
 
 class Customer(CustomerBase, table=True):
