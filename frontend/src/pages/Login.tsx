@@ -4,6 +4,7 @@ import { Form, Input, Button, Card, message, Typography, Space } from 'antd';
 import { UserOutlined, LockOutlined, SafetyCertificateOutlined, ReloadOutlined } from '@ant-design/icons';
 import { login } from '../services/api';
 import { setCustomerToken } from '../portal/auth';
+import { setSalesToken } from '../sales/auth';
 import { Link, useNavigate } from 'react-router-dom';
 
 const { Title, Text } = Typography;
@@ -73,6 +74,9 @@ const Login: React.FC = () => {
       });
       if (data.role === 'customer') {
         setCustomerToken(data.access_token);
+      } else if (data.role === 'sales') {
+        // Both customer_sales (sub-user) and platform_sales return role='sales'.
+        setSalesToken(data.access_token);
       } else {
         localStorage.setItem('token', data.access_token);
       }

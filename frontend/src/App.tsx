@@ -66,6 +66,12 @@ import PortalBulkDetail from './portal/pages/BulkDetail';
 import PortalBulkInbox from './portal/pages/BulkInbox';
 import PortalScrape from './portal/pages/Scrape';
 import PortalInvite from './portal/pages/Invite';
+import SalesLayout from './sales/Layout';
+import SalesInbox from './sales/pages/Inbox';
+import SalesLeadDetail from './sales/pages/LeadDetail';
+import SalesWalletPage from './sales/pages/Wallet';
+import SalesSettings from './sales/pages/Settings';
+import { isSalesAuthenticated } from './sales/auth';
 import { isCustomerAuthenticated } from './portal/auth';
 
 // 检查用户是否已登录
@@ -375,13 +381,16 @@ const App: React.FC = () => {
     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Routes>
         {/* ── Unified login ──────────────────────────────────────── */}
-        {/* Single entry for both customers (email) and admin/sales (username). */}
+        {/* Single entry for customers (email), tenant-sub-user sales (email),
+            platform sales (username), and admin (username). */}
         <Route path="/login" element={
           isAuthenticated()
             ? <Navigate to="/dashboard" replace />
-            : isCustomerAuthenticated()
-              ? <Navigate to="/portal/dashboard" replace />
-              : <Login />
+            : isSalesAuthenticated()
+              ? <Navigate to="/sales/inbox" replace />
+              : isCustomerAuthenticated()
+                ? <Navigate to="/portal/dashboard" replace />
+                : <Login />
         } />
         {/* Legacy customer login URL → redirect to unified /login */}
         <Route path="/portal/login" element={
@@ -411,6 +420,15 @@ const App: React.FC = () => {
           <Route path="knowledge-bases" element={<PortalKnowledgeBases />} />
           <Route path="main-account" element={<PortalMainAccount />} />
           <Route path="settings" element={<PortalSettings />} />
+        </Route>
+
+        {/* ── Sales workbench (Epic E) — customer_sales + platform_sales ── */}
+        <Route path="/sales" element={<SalesLayout />}>
+          <Route index element={<Navigate to="/sales/inbox" replace />} />
+          <Route path="inbox" element={<SalesInbox />} />
+          <Route path="leads/:id" element={<SalesLeadDetail />} />
+          <Route path="wallet" element={<SalesWalletPage />} />
+          <Route path="settings" element={<SalesSettings />} />
         </Route>
 
         {/* ── Admin: 所有其他页面需要内部登录 ──────────────────── */}
