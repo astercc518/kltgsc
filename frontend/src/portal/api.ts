@@ -429,4 +429,64 @@ export const kbApi = {
     portalApi.get<{ extensions: string[]; max_bytes: number }>('/customer/knowledge-bases/_meta/supported-types').then(r => r.data),
 };
 
+// ─── Epic A — Customer Scrape ────────────────────────────────────────────
+
+export interface ScrapeBatch {
+  id: number;
+  customer_id: number;
+  name: string;
+  source_links: string[];
+  account_ids: number[];
+  limit_per_group: number;
+  filter_active_only: boolean;
+  filter_has_photo: boolean;
+  filter_has_username: boolean;
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'canceled';
+  estimated_unit_price_cents: number;
+  estimated_total_cents: number;
+  charged_cents: number;
+  scraped_count: number;
+  new_users_count: number;
+  failed_group_count: number;
+  error_message: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+}
+
+export interface ScrapeCostPreview {
+  estimated_member_count: number;
+  unit_price_cents: number;
+  estimated_total_cents: number;
+  balance_cents: number;
+  balance_sufficient: boolean;
+  shortfall_cents: number;
+}
+
+export interface CreateScrapeBatchRequest {
+  name: string;
+  source_links: string[];
+  account_ids?: number[];
+  limit_per_group?: number;
+  filter_active_only?: boolean;
+  filter_has_photo?: boolean;
+  filter_has_username?: boolean;
+}
+
+export const scrapeApi = {
+  previewCost: (source_links: string[], limit_per_group: number) =>
+    portalApi.post<ScrapeCostPreview>('/customer/scrape/preview-cost',
+      { source_links, limit_per_group }).then(r => r.data),
+  create: (data: CreateScrapeBatchRequest) =>
+    portalApi.post<ScrapeBatch>('/customer/scrape/batches', data).then(r => r.data),
+  list: (params: { status?: string; skip?: number; limit?: number } = {}) =>
+    portalApi.get<ScrapeBatch[]>('/customer/scrape/batches', { params }).then(r => r.data),
+  get: (id: number) =>
+    portalApi.get<ScrapeBatch>(`/customer/scrape/batches/${id}`).then(r => r.data),
+  start: (id: number) =>
+    portalApi.post<ScrapeBatch>(`/customer/scrape/batches/${id}/start`, {}).then(r => r.data),
+  cancel: (id: number) =>
+    portalApi.delete<ScrapeBatch>(`/customer/scrape/batches/${id}`).then(r => r.data),
+};
+
 export default portalApi;

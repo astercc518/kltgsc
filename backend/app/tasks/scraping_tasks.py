@@ -137,10 +137,16 @@ def scrape_members_batch_task(
     group_links: List[str],
     limit: int = 100,
     scraping_task_id: int = None,
-    filter_config: dict = None
+    filter_config: dict = None,
+    scrape_batch_id: int = None,
+    customer_id: int = None,
 ):
-    """
-    批量采集群成员
+    """批量采集群成员。
+
+    Epic A 客户化路径：当 scrape_batch_id + customer_id 都传入时，任务完成会
+    调 scrape_batch_service.finalize_batch_from_worker 更新客户视角的批次
+    记录并按实际采集到的成员数从客户钱包扣费（FeatureRegistry slug:
+    scrape_group_members）。
     """
     import time
     
@@ -242,15 +248,56 @@ def scrape_members_batch_task(
             
         _update_scraping_task_status(db_session, scraping_task_id, "completed", None, results)
         logger.info(f"Batch scrape completed: {results['total_scraped']} scraped, {results['new_users']} new")
+
+        # Epic A — finalize customer-facing batch (progress + wallet charge)
+        if scrape_batch_id:
+            try:
+                from app.services.scrape_batch_service import finalize_batch_from_worker
+                finalize_batch_from_worker(
+                    db_session,
+                    batch_id=scrape_batch_id,
+                    scraped_count=results["total_scraped"],
+                    new_users_count=results["new_users"],
+                    failed_group_count=len(results["failed"]),
+                )
+            except Exception as e:
+                logger.error(f"finalize_batch_from_worker failed: {e}")
+
         return results
-        
+
     except SoftTimeLimitExceeded:
         logger.error(f"Batch scrape task timed out. Scraped: {results['total_scraped']}, New: {results['new_users']}")
         _update_scraping_task_status(db_session, scraping_task_id, "failed", "Task timed out", results)
+        if scrape_batch_id:
+            try:
+                from app.services.scrape_batch_service import finalize_batch_from_worker
+                finalize_batch_from_worker(
+                    db_session,
+                    batch_id=scrape_batch_id,
+                    scraped_count=results["total_scraped"],
+                    new_users_count=results["new_users"],
+                    failed_group_count=len(results["failed"]),
+                    error_message="Task timed out",
+                )
+            except Exception:
+                pass
         return {"error": "Task timed out", **results}
     except Exception as e:
         logger.error(f"Batch scrape task failed: {e}")
         _update_scraping_task_status(db_session, scraping_task_id, "failed", str(e), results)
+        if scrape_batch_id:
+            try:
+                from app.services.scrape_batch_service import finalize_batch_from_worker
+                finalize_batch_from_worker(
+                    db_session,
+                    batch_id=scrape_batch_id,
+                    scraped_count=results["total_scraped"],
+                    new_users_count=results["new_users"],
+                    failed_group_count=len(results["failed"]),
+                    error_message=str(e),
+                )
+            except Exception:
+                pass
         return {"error": str(e), **results}
     finally:
         db_session.close()

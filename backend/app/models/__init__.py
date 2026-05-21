@@ -57,3 +57,8 @@ from .bulk_send import (
     TARGET_PENDING, TARGET_SENDING, TARGET_SENT, TARGET_DELIVERED,
     TARGET_FAILED, TARGET_REPLIED, TARGET_OPTED_OUT, TARGET_SKIPPED,
 )
+from .scrape_batch import (
+    ScrapeBatch, ScrapeBatchCreate, ScrapeBatchRead, ScrapeCostPreview,
+    SCRAPE_PENDING, SCRAPE_RUNNING, SCRAPE_COMPLETED,
+    SCRAPE_FAILED, SCRAPE_CANCELED,
+)

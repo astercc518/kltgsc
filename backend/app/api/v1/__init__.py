@@ -8,6 +8,7 @@ from app.api.v1.endpoints import (
     webhooks, customer_kb, customer_main_account, admin_dashboard,
     customer_wallet, admin_features, customer_features,
     customer_bulk, admin_bulk,
+    customer_scrape,
 )
 from app.api.deps import get_current_user
 from app.core.config import settings
@@ -234,6 +235,12 @@ router.include_router(
     admin_bulk.router,
     prefix="/admin/bulk",
     tags=["admin-bulk"],
+)
+# Epic A — customer-facing scrape batches
+router.include_router(
+    customer_scrape.router,
+    prefix="/customer/scrape",
+    tags=["customer-scrape"],
 )
 # Epic 6.0 — admin business-ops dashboard
 router.include_router(

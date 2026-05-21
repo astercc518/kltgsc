@@ -20,6 +20,7 @@ import {
   WalletOutlined,
   AppstoreOutlined,
   SendOutlined,
+  CloudDownloadOutlined,
 } from '@ant-design/icons';
 import { Link, Outlet, useLocation, Navigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -59,6 +60,7 @@ const PortalLayout: React.FC = () => {
     { key: '/portal/billing', icon: <CreditCardOutlined />, label: <Link to="/portal/billing">Billing</Link> },
     { key: '/portal/wallet', icon: <WalletOutlined />, label: <Link to="/portal/wallet">Wallet</Link> },
     { key: '/portal/features', icon: <AppstoreOutlined />, label: <Link to="/portal/features">Feature Pack</Link> },
+    { key: '/portal/scrape', icon: <CloudDownloadOutlined />, label: <Link to="/portal/scrape">Scrape</Link> },
     { key: '/portal/bulk', icon: <SendOutlined />, label: <Link to="/portal/bulk">Bulk Send</Link> },
     { key: '/portal/accounts', icon: <TeamOutlined />, label: <Link to="/portal/accounts">TG Accounts</Link> },
     { key: '/portal/leads', icon: <MessageOutlined />, label: <Link to="/portal/leads">Leads</Link> },
