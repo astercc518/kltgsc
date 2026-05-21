@@ -372,3 +372,40 @@ def trigger_free_chat(
         "account_ids": account_ids,
         "turns_per_account": request.turns_per_account,
     }
+
+
+# ── Phase F4 — recent hits debug endpoint ────────────────────────────────
+
+
+@router.get("/{monitor_id}/recent-hits")
+def get_monitor_recent_hits(
+    monitor_id: int,
+    hours: int = Query(24, ge=1, le=168),
+    limit: int = Query(50, ge=1, le=500),
+    session: Session = Depends(get_session)
+):
+    """Recent KeywordHit rows for this monitor regardless of whether they
+    produced a Lead. Helps ops tune cooldown / circuit_breaker / match
+    settings when the listener isn't producing as expected."""
+    from datetime import datetime, timedelta
+    from app.models.keyword_monitor import KeywordHit
+    cutoff = datetime.utcnow() - timedelta(hours=hours)
+    rows = session.exec(
+        select(KeywordHit)
+        .where(KeywordHit.keyword_monitor_id == monitor_id,
+               KeywordHit.detected_at >= cutoff)
+        .order_by(KeywordHit.detected_at.desc()).limit(limit)
+    ).all()
+    return {
+        "monitor_id": monitor_id,
+        "window_hours": hours,
+        "hit_count": len(rows),
+        "hits": [{
+            "id": h.id,
+            "source_group_name": h.source_group_name,
+            "source_user_name": h.source_user_name,
+            "snippet": (h.message_content or "")[:120],
+            "status": h.status,
+            "detected_at": h.detected_at.isoformat(),
+        } for h in rows],
+    }

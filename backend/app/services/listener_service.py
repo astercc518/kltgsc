@@ -363,14 +363,30 @@ class ListenerService:
         # 1. 消息转发
         if monitor.forward_target:
             await self._forward_message(client, message, monitor.forward_target)
-        
+
         # 2. 自动线索录入与评分
         if monitor.auto_capture_lead or (monitor.score_weight and monitor.score_weight > 0):
             await self._update_user_score(
                 session, user_id, username, first_name,
                 str(message.chat.id), monitor.keyword, monitor.score_weight or 10
             )
-        
+
+        # 2.5 — F4 — Internal-pool fast path:
+        # If the listening account belongs to an is_internal_pool=true Customer,
+        # the hit goes straight into a candidate Lead (no shill / DM, no risk
+        # of spam), with industry inherited from monitor.industry. Sales pick
+        # it up from /sales/inbox.
+        is_internal_pool = await self._is_internal_pool_account(session, client)
+        if is_internal_pool:
+            try:
+                await self._upsert_internal_pool_lead(
+                    session, client, monitor, message,
+                    user_id, username, first_name,
+                )
+            except Exception as e:
+                logger.error(f"internal-pool lead upsert failed: {e}")
+            return  # Skip shill for internal pool — safety + no spend.
+
         # 3. 触发剧本 / AI 炒群 (被动模式下通常不主动回复，但可以触发后台任务)
         if monitor.action_type == "trigger_script" and monitor.reply_script_id:
             from app.services.shill_dispatcher import ShillDispatcher
@@ -383,6 +399,74 @@ class ListenerService:
             chat_id = message.chat.id
             context_msgs = self.context_cache.get(chat_id, [])[-8:]
             await dispatcher.dispatch_ai_shill(hit.id, context_msgs)
+
+    async def _is_internal_pool_account(self, session: Session, client) -> bool:
+        """Return True if the listening account belongs to a Customer flagged
+        is_internal_pool. Used to choose the F4 fast path."""
+        try:
+            client_name = getattr(client, "name", None) or ""
+            acc = self.client_accounts.get(client_name)
+            if not acc or not acc.customer_id:
+                return False
+            from app.models.customer import Customer
+            cust = session.get(Customer, acc.customer_id)
+            return bool(cust and cust.is_internal_pool)
+        except Exception:
+            return False
+
+    async def _upsert_internal_pool_lead(
+        self, session: Session, client, monitor: KeywordMonitor, message,
+        sender_tg_user_id: int, sender_username: str, sender_first_name: str,
+    ):
+        """Create a candidate Lead from a monitor hit (F4 internal-pool path).
+
+        Dedup key: (account_id, telegram_user_id). On duplicate hit, just
+        bumps last_interaction_at and ensures industry is set. Does NOT
+        send anything to Telegram — pure write to lead table.
+        """
+        from app.models.lead import Lead
+        from app.models.customer import Customer
+        client_name = getattr(client, "name", None) or ""
+        acc = self.client_accounts.get(client_name)
+        if not acc:
+            return
+        cust = session.get(Customer, acc.customer_id) if acc.customer_id else None
+
+        lead = session.exec(
+            select(Lead).where(
+                Lead.account_id == acc.id,
+                Lead.telegram_user_id == sender_tg_user_id,
+            )
+        ).first()
+
+        industry = monitor.industry or (cust.industry if cust else None)
+        chat_title = getattr(message.chat, "title", None) or ""
+        snippet = (message.text or message.caption or "")[:200]
+
+        if not lead:
+            import json as _json
+            lead = Lead(
+                account_id=acc.id,
+                telegram_user_id=sender_tg_user_id,
+                username=sender_username,
+                first_name=sender_first_name,
+                status="new",
+                tags_json=_json.dumps([f"monitor:{monitor.keyword}"]),
+                last_interaction_at=datetime.utcnow(),
+                customer_id=cust.id if cust else None,
+                source="monitor",
+                industry=industry,
+                notes=f"From {chat_title!r}: {snippet}" if snippet else None,
+            )
+            session.add(lead)
+        else:
+            lead.last_interaction_at = datetime.utcnow()
+            if not lead.industry and industry:
+                lead.industry = industry
+            if lead.source != "monitor":
+                lead.source = "monitor"
+            session.add(lead)
+        session.commit()
 
     async def _execute_active_marketing(
         self, client: Client, message, session: Session,
