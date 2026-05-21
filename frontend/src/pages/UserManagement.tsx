@@ -5,12 +5,12 @@ import {
 } from 'antd';
 import {
   UserAddOutlined, EditOutlined, KeyOutlined, DeleteOutlined,
-  UserSwitchOutlined, CrownOutlined, ShopOutlined,
+  UserSwitchOutlined, CrownOutlined, ShopOutlined, LoginOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getUsers, createUser, updateUser, deleteUser, resetUserPassword,
-  getCurrentUser, UserInfo,
+  impersonateUser, getCurrentUser, UserInfo,
 } from '../services/api';
 
 const { Title, Text } = Typography;
@@ -31,11 +31,16 @@ const UserManagement: React.FC = () => {
   const usersQuery = useQuery({ queryKey: ['users'], queryFn: getUsers });
   const meQuery = useQuery({ queryKey: ['me'], queryFn: getCurrentUser });
 
-  const users = usersQuery.data || [];
+  const allUsers = usersQuery.data || [];
   const me = meQuery.data;
 
-  const adminCount = users.filter(u => u.role === 'admin' && u.is_active).length;
-  const salesCount = users.filter(u => u.role === 'sales' && u.is_active).length;
+  // Hide superuser rows from the list — admin runs the page; they don't need to
+  // manage themselves through this UI. Stats below still count from allUsers
+  // so the "Active 管理员" tile reflects the true number including superusers.
+  const users = allUsers.filter(u => !u.is_superuser);
+
+  const adminCount = allUsers.filter(u => u.role === 'admin' && u.is_active).length;
+  const salesCount = allUsers.filter(u => u.role === 'sales' && u.is_active).length;
 
   // ── Mutations ─────────────────────────────────────────────────
   const createMut = useMutation({
@@ -74,6 +79,24 @@ const UserManagement: React.FC = () => {
       closeModal();
     },
     onError: (e: any) => message.error(e.response?.data?.message || e.response?.data?.detail || '重置失败'),
+  });
+
+  const impersonateMut = useMutation({
+    mutationFn: (userId: number) => impersonateUser(userId),
+    onSuccess: (data) => {
+      // Open in a new tab with token in the URL hash; the App.tsx
+      // impersonation handoff reads the hash and stashes the token to
+      // the right localStorage key, then redirects. Hash isn't sent to
+      // server logs so it's safer than a query string.
+      const hash = `impersonate=${encodeURIComponent(data.access_token)}`
+        + `&role=${encodeURIComponent(data.target_role)}`
+        + `&to=${encodeURIComponent(data.redirect_to)}`;
+      const url = `${data.redirect_to}#${hash}`;
+      window.open(url, '_blank', 'noopener');
+      message.success(`已为 ${data.target_username} 打开新会话标签`);
+    },
+    onError: (e: any) =>
+      message.error(e.response?.data?.message || e.response?.data?.detail || '账号登录失败'),
   });
 
   // ── Handlers ──────────────────────────────────────────────────
@@ -152,7 +175,7 @@ const UserManagement: React.FC = () => {
       ),
     },
     {
-      title: '操作', key: 'actions', width: 280,
+      title: '操作', key: 'actions', width: 380,
       render: (_: any, row: UserInfo) => {
         const isSelf = me?.id === row.id;
         return (
@@ -170,6 +193,21 @@ const UserManagement: React.FC = () => {
             >
               重置密码
             </Button>
+            <Popconfirm
+              title={`以「${row.username}」身份登录？`}
+              description="将在新标签页打开该用户的工作界面。当前 admin 会话保持不变。"
+              okText="确认登录" cancelText="取消"
+              disabled={isSelf || !row.is_active}
+              onConfirm={() => impersonateMut.mutate(row.id)}
+            >
+              <Button
+                size="small" type="primary" ghost icon={<LoginOutlined />}
+                disabled={isSelf || !row.is_active}
+                loading={impersonateMut.isPending && impersonateMut.variables === row.id}
+              >
+                账号登录
+              </Button>
+            </Popconfirm>
             <Popconfirm
               title="确认删除该用户？"
               description={

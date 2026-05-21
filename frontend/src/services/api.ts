@@ -926,6 +926,20 @@ export const resetUserPassword = async (
     return r.data;
 };
 
+export interface ImpersonateResponse {
+    access_token: string;
+    token_type: string;
+    target_user_id: number;
+    target_username: string;
+    target_role: string;
+    redirect_to: string;
+}
+
+export const impersonateUser = async (userId: number): Promise<ImpersonateResponse> => {
+    const r = await api.post(`/users/${userId}/impersonate`);
+    return r.data;
+};
+
 // ─── Feature Pack / Usage Billing (Admin views) ──────────────────────────
 
 export interface FeatureRegistry {

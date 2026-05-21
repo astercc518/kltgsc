@@ -73,6 +73,32 @@ import SalesWalletPage from './sales/pages/Wallet';
 import SalesSettings from './sales/pages/Settings';
 import { isSalesAuthenticated } from './sales/auth';
 import { isCustomerAuthenticated } from './portal/auth';
+import { setSalesToken } from './sales/auth';
+
+// Admin impersonation handoff: when a tab opens with
+//   #impersonate=<jwt>&role=sales&to=/sales/inbox
+// stash the token under the correct localStorage key BEFORE React reads it,
+// clear the hash, and let normal routing take over.
+// This runs once at module load so SPA routing sees the user as logged in.
+(() => {
+  const h = window.location.hash || '';
+  if (!h.startsWith('#impersonate=')) return;
+  try {
+    const params = new URLSearchParams(h.slice(1));
+    const token = params.get('impersonate');
+    const role = params.get('role') || '';
+    if (!token) return;
+    if (role === 'sales') {
+      setSalesToken(token);
+    } else {
+      localStorage.setItem('token', token);
+    }
+    // Clean the hash so refresh doesn't re-stash an old token.
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+  } catch (_) {
+    // Best-effort: leave the page in its original state on parse failure.
+  }
+})();
 
 // 检查用户是否已登录
 const isAuthenticated = (): boolean => {

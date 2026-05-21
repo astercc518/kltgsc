@@ -333,3 +333,56 @@ def set_industry_filter(
         "username": target.username,
         "industry_filter": body.industry_filter,
     }
+
+
+# ── Admin impersonation (login as another user) ──────────────────────────
+
+
+@router.post("/{user_id}/impersonate")
+def impersonate_user(
+    user_id: int,
+    admin: User = Depends(get_current_admin),
+    session: Session = Depends(get_session),
+):
+    """Issue an access token for the target user. Admin-only; useful for
+    "log in as this sales rep to verify their inbox view".
+
+    Returns the token + role + suggested redirect target. The frontend
+    opens a new tab with the token in a URL fragment, which the SPA picks
+    up and stores under the right localStorage key — admin's own session
+    is left untouched.
+
+    Audit-logged. Rejects: self, inactive target, superuser target.
+    """
+    from app.core.security import create_access_token, create_log
+    target = session.get(User, user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="user not found")
+    if target.id == admin.id:
+        raise HTTPException(status_code=400, detail="cannot impersonate self")
+    if not target.is_active:
+        raise HTTPException(status_code=400, detail="target user is inactive")
+    if target.is_superuser:
+        raise HTTPException(status_code=403, detail="cannot impersonate a superuser")
+
+    token = create_access_token(target.username)
+
+    # Where the frontend should drop them after handoff.
+    if getattr(target, "role", "") == "sales":
+        redirect_to = "/sales/inbox"
+    else:
+        redirect_to = "/dashboard"
+
+    create_log(
+        session, "admin_impersonate", admin.username,
+        f"impersonated user_id={target.id} ({target.username}) role={target.role}",
+        None, "success",
+    )
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "target_user_id": target.id,
+        "target_username": target.username,
+        "target_role": target.role,
+        "redirect_to": redirect_to,
+    }
