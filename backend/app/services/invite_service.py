@@ -395,7 +395,10 @@ class InviteService:
         account_index = 0
         
         while target_index < len(targets):
-            if task.status == "paused":
+            # Refresh status — _log_invite may flip to 'paused_no_funds'
+            # mid-loop when the customer wallet runs dry.
+            self.session.refresh(task)
+            if task.status in ("paused", "paused_no_funds"):
                 break
             
             # 获取当前账号
@@ -573,9 +576,13 @@ class InviteService:
                     f"Wallet exhausted for customer {account.customer_id} during "
                     f"invite task {task.id}: {e}"
                 )
-                # Note: caller (execute_invite_task) doesn't see this exception;
-                # the next invite attempt will also be uncharged. Recommend admin
-                # monitor `paused_no_funds` task status (TODO add to outer loop).
+                # Epic B — flip task to paused_no_funds so the outer loop
+                # (execute_invite_task) stops issuing invites. Customer can
+                # topup wallet then PATCH task back to 'pending'/'running'.
+                task.status = "paused_no_funds"
+                task.last_error = f"Wallet exhausted: {e}"[:500]
+                self.session.add(task)
+                self.session.commit()
     
     def _update_target_status(
         self,

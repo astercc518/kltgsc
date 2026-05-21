@@ -65,6 +65,7 @@ import PortalBulkNew from './portal/pages/BulkNew';
 import PortalBulkDetail from './portal/pages/BulkDetail';
 import PortalBulkInbox from './portal/pages/BulkInbox';
 import PortalScrape from './portal/pages/Scrape';
+import PortalInvite from './portal/pages/Invite';
 import { isCustomerAuthenticated } from './portal/auth';
 
 // 检查用户是否已登录
@@ -404,6 +405,7 @@ const App: React.FC = () => {
           <Route path="bulk/inbox" element={<PortalBulkInbox />} />
           <Route path="bulk/:id" element={<PortalBulkDetail />} />
           <Route path="scrape" element={<PortalScrape />} />
+          <Route path="invite" element={<PortalInvite />} />
           <Route path="accounts" element={<PortalAccounts />} />
           <Route path="leads" element={<PortalLeads />} />
           <Route path="knowledge-bases" element={<PortalKnowledgeBases />} />

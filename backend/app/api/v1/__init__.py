@@ -8,7 +8,7 @@ from app.api.v1.endpoints import (
     webhooks, customer_kb, customer_main_account, admin_dashboard,
     customer_wallet, admin_features, customer_features,
     customer_bulk, admin_bulk,
-    customer_scrape,
+    customer_scrape, customer_invite,
 )
 from app.api.deps import get_current_user
 from app.core.config import settings
@@ -241,6 +241,12 @@ router.include_router(
     customer_scrape.router,
     prefix="/customer/scrape",
     tags=["customer-scrape"],
+)
+# Epic B — customer-facing invite (group-pull) tasks
+router.include_router(
+    customer_invite.router,
+    prefix="/customer/invite",
+    tags=["customer-invite"],
 )
 # Epic 6.0 — admin business-ops dashboard
 router.include_router(

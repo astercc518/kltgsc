@@ -47,6 +47,11 @@ class InviteTaskBase(SQLModel):
     recurring_interval_hours: int = Field(default=24)  # 循环间隔（小时）
     recurring_batch_size: int = Field(default=50)  # 每次循环拉人数
     
+    # === Customer scoping (Epic B — customer-initiated invite tasks) ===
+    # NULL = admin-created (legacy / internal). Set when created via
+    # /customer/invite/* so the Portal can list only the customer's own tasks.
+    customer_id: Optional[int] = Field(default=None, foreign_key="customer.id", index=True)
+
     # === 时间戳 ===
     created_at: datetime = Field(default_factory=datetime.utcnow)
     started_at: Optional[datetime] = None
