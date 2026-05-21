@@ -1,5 +1,6 @@
 import React from 'react';
-import { Table, Tag, Typography, Empty } from 'antd';
+import { Table, Tag, Typography, Empty, Button, Space, Alert } from 'antd';
+import { CustomerServiceOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { resourcesApi } from '../api';
 
@@ -18,11 +19,30 @@ const PortalLeads: React.FC = () => {
 
   return (
     <div>
-      <Title level={3}>Leads</Title>
-      <Text type="secondary">
-        Prospects captured by your AI from monitored groups and DMs.
-        High-intent leads trigger real-time alerts.
-      </Text>
+      <Space style={{ justifyContent: 'space-between', width: '100%', alignItems: 'flex-start' }}>
+        <div>
+          <Title level={3} style={{ marginBottom: 0 }}>Leads</Title>
+          <Text type="secondary">
+            Prospects captured by your AI from monitored groups and DMs.
+            High-intent leads trigger real-time alerts.
+          </Text>
+        </div>
+        <Button
+          type="primary"
+          icon={<CustomerServiceOutlined />}
+          onClick={() => window.open('/sales/inbox', '_blank')}
+        >
+          打开销售工作台
+        </Button>
+      </Space>
+
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginTop: 16, marginBottom: 8 }}
+        message="销售坐席接管"
+        description="要私聊回复某个 lead，请到「销售工作台 → Inbox」由销售人员手动接管。此页只读，便于客户管理者查看全量线索。"
+      />
 
       <Table
         style={{ marginTop: 24 }}

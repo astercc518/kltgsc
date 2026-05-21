@@ -146,12 +146,21 @@ class ListenerService:
                 pass
             owner_sales_id = getattr(account_obj, "assigned_to_sales_user_id", None)
             owner_sales_kind = getattr(account_obj, "assigned_to_sales_kind", None)
+            # S2.2 — figure out which customer (tenant) this account belongs to.
+            # Customer-owned monitor rules only fire when the listening account
+            # is in the same tenant.
+            owner_customer_id = getattr(account_obj, "customer_id", None)
 
             for monitor in active_monitors:
                 # Phase G — sales-ownership filter
                 if monitor.created_by_sales_user_id is not None:
                     if (monitor.created_by_sales_user_id != owner_sales_id
                             or monitor.created_by_sales_kind != owner_sales_kind):
+                        continue
+                # S2.2 — customer-ownership filter (mutually exclusive with
+                # the sales filter; both NULL = global admin rule).
+                if monitor.customer_id is not None:
+                    if monitor.customer_id != owner_customer_id:
                         continue
 
                 # === Step 1: 检查目标群组过滤 ===
@@ -462,15 +471,16 @@ class ListenerService:
         chat_title = getattr(message.chat, "title", None) or ""
         snippet = (message.text or message.caption or "")[:200]
 
+        is_new_lead = lead is None
         if not lead:
             import json as _json
-            # Phase G — if the account is assigned to a platform sales, pre-claim
-            # the new lead to that sales so it shows up only in their inbox
-            # (no $0.50 charge — the charge is only on first /view).
+            # Phase G + S2.5 — pre-claim the new lead to the assigned sales
+            # (platform or customer kind) so it lands directly in their
+            # inbox. No charge on pre-claim; sales pays on /view only.
             preassign_uid = None
             preassign_at = None
             if (acc.assigned_to_sales_user_id
-                    and acc.assigned_to_sales_kind == "platform"):
+                    and acc.assigned_to_sales_kind in ("platform", "customer")):
                 preassign_uid = acc.assigned_to_sales_user_id
                 preassign_at = datetime.utcnow()
             lead = Lead(
@@ -497,6 +507,28 @@ class ListenerService:
                 lead.source = "monitor"
             session.add(lead)
         session.commit()
+
+        # S2.4 — Customer-owned monitors are wallet-billed per auto-created
+        # lead. Only charge on truly new rows (avoid double-charging on
+        # repeated hits from the same sender). Sales-owned / global rules
+        # are NOT charged here.
+        if is_new_lead and monitor.customer_id is not None:
+            try:
+                session.refresh(lead)
+                from app.services import feature_billing as fb
+                fb.charge(
+                    session,
+                    customer_id=monitor.customer_id,
+                    slug="ai_marketing_lead_created",
+                    units=1,
+                    idempotency_key=f"feat:ai_marketing_lead_created:{lead.id}",
+                    description=f"AI auto-lead from monitor #{monitor.id}",
+                )
+            except Exception as e:  # noqa: BLE001
+                logger.warning(
+                    "ai_marketing_lead_created charge failed for monitor %s lead %s: %s",
+                    monitor.id, lead.id, e,
+                )
 
     async def _execute_active_marketing(
         self, client: Client, message, session: Session,
@@ -553,7 +585,30 @@ class ListenerService:
             hit.status = "handled"
             session.add(hit)
             session.commit()
-            
+
+            # S2.4 — Customer-owned active monitors are wallet-billed for
+            # the group reply. Sales-owned and global rules are NOT charged
+            # here (they're either platform-internal or admin-comped).
+            if monitor.customer_id is not None and monitor.reply_mode != "private_dm":
+                try:
+                    from app.services import feature_billing as fb
+                    fb.charge(
+                        session,
+                        customer_id=monitor.customer_id,
+                        slug="ai_marketing_group_reply",
+                        units=1,
+                        idempotency_key=f"feat:ai_marketing_group_reply:{hit.id}",
+                        description=f"AI active reply (monitor #{monitor.id}, hit #{hit.id})",
+                    )
+                except Exception as e:  # noqa: BLE001
+                    # Don't fail the reply if billing falters — log and
+                    # move on. wallet_service will reject double-charges
+                    # by idempotency_key on retry.
+                    logger.warning(
+                        "ai_marketing_group_reply charge failed for monitor %s hit %s: %s",
+                        monitor.id, hit.id, e,
+                    )
+
         except Exception as e:
             logger.error(f"Failed to send active marketing reply: {e}")
             hit.status = "failed"

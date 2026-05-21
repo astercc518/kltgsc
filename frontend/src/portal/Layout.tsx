@@ -22,10 +22,11 @@ import {
   SendOutlined,
   CloudDownloadOutlined,
   UsergroupAddOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 import { Link, Outlet, useLocation, Navigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { authApi } from './api';
+import { authApi, featuresApi } from './api';
 import { logoutCustomer, isCustomerAuthenticated } from './auth';
 import LowBalanceBanner from './components/LowBalanceBanner';
 
@@ -57,6 +58,16 @@ const PortalLayout: React.FC = () => {
     retry: false,
   });
 
+  // S2.6 — Show "AI 监听" only when ai_marketing_assistant is enabled.
+  const { data: features = [] } = useQuery({
+    queryKey: ['portal', 'features'],
+    queryFn: featuresApi.list,
+    retry: false,
+  });
+  const aiMarketingEnabled = features.some(
+    f => f.feature_slug === 'ai_marketing_assistant' && f.enabled,
+  );
+
   const menuItems = [
     { key: '/portal/dashboard', icon: <DashboardOutlined />, label: <Link to="/portal/dashboard">Dashboard</Link> },
     { key: '/portal/billing', icon: <CreditCardOutlined />, label: <Link to="/portal/billing">Billing</Link> },
@@ -65,6 +76,11 @@ const PortalLayout: React.FC = () => {
     { key: '/portal/scrape', icon: <CloudDownloadOutlined />, label: <Link to="/portal/scrape">Scrape</Link> },
     { key: '/portal/bulk', icon: <SendOutlined />, label: <Link to="/portal/bulk">Bulk Send</Link> },
     { key: '/portal/invite', icon: <UsergroupAddOutlined />, label: <Link to="/portal/invite">Invite</Link> },
+    ...(aiMarketingEnabled ? [{
+      key: '/portal/monitors',
+      icon: <ThunderboltOutlined />,
+      label: <Link to="/portal/monitors">AI 监听</Link>,
+    }] : []),
     { key: '/portal/accounts', icon: <TeamOutlined />, label: <Link to="/portal/accounts">TG Accounts</Link> },
     { key: '/portal/leads', icon: <MessageOutlined />, label: <Link to="/portal/leads">Leads</Link> },
     { key: '/portal/knowledge-bases', icon: <BookOutlined />, label: <Link to="/portal/knowledge-bases">Knowledge Base</Link> },

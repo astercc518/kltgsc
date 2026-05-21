@@ -180,6 +180,69 @@ export interface TopupResponse {
   expires_at: string;
 }
 
+// ─── AI Marketing monitors (S2.2) ─────────────────────────────────────────
+
+export interface CustomerMonitor {
+  id: number;
+  keyword: string;
+  match_type: string;             // partial | exact | regex | semantic
+  target_groups: string | null;
+  marketing_mode: string;         // passive | active
+  reply_mode: string;             // group_reply | private_dm (customer rules force group_reply)
+  is_active: boolean;
+  cooldown_seconds: number;
+  max_replies_per_day: number;
+  delay_min_seconds: number;
+  delay_max_seconds: number;
+  ai_persona: string;
+  scenario_description: string | null;
+  similarity_threshold: number;
+  description: string | null;
+  industry: string | null;
+  auto_capture_lead: boolean;
+  score_weight: number;
+  customer_id: number;
+  created_at: string;
+}
+
+export interface CustomerMonitorHit {
+  id: number;
+  source_group_id: string;
+  source_group_name: string | null;
+  source_user_id: string;
+  source_user_name: string | null;
+  message_content: string;
+  detected_at: string;
+  status: string;
+}
+
+export const monitorsApi = {
+  list: (params: { is_active?: boolean } = {}) =>
+    portalApi.get<CustomerMonitor[]>('/customer/monitors', { params }).then(r => r.data),
+  get: (id: number) =>
+    portalApi.get<CustomerMonitor>(`/customer/monitors/${id}`).then(r => r.data),
+  create: (body: Partial<CustomerMonitor>) =>
+    portalApi.post<CustomerMonitor>('/customer/monitors', body).then(r => r.data),
+  update: (id: number, body: Partial<CustomerMonitor>) =>
+    portalApi.put<CustomerMonitor>(`/customer/monitors/${id}`, body).then(r => r.data),
+  remove: (id: number) =>
+    portalApi.delete(`/customer/monitors/${id}`).then(r => r.data),
+  recentHits: (id: number, limit: number = 50) =>
+    portalApi.get<CustomerMonitorHit[]>(`/customer/monitors/${id}/recent-hits`,
+      { params: { limit } }).then(r => r.data),
+};
+
+
+// ─── Customer feature pack (subset needed by Layout menu gate) ───────────
+
+export const featuresApi = {
+  list: () =>
+    portalApi.get<{ feature_slug: string; enabled: boolean }[]>(
+      '/customer/features'
+    ).then(r => r.data),
+};
+
+
 export interface WalletReport {
   month: string;
   by_source: Record<string, number>; // cents

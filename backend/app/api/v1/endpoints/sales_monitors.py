@@ -8,6 +8,12 @@ listed here.
 
 Listener scoping (G5) ensures these rules only fire on TG accounts the
 same sales user is assigned to.
+
+`marketing_mode='active'` is allowed but **only** with
+`reply_mode='group_reply'` — the AI may post a reply into the source
+group on keyword hit, but it must NOT auto-DM the user (private_dm is
+admin-only territory because of spam / cost / ban-risk). The DM decision
+stays with the human salesperson via the takeover flow.
 """
 from typing import Any, List, Optional
 
@@ -23,6 +29,28 @@ from app.models.keyword_monitor import (
 
 
 router = APIRouter()
+
+
+# Default daily firing cap for sales-owned `active` rules, to keep ban
+# risk bounded.  Admins can still create unrestricted active rules via
+# the platform-wide monitor endpoint.
+SALES_ACTIVE_MODE_DAILY_LIMIT = 20
+
+
+def _enforce_sales_mode_rules(
+    marketing_mode: Optional[str],
+    reply_mode: Optional[str],
+) -> None:
+    """Sales-owned active rules may post into the source group but never
+    auto-DM users. Raises 400 if the combination is disallowed."""
+    if marketing_mode == "active" and reply_mode == "private_dm":
+        raise HTTPException(
+            status_code=400,
+            detail="marketing_mode='active' + reply_mode='private_dm' "
+                   "is not allowed for sales-owned monitors; use "
+                   "reply_mode='group_reply' and let the salesperson "
+                   "take over the DM manually.",
+        )
 
 
 def _kind_for(sales: SalesContext) -> str:
@@ -61,20 +89,27 @@ def create_monitor(
     sales: SalesContext = Depends(get_current_sales),
     session: Session = Depends(get_session),
 ) -> Any:
-    """Create a sales-owned monitor rule. Auto-tagged with the caller."""
+    """Create a sales-owned monitor rule. Auto-tagged with the caller.
+
+    `marketing_mode='active'` is OK but force-pairs with
+    `reply_mode='group_reply'` (see module docstring). When active is
+    chosen we also cap `max_replies_per_day` to SALES_ACTIVE_MODE_DAILY_LIMIT
+    if the client didn't already pick a lower value.
+    """
     if not payload.keyword.strip():
         raise HTTPException(status_code=400, detail="keyword is required")
-    if payload.marketing_mode == "active":
-        # F4 / G safety: sales-owned rules never auto-DM. Spam risk + cost.
-        raise HTTPException(
-            status_code=400,
-            detail="marketing_mode='active' not allowed for sales-owned monitors",
-        )
+    _enforce_sales_mode_rules(payload.marketing_mode, payload.reply_mode)
+
     # Strip caller-supplied ownership fields — we always pin them to the
     # authenticated sales user regardless of what the client sends.
     data = payload.model_dump(exclude={"created_by_sales_user_id", "created_by_sales_kind"})
     data["created_by_sales_user_id"] = sales.user_id
     data["created_by_sales_kind"] = _kind_for(sales)
+    # Cap active-mode daily firing for sales-owned rules.
+    if data.get("marketing_mode") == "active":
+        existing_cap = data.get("max_replies_per_day")
+        if not existing_cap or existing_cap > SALES_ACTIVE_MODE_DAILY_LIMIT:
+            data["max_replies_per_day"] = SALES_ACTIVE_MODE_DAILY_LIMIT
     mon = KeywordMonitor(**data)
     session.add(mon)
     session.commit()
@@ -99,11 +134,18 @@ def update_monitor(
     session: Session = Depends(get_session),
 ) -> Any:
     mon = _own_or_404(session, sales, monitor_id)
-    if payload.marketing_mode == "active":
-        raise HTTPException(status_code=400,
-            detail="marketing_mode='active' not allowed for sales-owned monitors")
+    # Resolve effective marketing_mode + reply_mode after the patch and
+    # validate the combo. The PUT body may set just one of the two.
+    effective_mm = payload.marketing_mode if payload.marketing_mode is not None else mon.marketing_mode
+    effective_rm = payload.reply_mode if payload.reply_mode is not None else mon.reply_mode
+    _enforce_sales_mode_rules(effective_mm, effective_rm)
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(mon, k, v)
+    # If the update flips to active mode, enforce the daily cap when the
+    # caller didn't already cap it lower.
+    if mon.marketing_mode == "active":
+        if not mon.max_replies_per_day or mon.max_replies_per_day > SALES_ACTIVE_MODE_DAILY_LIMIT:
+            mon.max_replies_per_day = SALES_ACTIVE_MODE_DAILY_LIMIT
     session.add(mon)
     session.commit()
     session.refresh(mon)

@@ -58,6 +58,7 @@ import PortalLeads from './portal/pages/Leads';
 import PortalKnowledgeBases from './portal/pages/KnowledgeBases';
 import PortalMainAccount from './portal/pages/MainAccount';
 import PortalSettings from './portal/pages/Settings';
+import PortalMonitors from './portal/pages/Monitors';
 import PortalWallet from './portal/pages/Wallet';
 import PortalFeatures from './portal/pages/Features';
 import PortalBulk from './portal/pages/Bulk';
@@ -445,6 +446,7 @@ const App: React.FC = () => {
           <Route path="invite" element={<PortalInvite />} />
           <Route path="accounts" element={<PortalAccounts />} />
           <Route path="leads" element={<PortalLeads />} />
+          <Route path="monitors" element={<PortalMonitors />} />
           <Route path="knowledge-bases" element={<PortalKnowledgeBases />} />
           <Route path="main-account" element={<PortalMainAccount />} />
           <Route path="settings" element={<PortalSettings />} />

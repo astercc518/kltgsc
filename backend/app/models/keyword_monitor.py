@@ -68,6 +68,12 @@ class KeywordMonitorBase(SQLModel):
     created_by_sales_user_id: Optional[int] = Field(default=None, index=True)
     created_by_sales_kind: Optional[str] = Field(default=None, max_length=20)
 
+    # S2.2: 外部客户在 /portal/monitors 自配的监控规则。NULL = 非客户规则（admin
+    # 或销售自配）。set = 仅在 account.customer_id == monitor.customer_id 的账号
+    # 上触发，避免跨租户串台。与 created_by_sales_user_id 互斥（同一规则要么是
+    # 销售视角、要么是客户视角；listener 两边都校验）。
+    customer_id: Optional[int] = Field(default=None, foreign_key="customer.id", index=True)
+
 class KeywordMonitor(KeywordMonitorBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -111,6 +117,8 @@ class KeywordMonitorUpdate(SQLModel):
     ai_persona_id: Optional[int] = None
     # F1: 业务分类
     industry: Optional[str] = None
+    # S2.2: customer tenant scope (set by /customer/monitors only)
+    customer_id: Optional[int] = None
 
 
 class KeywordHitBase(SQLModel):

@@ -6,6 +6,7 @@ from app.api.v1.endpoints import (
     monitoring, ai_usage,
     customer_resources, customer_billing, admin_billing,
     webhooks, customer_kb, customer_main_account, admin_dashboard,
+    customer_monitors,
     customer_wallet, admin_features, customer_features,
     customer_bulk, admin_bulk,
     customer_scrape, customer_invite,
@@ -255,6 +256,12 @@ router.include_router(
     customer_sales_users.router,
     prefix="/customer/sales-users",
     tags=["customer-sales-users"],
+)
+# S2.2 — customer-owned AI marketing monitor rules
+router.include_router(
+    customer_monitors.router,
+    prefix="/customer/monitors",
+    tags=["customer-monitors"],
 )
 # Epic C2 — sales personal wallet (both customer_sales and platform_sales)
 router.include_router(

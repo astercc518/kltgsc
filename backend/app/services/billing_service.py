@@ -246,6 +246,25 @@ def activate_invoice(
     session.commit()
     session.refresh(subscription)
 
+    # ── S2.3: auto-enable AI marketing assistant for paid subscribers ──
+    # All three tiers include the assistant in the bundle (price gating
+    # happens via the per-reply / per-lead slugs, which stay disabled by
+    # default and require admin to override per-customer if they want to
+    # charge for them).
+    try:
+        from app.services import feature_billing as fb
+        fb.upsert_customer_feature(
+            session, customer.id, "ai_marketing_assistant",
+            enabled=True,
+            notes=f"auto-enabled on activation of {subscription.plan} plan",
+        )
+    except Exception as e:  # noqa: BLE001
+        import logging
+        logging.getLogger(__name__).warning(
+            "Failed to auto-enable ai_marketing_assistant for customer %s: %s",
+            customer.id, e,
+        )
+
     # ── Epic 3: auto-provision accounts + groups after activation ──
     # Imported here to break circular import (allocation_service uses
     # billing's customer too, but only transitively).
