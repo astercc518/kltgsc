@@ -28,6 +28,7 @@ services:
     volumes:
       - ./backend:/app
       - /root/.config/gcloud:/root/.config/gcloud:ro
+      - fastembed_cache:/tmp/fastembed_cache
     env_file:
       - ./backend/.env
     environment:
@@ -59,6 +60,7 @@ services:
     volumes:
       - ./backend:/app
       - /root/.config/gcloud:/root/.config/gcloud:ro
+      - fastembed_cache:/tmp/fastembed_cache
     env_file:
       - ./backend/.env
     environment:
@@ -80,6 +82,7 @@ services:
     volumes:
       - ./backend:/app
       - /root/.config/gcloud:/root/.config/gcloud:ro
+      - fastembed_cache:/tmp/fastembed_cache
     env_file:
       - ./backend/.env
     depends_on:
@@ -95,6 +98,7 @@ services:
     volumes:
       - ./backend:/app
       - /root/.config/gcloud:/root/.config/gcloud:ro
+      - fastembed_cache:/tmp/fastembed_cache
     env_file:
       - ./backend/.env
     environment:
@@ -129,3 +133,4 @@ networks:
 
 volumes:
   redis_data:
+  fastembed_cache:  # BGE reranker ONNX (~1GB) shared across backend/worker/beat/listener
