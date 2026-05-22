@@ -127,6 +127,30 @@ if "celery" not in sys.modules:
 if "kombu" not in sys.modules:
     sys.modules["kombu"] = _make_kombu_stub()
 
+# ---------------------------------------------------------------------------
+# Pre-stub heavy native deps that aren't installed in the test env.
+# Must run BEFORE any `import app.*` because telegram_client imports them
+# at module load time.
+# ---------------------------------------------------------------------------
+from unittest.mock import MagicMock
+
+for _mod_name in (
+    "pyrogram",
+    "pyrogram.errors",
+    "pyrogram.types",
+    "pyrogram.client",
+    "pyrogram.enums",
+    "telethon",
+    "telethon.sessions",
+    "telethon.tl",
+    "telethon.tl.types",
+    "telethon.errors",
+    "aiohttp",
+    "openai",
+):
+    if _mod_name not in sys.modules:
+        sys.modules[_mod_name] = MagicMock()
+
 import pytest
 from datetime import datetime, timedelta
 from sqlmodel import Session, SQLModel, create_engine
