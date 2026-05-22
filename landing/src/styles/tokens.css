@@ -1,0 +1,66 @@
+/**
+ * TG1.AI brand CSS variables.
+ *
+ * Mirrors the tailwind.config.js colors / typography tokens so non-utility
+ * CSS (e.g. MDX article styles, scroll-pinned hero gradients, third-party
+ * widget overrides) can reference the brand without hard-coding hex.
+ *
+ * Keep in sync with tailwind.config.js — if a token diverges, tailwind is
+ * the source of truth.
+ */
+
+:root {
+  /* ── Brand: blue (Self-Serve) ─────────────────────────────────── */
+  --tg1-blue-50:  #EFF6FF;
+  --tg1-blue-500: #0066FF;
+  --tg1-blue-600: #0052CC;
+  --tg1-blue-700: #003D99;
+
+  /* ── Brand: purple (AI Marketing Assistant) ───────────────────── */
+  --tg1-purple-50:  #FAF5FF;
+  --tg1-purple-500: #A855F7;
+  --tg1-purple-600: #9333EA;
+
+  /* ── Ink (text + surfaces) ────────────────────────────────────── */
+  --tg1-ink-50:  #F8FAFC;
+  --tg1-ink-100: #F1F5F9;
+  --tg1-ink-200: #E2E8F0;
+  --tg1-ink-500: #64748B;
+  --tg1-ink-700: #334155;
+  --tg1-ink-900: #0F172A;
+  --tg1-ink-950: #020617;
+
+  /* ── Status ───────────────────────────────────────────────────── */
+  --tg1-success: #22C55E;
+  --tg1-warning: #F59E0B;
+  --tg1-danger:  #EF4444;
+
+  /* ── Typography ───────────────────────────────────────────────── */
+  --tg1-font-display: 'Manrope', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --tg1-font-sans:    'Inter',   ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --tg1-font-mono:    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* ── Layout ───────────────────────────────────────────────────── */
+  --tg1-container-max: 1280px;
+  --tg1-section-pad-y: clamp(4rem, 8vw, 7rem);
+
+  /* ── Motion ───────────────────────────────────────────────────── */
+  --tg1-ease-out:  cubic-bezier(0.22, 1, 0.36, 1);
+  --tg1-ease-in:   cubic-bezier(0.55, 0, 1, 0.45);
+  --tg1-ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Keep tokens stable across light/dark; sections opt in via Tailwind dark: */
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
