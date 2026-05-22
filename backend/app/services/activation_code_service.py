@@ -96,7 +96,61 @@ def generate_codes(
 
 
 def redeem_code(session: Session, customer: Customer, code_str: str) -> Subscription:
-    raise NotImplementedError("Implemented in Task 10")
+    """Redeem a bearer activation code → create active Subscription.
+
+    Normalization:
+      - Strip dashes and whitespace
+      - Uppercase
+      - Must match ^[A-Z0-9]{12}$ after normalization
+
+    Race-safety: row is fetched, status checked, status flipped + relations
+    set, then committed. On SQLite single-writer there is no race. On
+    Postgres, an UPDATE ... WHERE status='unused' guard could be added if
+    we see contention (TODO comment, not implemented in this Epic).
+    """
+    from app.services.billing_service import _apply_subscription_activation, BillingError
+
+    normalized = code_str.replace("-", "").replace(" ", "").upper()
+    if len(normalized) != _CODE_LENGTH or not all(c in _CODE_ALPHABET for c in normalized):
+        raise ActivationCodeError(f"Invalid code format")
+
+    code = session.exec(
+        select(ActivationCode).where(ActivationCode.code == normalized)
+    ).first()
+    if not code:
+        raise ActivationCodeError("Code not found")
+    if code.status == CODE_REDEEMED:
+        raise ActivationCodeError("Code already redeemed")
+    if code.status == CODE_REVOKED:
+        raise ActivationCodeError("Code has been revoked")
+
+    # Create Subscription tagged with activation provenance
+    now = datetime.utcnow()
+    sub = Subscription(
+        customer_id=customer.id,
+        plan=code.plan,
+        status=SUB_PENDING,
+        period_start=now,
+        period_end=now + timedelta(days=code.duration_days),
+        activated_via="code",
+        activation_code_id=code.id,
+    )
+    session.add(sub)
+    session.flush()  # need sub.id
+
+    # Mark code redeemed BEFORE applying activation, so the helper's
+    # commit-batch includes the code transition.
+    code.status = CODE_REDEEMED
+    code.redeemed_by_customer_id = customer.id
+    code.redeemed_subscription_id = sub.id
+    code.redeemed_at = now
+    session.add(code)
+    session.commit()
+    session.refresh(sub)
+
+    # Apply shared activation pipeline (cancel-priors, set-active,
+    # refresh-customer, enable-features, provision_customer)
+    return _apply_subscription_activation(session, customer, sub)
 
 
 def revoke_code(session: Session, code_id: int, admin_user_id: int) -> ActivationCode:

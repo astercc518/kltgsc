@@ -65,3 +65,91 @@ def test_generate_codes_codes_are_unique(session):
 def test_generate_codes_respects_duration_days(session):
     codes = generate_codes(session, admin_user_id=1, plan="starter", count=1, duration_days=90)
     assert codes[0].duration_days == 90
+
+
+# ── redeem_code ────────────────────────────────────────────────────────
+
+@pytest.fixture
+def fresh_customer(session):
+    c = Customer(
+        email="redeem@t.t", hashed_password="x", status="pending",
+        plan=None, account_quota=0, group_quota=0, token_quota=0, seat_quota=0,
+    )
+    session.add(c); session.commit(); session.refresh(c)
+    return c
+
+
+def test_redeem_unused_code_creates_active_subscription(session, fresh_customer, monkeypatch):
+    monkeypatch.setattr(
+        "app.services.allocation_service.provision_customer",
+        lambda s, c: None, raising=False,
+    )
+    [code] = generate_codes(session, admin_user_id=1, plan="growth", count=1)
+    sub = redeem_code(session, fresh_customer, code.code)
+    assert sub.status == SUB_ACTIVE
+    assert sub.plan == "growth"
+    assert sub.activated_via == "code"
+    assert sub.activation_code_id == code.id
+
+
+def test_redeem_marks_code_redeemed(session, fresh_customer, monkeypatch):
+    monkeypatch.setattr(
+        "app.services.allocation_service.provision_customer",
+        lambda s, c: None, raising=False,
+    )
+    [code] = generate_codes(session, admin_user_id=1, plan="starter", count=1)
+    redeem_code(session, fresh_customer, code.code)
+    session.refresh(code)
+    assert code.status == CODE_REDEEMED
+    assert code.redeemed_by_customer_id == fresh_customer.id
+    assert code.redeemed_subscription_id is not None
+    assert code.redeemed_at is not None
+
+
+def test_redeem_unknown_code_raises(session, fresh_customer):
+    with pytest.raises(ActivationCodeError, match="not found"):
+        redeem_code(session, fresh_customer, "NOTEXIST0001")
+
+
+def test_redeem_already_redeemed_raises(session, fresh_customer, monkeypatch):
+    monkeypatch.setattr(
+        "app.services.allocation_service.provision_customer",
+        lambda s, c: None, raising=False,
+    )
+    [code] = generate_codes(session, admin_user_id=1, plan="starter", count=1)
+    redeem_code(session, fresh_customer, code.code)
+    with pytest.raises(ActivationCodeError, match="already redeemed"):
+        redeem_code(session, fresh_customer, code.code)
+
+
+def test_redeem_revoked_code_raises(session, fresh_customer):
+    [code] = generate_codes(session, admin_user_id=1, plan="starter", count=1)
+    code.status = CODE_REVOKED
+    session.add(code); session.commit()
+    with pytest.raises(ActivationCodeError, match="revoked"):
+        redeem_code(session, fresh_customer, code.code)
+
+
+def test_redeem_case_insensitive_and_strips_dashes(session, fresh_customer, monkeypatch):
+    monkeypatch.setattr(
+        "app.services.allocation_service.provision_customer",
+        lambda s, c: None, raising=False,
+    )
+    [code] = generate_codes(session, admin_user_id=1, plan="starter", count=1)
+    # Convert to display form: "XXXX-XXXX-XXXX" with random casing
+    formatted = f"{code.code[:4]}-{code.code[4:8]}-{code.code[8:]}".lower()
+    sub = redeem_code(session, fresh_customer, formatted)
+    assert sub.status == SUB_ACTIVE
+
+
+def test_redeem_refreshes_customer_denormalized(session, fresh_customer, monkeypatch):
+    monkeypatch.setattr(
+        "app.services.allocation_service.provision_customer",
+        lambda s, c: None, raising=False,
+    )
+    [code] = generate_codes(session, admin_user_id=1, plan="pro", count=1)
+    redeem_code(session, fresh_customer, code.code)
+    session.refresh(fresh_customer)
+    assert fresh_customer.plan == "pro"
+    assert fresh_customer.subscription_status == SUB_ACTIVE
+    assert fresh_customer.status == STATUS_ACTIVE
