@@ -91,6 +91,16 @@ class Settings(BaseSettings):
             return new_key
         return v
 
+    # ── RAG Reranker (cross-encoder post-step for kb_retrieval) ──────
+    # Default OFF; flip to true after staging validation. See
+    # docs/ai_reply/reranker.md for rollout guidance.
+    RERANK_ENABLED: bool = False
+    RERANK_MODEL: str = "BAAI/bge-reranker-v2-m3"
+    # Number of pgvector candidates fetched per query = top_k * multiplier
+    RERANK_CANDIDATE_MULTIPLIER: int = 5
+    # Hard timeout for one rerank call; on timeout we drop back to cosine order
+    RERANK_TIMEOUT_MS: int = 800
+
     model_config = SettingsConfigDict(env_file=".env", env_ignore_empty=True, extra="ignore")
 
 
