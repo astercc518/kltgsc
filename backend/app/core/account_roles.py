@@ -35,3 +35,41 @@ def tier_for_role(role: Optional[str]) -> str:
     if role in _TIER2_ROLES:
         return "tier2"
     return "tier3"
+
+
+# ── Epic 1 — usage-level UI sugar ─────────────────────────────────────
+# Admin's "使用等级 1/2/3" is a UX label over a subset of role values.
+# DB still stores `role`; this map is purely for translating between
+# admin UI selectors and the underlying role string. Roles outside this
+# subset (master / sales / collector / main) have no usage_level — those
+# are reserved for admin/system flows and never appear in the import
+# picker.
+USAGE_LEVEL_TO_ROLE: dict[int, str] = {
+    1: "worker",     # 高危操作（群发/采集/拉群）
+    2: "listener",   # 监听引流
+    3: "support",    # 客服交流
+}
+
+ROLE_TO_USAGE_LEVEL: dict[str, int] = {
+    role: level for level, role in USAGE_LEVEL_TO_ROLE.items()
+}
+
+USAGE_LEVEL_LABEL_ZH: dict[int, str] = {
+    1: "高危操作（群发/采集/拉群）",
+    2: "监听引流",
+    3: "客服交流",
+}
+
+
+def role_for_usage_level(level: Optional[int]) -> Optional[str]:
+    """Translate UI 等级 1/2/3 to DB role. Returns None for invalid input."""
+    if level is None:
+        return None
+    return USAGE_LEVEL_TO_ROLE.get(level)
+
+
+def usage_level_for_role(role: Optional[str]) -> Optional[int]:
+    """Inverse of role_for_usage_level. Returns None for roles outside the picker subset."""
+    if not role:
+        return None
+    return ROLE_TO_USAGE_LEVEL.get(role)
