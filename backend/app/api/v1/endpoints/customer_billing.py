@@ -22,6 +22,11 @@ from app.models.subscription import (
     Subscription,
     SubscriptionRead,
 )
+from app.models.activation_code import ActivationCodeRedeemRequest
+from app.services.activation_code_service import (
+    ActivationCodeError,
+    redeem_code,
+)
 from app.services.billing_service import (
     BillingError,
     create_pending_invoice,
@@ -86,6 +91,25 @@ def get_invoice(
     if not invoice or invoice.customer_id != customer.id:
         raise HTTPException(status_code=404, detail="Invoice not found")
     return InvoiceRead.model_validate(invoice.model_dump())
+
+
+@router.post("/redeem-code", response_model=SubscriptionRead)
+def customer_redeem_code(
+    request: ActivationCodeRedeemRequest,
+    session: Session = Depends(get_session),
+    customer: Customer = Depends(get_current_customer),
+) -> Any:
+    """Redeem a bearer activation code to create an active Subscription."""
+    try:
+        sub = redeem_code(session, customer, request.code)
+    except ActivationCodeError as e:
+        msg = str(e)
+        if "not found" in msg.lower():
+            raise HTTPException(status_code=404, detail=msg)
+        if "already redeemed" in msg.lower() or "revoked" in msg.lower():
+            raise HTTPException(status_code=409, detail=msg)
+        raise HTTPException(status_code=400, detail=msg)
+    return SubscriptionRead.model_validate(sub)
 
 
 @router.get("/subscription", response_model=SubscriptionRead)
