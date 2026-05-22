@@ -170,38 +170,26 @@ def create_pending_invoice(
     return invoice
 
 
-def activate_invoice(
+def _apply_subscription_activation(
     session: Session,
-    invoice: Invoice,
-    tx_hash: str,
-    admin_user_id: Optional[int] = None,
+    customer: Customer,
+    subscription: Subscription,
 ) -> Subscription:
-    """Mark an invoice as paid and activate its subscription.
+    """Side effects shared by USDT-invoice and activation-code paths.
+
+    Idempotent on `subscription.status == SUB_ACTIVE` (returns without changes).
+    Caller MUST have already set subscription.activated_via and (if applicable)
+    activation_code_id before invoking this helper.
 
     Side effects (all in one commit):
-      - Invoice: status=paid, tx_hash, paid_at, paid_by_admin
-      - Previous active Subscription for same customer: status=canceled
-      - New Subscription: status=active, activated_at=now
-      - Customer: plan, subscription_status, current_period_end,
-        *_quota fields refreshed from PLAN_QUOTA
+      - Cancel any other active Subscription for this customer
+      - Mark `subscription` active + activated_at = now
+      - Refresh Customer denormalized fields + quota
+      - Auto-enable AI marketing feature slugs
+      - Trigger provision_customer (account/group/KB allocation)
     """
-    if invoice.status == INV_PAID:
-        # Idempotent: already activated, just return the subscription
-        return session.get(Subscription, invoice.subscription_id)
-    if invoice.status != INV_PENDING:
-        raise BillingError(
-            f"Invoice {invoice.id} is in status '{invoice.status}', cannot activate"
-        )
-    if invoice.expires_at < datetime.utcnow():
-        raise BillingError(f"Invoice {invoice.id} has expired")
-
-    customer = session.get(Customer, invoice.customer_id)
-    if not customer:
-        raise BillingError(f"Customer {invoice.customer_id} not found")
-
-    subscription = session.get(Subscription, invoice.subscription_id)
-    if not subscription:
-        raise BillingError(f"Subscription {invoice.subscription_id} not found")
+    if subscription.status == SUB_ACTIVE:
+        return subscription
 
     now = datetime.utcnow()
 
@@ -218,19 +206,10 @@ def activate_invoice(
         prev.canceled_at = now
         session.add(prev)
 
-    # Activate this subscription
     subscription.status = SUB_ACTIVE
     subscription.activated_at = now
     session.add(subscription)
 
-    # Mark invoice paid
-    invoice.status = INV_PAID
-    invoice.tx_hash = tx_hash
-    invoice.paid_at = now
-    invoice.paid_by_admin = admin_user_id
-    session.add(invoice)
-
-    # Refresh Customer denormalized fields + quota
     quota = PLAN_QUOTA[subscription.plan]
     customer.status = STATUS_ACTIVE
     customer.plan = subscription.plan
@@ -246,12 +225,7 @@ def activate_invoice(
     session.commit()
     session.refresh(subscription)
 
-    # ── S2.3 + S2.4: auto-enable AI marketing assistant + per-unit
-    # billing slugs for paid subscribers.  The gate (ai_marketing_assistant)
-    # controls UI access; the per-reply / per-lead slugs are what the
-    # listener actually charges against on each event, so they MUST be
-    # enabled or the charges will silently no-op and we'll give away the
-    # service for free.
+    # Auto-enable AI marketing features (best-effort)
     try:
         from app.services import feature_billing as fb
         for slug in (
@@ -271,16 +245,12 @@ def activate_invoice(
             customer.id, e,
         )
 
-    # ── Epic 3: auto-provision accounts + groups after activation ──
-    # Imported here to break circular import (allocation_service uses
-    # billing's customer too, but only transitively).
+    # Auto-provision accounts + groups (best-effort, never blocks payment confirmation)
     subscription_id = subscription.id
     try:
         from app.services.allocation_service import provision_customer
         provision_customer(session, customer)
     except Exception as e:  # noqa: BLE001
-        # Provisioning failure must not roll back payment confirmation —
-        # ops can manually re-run via POST /admin/customers/{id}/reallocate-accounts
         import logging
         logging.getLogger(__name__).exception(
             "Provisioning failed for customer %s after activation: %s",
@@ -288,9 +258,50 @@ def activate_invoice(
         )
 
     # Re-fetch — provision_customer issued multiple commits that expired
-    # this Session's identity-map entry for `subscription`. Returning the
-    # original instance would yield an empty model_dump().
+    # this Session's identity-map entry for `subscription`.
     return session.get(Subscription, subscription_id)
+
+
+def activate_invoice(
+    session: Session,
+    invoice: Invoice,
+    tx_hash: str,
+    admin_user_id: Optional[int] = None,
+) -> Subscription:
+    """Mark an invoice as paid and activate its subscription (USDT path)."""
+    if invoice.status == INV_PAID:
+        return session.get(Subscription, invoice.subscription_id)
+    if invoice.status != INV_PENDING:
+        raise BillingError(
+            f"Invoice {invoice.id} is in status '{invoice.status}', cannot activate"
+        )
+    if invoice.expires_at < datetime.utcnow():
+        raise BillingError(f"Invoice {invoice.id} has expired")
+
+    customer = session.get(Customer, invoice.customer_id)
+    if not customer:
+        raise BillingError(f"Customer {invoice.customer_id} not found")
+
+    subscription = session.get(Subscription, invoice.subscription_id)
+    if not subscription:
+        raise BillingError(f"Subscription {invoice.subscription_id} not found")
+
+    now = datetime.utcnow()
+
+    # Mark invoice paid (USDT-specific)
+    invoice.status = INV_PAID
+    invoice.tx_hash = tx_hash
+    invoice.paid_at = now
+    invoice.paid_by_admin = admin_user_id
+    session.add(invoice)
+
+    # Pin activation provenance
+    subscription.activated_via = "usdt"
+    session.add(subscription)
+    session.commit()
+    session.refresh(subscription)
+
+    return _apply_subscription_activation(session, customer, subscription)
 
 
 def get_active_subscription(
