@@ -34,6 +34,7 @@ import {
   getTasksBatch,
 } from '../../services/api';
 import { ImportTask, PaginationState } from './types';
+import { USAGE_LEVELS, UsageLevel } from './usageLevel';
 
 const { Text } = Typography;
 
@@ -65,8 +66,8 @@ const AccountUploader: React.FC<AccountUploaderProps> = ({
   const [tdataFileList, setTdataFileList] = useState<UploadFile[]>([]);
   const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set(['manual']));
   const [autoRegLoading, setAutoRegLoading] = useState(false);
-  // 上传时为新账号指定的默认角色（适用于所有 tab 内创建的账号）
-  const [defaultRole, setDefaultRole] = useState<string>('worker');
+  // 上传时为新账号指定的使用等级（适用于所有 tab 内创建的账号）
+  const [defaultUsageLevel, setDefaultUsageLevel] = useState<UsageLevel>(1);
 
   const [form] = Form.useForm();
   const [uploadForm] = Form.useForm();
@@ -161,10 +162,16 @@ const AccountUploader: React.FC<AccountUploaderProps> = ({
     if (visitedTabs.has('auto_reg')) autoRegForm.resetFields();
   };
 
+  // Map usage_level to role for endpoints that don't accept usage_level directly
+  const usageLevelToRole = (level: UsageLevel): string => {
+    const map: Record<UsageLevel, string> = { 1: 'worker', 2: 'listener', 3: 'support' };
+    return map[level];
+  };
+
   const handleCreate = async (values: any) => {
     try {
       if (activeTab === 'manual') {
-        await createAccount({ ...values, role: defaultRole });
+        await createAccount({ ...values, role: usageLevelToRole(defaultUsageLevel) });
         message.success('账号创建成功');
       } else if (activeTab === 'upload') {
         if (fileList.length === 0) {
@@ -172,7 +179,7 @@ const AccountUploader: React.FC<AccountUploaderProps> = ({
           return;
         }
         // @ts-ignore
-        await uploadAccountSession(fileList[0].originFileObj, values.phone_number, defaultRole);
+        await uploadAccountSession(fileList[0].originFileObj, values.phone_number, undefined, defaultUsageLevel);
         message.success('账号上传成功');
       } else if (activeTab === 'mega') {
         const urls = values.urls.split('\n').filter((url: string) => url.trim().length > 0);
@@ -183,7 +190,7 @@ const AccountUploader: React.FC<AccountUploaderProps> = ({
         const target_channels = values.target_channels;
         const auto_check = values.auto_check ?? false;
         const auto_warmup = values.auto_warmup ?? false;
-        const res = await importMegaAccounts(urls, target_channels, auto_check, auto_warmup, defaultRole);
+        const res = await importMegaAccounts(urls, target_channels, auto_check, auto_warmup, undefined, defaultUsageLevel);
         message.success(`已提交 ${urls.length} 个 MEGA 导入任务`);
 
         const newTasks: ImportTask[] = res.task_ids.map((tid: string, index: number) => ({
@@ -206,7 +213,7 @@ const AccountUploader: React.FC<AccountUploaderProps> = ({
           message.error('无法读取所选文件，请重新选择');
           return;
         }
-        const res = await uploadTdataBatch(files, defaultRole);
+        const res = await uploadTdataBatch(files, undefined, defaultUsageLevel);
         message.success(`已提交 ${res.task_ids.length} 个 TData 导入任务`);
         if (res.errors?.length > 0) {
           res.errors.forEach(e => message.warning(e));
@@ -357,26 +364,21 @@ const AccountUploader: React.FC<AccountUploaderProps> = ({
           setActiveTab('manual');
         }}
       >
-        {/* `main` role is intentionally excluded — it's reserved for
-            customer QR-login bound main accounts (Customer.main_account_id).
-            Backend VALID_ROLES still accepts it programmatically. */}
         <div style={{ marginBottom: 16 }}>
           <div style={{ marginBottom: 6, fontSize: 13, color: '#555' }}>
-            默认角色 <span style={{ color: '#999' }}>(适用于本次新建/导入的所有账号；tier 自动按角色推导)</span>
+            使用等级 <span style={{ color: '#999' }}>(适用于本次新建/导入的所有账号；角色与 tier 自动按等级推导)</span>
           </div>
           <Select
-            value={defaultRole}
-            onChange={setDefaultRole}
+            value={defaultUsageLevel}
+            onChange={(val: UsageLevel) => setDefaultUsageLevel(val)}
             style={{ width: '100%' }}
-            options={[
-              { value: 'worker', label: '临时号 (worker) — 用于采集、群发等高风险操作' },
-              { value: 'listener', label: '监听号 (listener) — 监听群消息' },
-              { value: 'collector', label: '采集号 (collector) — KB 历史数据采集' },
-              { value: 'support', label: '客服号 (support) — 接待客户咨询' },
-              { value: 'sales', label: '销售号 (sales) — 销售人员专用' },
-              { value: 'master', label: '主账号 (master) — 核心资产，禁止批量' },
-            ]}
-          />
+          >
+            {USAGE_LEVELS.map(u => (
+              <Select.Option key={u.value} value={u.value}>
+                {u.label}
+              </Select.Option>
+            ))}
+          </Select>
         </div>
         <Tabs
           activeKey={activeTab}

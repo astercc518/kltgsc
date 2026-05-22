@@ -1,7 +1,8 @@
 import React from 'react';
-import { Drawer, Descriptions } from 'antd';
+import { Drawer, Descriptions, Tag } from 'antd';
 import { Account } from '../../services/api';
 import { getStatusTag } from './helpers';
+import { labelForUsageLevel, colorForUsageLevel } from './usageLevel';
 
 interface AccountDetailDrawerProps {
   visible: boolean;
@@ -27,6 +28,13 @@ const AccountDetailDrawer: React.FC<AccountDetailDrawerProps> = ({
           <Descriptions.Item label="ID">{account.id}</Descriptions.Item>
           <Descriptions.Item label="手机号">{account.phone_number}</Descriptions.Item>
           <Descriptions.Item label="状态">{getStatusTag(account.status)}</Descriptions.Item>
+          {account.usage_level != null && (
+            <Descriptions.Item label="使用等级">
+              <Tag color={colorForUsageLevel(account.usage_level)}>
+                {labelForUsageLevel(account.usage_level)}
+              </Tag>
+            </Descriptions.Item>
+          )}
           <Descriptions.Item label="API ID">{account.api_id || '-'}</Descriptions.Item>
           <Descriptions.Item label="API Hash">{account.api_hash ? '***' : '-'}</Descriptions.Item>
           <Descriptions.Item label="Session 文件路径">

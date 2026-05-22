@@ -67,6 +67,8 @@ export interface Account {
     tags?: string;
     tier?: string;
     combat_role?: string;
+    usage_level?: number | null;
+    ai_persona_id?: number | null;
 }
 
 export interface AccountCreate {
@@ -317,13 +319,16 @@ export const deleteAbnormalAccounts = async (): Promise<{ message: string; delet
     return response.data;
 };
 
-export const uploadAccountSession = async (file: File, phoneNumber?: string, role?: string): Promise<Account> => {
+export const uploadAccountSession = async (file: File, phoneNumber?: string, role?: string, usage_level?: number): Promise<Account> => {
     const formData = new FormData();
     formData.append('file', file);
     if (phoneNumber) formData.append('phone_number', phoneNumber);
+    const params: Record<string, any> = {};
+    if (usage_level != null) { params.usage_level = usage_level; }
+    else if (role) { params.role = role; }
     const response = await api.post('/accounts/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
-        params: role ? { role } : undefined,
+        params: Object.keys(params).length > 0 ? params : undefined,
     });
     return response.data;
 };
@@ -456,17 +461,24 @@ export const importMegaAccounts = async (
     auto_check: boolean = false,
     auto_warmup: boolean = false,
     role?: string,
+    usage_level?: number,
 ): Promise<{ task_ids: string[]; urls: string[]; message: string }> => {
-    const response = await api.post('/accounts/import/mega', { urls, target_channels, auto_check, auto_warmup, role });
+    const body: Record<string, any> = { urls, target_channels, auto_check, auto_warmup };
+    if (usage_level != null) { body.usage_level = usage_level; }
+    else if (role) { body.role = role; }
+    const response = await api.post('/accounts/import/mega', body);
     return response.data;
 };
 
-export const uploadTdataBatch = async (files: File[], role?: string): Promise<{ task_ids: string[]; filenames: string[]; message: string; errors: string[] }> => {
+export const uploadTdataBatch = async (files: File[], role?: string, usage_level?: number): Promise<{ task_ids: string[]; filenames: string[]; message: string; errors: string[] }> => {
     const formData = new FormData();
     files.forEach(file => formData.append('files', file));
+    const params: Record<string, any> = {};
+    if (usage_level != null) { params.usage_level = usage_level; }
+    else if (role) { params.role = role; }
     const response = await api.post('/accounts/batch/upload-tdata', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
-        params: role ? { role } : undefined,
+        params: Object.keys(params).length > 0 ? params : undefined,
         timeout: 5 * 60 * 1000, // 5 minutes for large uploads
     });
     return response.data;

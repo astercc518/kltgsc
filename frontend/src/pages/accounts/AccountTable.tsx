@@ -46,6 +46,7 @@ import {
 } from '../../services/api';
 import { getStatusTag, getRoleTag } from './helpers';
 import { AccountStats, PaginationState, ImportTask } from './types';
+import { USAGE_LEVELS } from './usageLevel';
 
 const { Option } = Select;
 
@@ -273,6 +274,17 @@ const AccountTable: React.FC<AccountTableProps> = ({
       key: 'role',
       width: 100,
       render: (role: string) => getRoleTag(role),
+    },
+    {
+      title: '等级',
+      dataIndex: 'usage_level',
+      key: 'usage_level',
+      width: 130,
+      render: (level: number | null) => {
+        if (level == null) return <Tag>未指定</Tag>;
+        const entry = USAGE_LEVELS.find(u => u.value === level);
+        return entry ? <Tag color={entry.color}>{entry.label.split('—')[0].trim()}</Tag> : <Tag>未指定</Tag>;
+      },
     },
     {
       title: '战斗角色',
