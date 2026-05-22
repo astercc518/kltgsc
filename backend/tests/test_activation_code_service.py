@@ -153,3 +153,35 @@ def test_redeem_refreshes_customer_denormalized(session, fresh_customer, monkeyp
     assert fresh_customer.plan == "pro"
     assert fresh_customer.subscription_status == SUB_ACTIVE
     assert fresh_customer.status == STATUS_ACTIVE
+
+
+# ── revoke_code ────────────────────────────────────────────────────────
+
+def test_revoke_unused_code_succeeds(session):
+    [code] = generate_codes(session, admin_user_id=1, plan="starter", count=1)
+    result = revoke_code(session, code.id, admin_user_id=1)
+    assert result.status == CODE_REVOKED
+
+
+def test_revoke_unknown_code_raises(session):
+    with pytest.raises(ActivationCodeError, match="not found"):
+        revoke_code(session, code_id=999999, admin_user_id=1)
+
+
+def test_revoke_already_redeemed_raises(session, fresh_customer, monkeypatch):
+    monkeypatch.setattr(
+        "app.services.allocation_service.provision_customer",
+        lambda s, c: None, raising=False,
+    )
+    [code] = generate_codes(session, admin_user_id=1, plan="starter", count=1)
+    redeem_code(session, fresh_customer, code.code)
+    with pytest.raises(ActivationCodeError, match="already redeemed"):
+        revoke_code(session, code.id, admin_user_id=1)
+
+
+def test_revoke_already_revoked_is_idempotent(session):
+    [code] = generate_codes(session, admin_user_id=1, plan="starter", count=1)
+    revoke_code(session, code.id, admin_user_id=1)
+    # Second revoke succeeds silently (idempotent)
+    result = revoke_code(session, code.id, admin_user_id=1)
+    assert result.status == CODE_REVOKED

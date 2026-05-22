@@ -154,4 +154,18 @@ def redeem_code(session: Session, customer: Customer, code_str: str) -> Subscrip
 
 
 def revoke_code(session: Session, code_id: int, admin_user_id: int) -> ActivationCode:
-    raise NotImplementedError("Implemented in Task 11")
+    """Revoke an unused code. Idempotent on already-revoked codes.
+    Rejects (409) if code is already redeemed (terminal state)."""
+    code = session.get(ActivationCode, code_id)
+    if not code:
+        raise ActivationCodeError("Code not found")
+    if code.status == CODE_REDEEMED:
+        raise ActivationCodeError("Code already redeemed; cannot revoke")
+    if code.status == CODE_REVOKED:
+        return code  # idempotent
+    code.status = CODE_REVOKED
+    session.add(code)
+    session.commit()
+    session.refresh(code)
+    logger.info("Revoked code %s by admin=%d", code.code, admin_user_id)
+    return code
