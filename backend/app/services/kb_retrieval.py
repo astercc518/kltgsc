@@ -6,6 +6,7 @@ v2：基于 pgvector 的向量召回（cosine distance），失败时回退到�
 调用方（如 [ai_reply_service.py](app/services/ai_reply_service.py)）使用相同的 retrieve_relevant_kb，但需 await。
 format_kb_for_prompt 保持不变，便于复用。
 """
+import asyncio
 import re
 import logging
 from typing import List, Optional
@@ -62,6 +63,16 @@ def _extract_keywords(query: str, max_kw: int = 8) -> List[str]:
 _UNSCOPED = object()
 
 
+async def _rerank_with_timeout(reranker, query: str, docs, top_k: int):
+    """Call reranker.rerank with the configured timeout. Raises on timeout."""
+    from app.core.config import settings
+    timeout_s = settings.RERANK_TIMEOUT_MS / 1000.0
+    return await asyncio.wait_for(
+        reranker.rerank(query, docs, top_n=top_k),
+        timeout=timeout_s,
+    )
+
+
 async def retrieve_relevant_kb(
     session: Session,
     query: str,
@@ -103,8 +114,8 @@ async def retrieve_relevant_kb(
         if emb_service.is_configured():
             qvec = await emb_service.embed(query, source="embedding_runtime")
             if qvec:
-                return _vector_search(
-                    session, qvec, top_k,
+                return await _vector_search(
+                    session, query, qvec, top_k,
                     chat_id_filter, topic_filter, source_type, category_filter,
                     similarity_threshold, customer_id_filter,
                 )
@@ -122,8 +133,9 @@ async def retrieve_relevant_kb(
     )
 
 
-def _vector_search(
+async def _vector_search(
     session: Session,
+    query: str,
     qvec: List[float],
     top_k: int,
     chat_id_filter: Optional[int],
@@ -133,14 +145,27 @@ def _vector_search(
     similarity_threshold: float,
     customer_id_filter,
 ) -> List[KnowledgeBase]:
-    where_clauses = ["embedding IS NOT NULL"]
-    params: dict = {"qvec": str(qvec), "top_k": top_k * 2}
+    from app.core.config import settings
+    from app.services.reranker_service import get_reranker, NoopReranker
 
-    # Epic 5.1 tenant isolation: own KB + system-wide KB (customer_id IS NULL)
+    reranker = get_reranker()
+    # rerank_active is driven by the setting (monkeypatch-friendly); the
+    # isinstance guard is a safety net in case get_reranker() fell back
+    # to NoopReranker due to model-load failure even when the setting is on.
+    rerank_active = settings.RERANK_ENABLED and not isinstance(reranker, NoopReranker)
+
+    # When the reranker is on, fetch a wider net and skip the cosine
+    # threshold cull (the reranker is strictly better at deciding what
+    # to keep). Default multiplier 5 → top_k=5 fetches 25 candidates.
+    multiplier = settings.RERANK_CANDIDATE_MULTIPLIER if settings.RERANK_ENABLED else 2
+    fetch_limit = top_k * multiplier
+
+    where_clauses = ["embedding IS NOT NULL"]
+    params: dict = {"qvec": str(qvec), "top_k": fetch_limit}
+
     if customer_id_filter is not None:
         where_clauses.append("(customer_id = :customer_id OR customer_id IS NULL)")
         params["customer_id"] = customer_id_filter
-
     if source_type:
         where_clauses.append("source_type = :source_type")
         params["source_type"] = source_type
@@ -169,21 +194,38 @@ def _vector_search(
     if not rows:
         return []
 
-    # 阈值过滤：cosine distance 越小越相似（0=完全相同，2=正交反向）
-    # 相似度 = 1 - distance；保留 similarity >= threshold 的
-    keep_ids = [r[0] for r in rows if (1 - float(r[1])) >= similarity_threshold]
-    if not keep_ids:
-        # 阈值过严时至少返回 top 1，避免完全空召回
-        keep_ids = [rows[0][0]]
+    if rerank_active:
+        candidate_ids = [r[0] for r in rows]
+    else:
+        # Legacy path: cosine threshold cull, fall back to top-1 if all culled.
+        candidate_ids = [r[0] for r in rows if (1 - float(r[1])) >= similarity_threshold]
+        if not candidate_ids:
+            candidate_ids = [rows[0][0]]
+        candidate_ids = candidate_ids[:top_k]
 
-    keep_ids = keep_ids[:top_k]
-    kbs = session.exec(
-        select(KnowledgeBase).where(KnowledgeBase.id.in_(keep_ids))
+    kbs_unordered = session.exec(
+        select(KnowledgeBase).where(KnowledgeBase.id.in_(candidate_ids))
     ).all()
+    by_id = {kb.id: kb for kb in kbs_unordered}
+    candidates = [by_id[i] for i in candidate_ids if i in by_id]
 
-    # 按原排序复原
-    id_order = {kid: i for i, kid in enumerate(keep_ids)}
-    return sorted(kbs, key=lambda kb: id_order.get(kb.id, 999))
+    if not rerank_active or not candidates:
+        return candidates
+
+    # Prefer qa_answer (short, dense) over content for reranker scoring.
+    docs = [
+        (kb.qa_answer or kb.content or kb.name or "").strip()[:1000]
+        for kb in candidates
+    ]
+
+    try:
+        ranked = await _rerank_with_timeout(reranker, query, docs, top_k)
+    except Exception as e:
+        # Timeout, model load failure, anything — retrieval must not break.
+        logger.error(f"Reranker failed, returning cosine order: {e}")
+        return candidates[:top_k]
+
+    return [candidates[idx] for idx, _score in ranked]
 
 
 def _keyword_search(
