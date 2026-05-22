@@ -46,6 +46,7 @@ import MonitoringDashboard from './pages/MonitoringDashboard';
 import BusinessOps from './pages/BusinessOps';
 import UserManagement from './pages/UserManagement';
 import FeaturePack from './pages/FeaturePack';
+import ActivationCodes from './pages/billing/ActivationCodes';
 
 // ── TG1.AI Customer Portal (Epic 1.5) ─────────────────────────────
 import PortalLayout from './portal/Layout';
@@ -268,6 +269,11 @@ const buildMenuItems = (role?: string, isSuperuser?: boolean): MenuProps['items'
       icon: <DashboardOutlined />,
       label: <Link to="/feature-pack">功能包</Link>,
     });
+    items.push({
+      key: 'activation-codes',
+      icon: <FileTextOutlined />,
+      label: <Link to="/activation-codes">激活码</Link>,
+    });
   }
 
   items.push(
@@ -322,6 +328,7 @@ const AppContent: React.FC = () => {
         '/auto-register': '自动注册',
         '/monitoring': '实时监控',
         '/business-ops': '运营看板',
+        '/activation-codes': '激活码管理',
     };
 
     const pathSnippets = location.pathname.split('/').filter(i => i);
@@ -372,6 +379,7 @@ const AppContent: React.FC = () => {
                     <Route path="/business-ops" element={<BusinessOps />} />
                     <Route path="/users" element={<AdminOnly><UserManagement /></AdminOnly>} />
                     <Route path="/feature-pack" element={<AdminOnly><FeaturePack /></AdminOnly>} />
+                    <Route path="/activation-codes" element={<AdminOnly><ActivationCodes /></AdminOnly>} />
                 </Routes>
             </div>
         </Content>

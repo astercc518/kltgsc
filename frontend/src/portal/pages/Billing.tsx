@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import {
   Card, Row, Col, Button, Typography, Tag, Space, Alert, Modal,
-  Table, Statistic, message, Tooltip, Divider, Radio,
+  Table, Statistic, message, Tooltip, Divider, Radio, Input,
 } from 'antd';
 import { CheckCircleOutlined, CopyOutlined, CrownOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { billingApi, Invoice } from '../api';
+import portalApi from '../api';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -132,6 +133,26 @@ const InvoiceModal: React.FC<{ invoice: Invoice | null; onClose: () => void }> =
 const PortalBilling: React.FC = () => {
   const [network, setNetwork] = useState('TRC20');
   const [activeInvoice, setActiveInvoice] = useState<Invoice | null>(null);
+  const [redeemCode, setRedeemCode] = useState('');
+  const qc = useQueryClient();
+
+  const handleRedeem = async () => {
+    if (!redeemCode.trim()) return;
+    try {
+      const resp = await portalApi.post('/customer/redeem-code', {
+        code: redeemCode.trim(),
+      });
+      message.success(`激活成功，套餐：${resp.data.plan}`);
+      setRedeemCode('');
+      qc.invalidateQueries({ queryKey: ['portal'] });
+    } catch (err: any) {
+      const status = err.response?.status;
+      const detail = err.response?.data?.detail;
+      if (status === 404) message.error('激活码不存在');
+      else if (status === 409) message.error(detail || '激活码已使用或已撤销');
+      else message.error(detail || '兑换失败');
+    }
+  };
 
   const { data: invoices = [] } = useQuery({
     queryKey: ['portal', 'invoices'],
@@ -203,6 +224,19 @@ const PortalBilling: React.FC = () => {
           </Col>
         ))}
       </Row>
+
+      <Card title="激活码兑换" style={{ marginBottom: 16, marginTop: 32 }}>
+        <Input.Group compact>
+          <Input
+            style={{ width: 'calc(100% - 100px)' }}
+            placeholder="输入激活码，例如 XXXX-XXXX-XXXX"
+            value={redeemCode}
+            onChange={(e) => setRedeemCode(e.target.value)}
+            onPressEnter={handleRedeem}
+          />
+          <Button type="primary" onClick={handleRedeem}>兑换</Button>
+        </Input.Group>
+      </Card>
 
       <Title level={4} style={{ marginTop: 32 }}>Invoice History</Title>
       <Table
