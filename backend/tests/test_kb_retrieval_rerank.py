@@ -156,3 +156,43 @@ async def test_vector_search_falls_back_to_cosine_on_reranker_exception(
 
     # Reranker raised → fall back to cosine order (top-2 of distance-sorted ids)
     assert [kb.id for kb in result] == [1, 2]
+
+
+@pytest.mark.asyncio
+async def test_vector_search_falls_back_to_cosine_on_reranker_timeout(
+    session, kb_rows, monkeypatch
+):
+    """asyncio.TimeoutError carries no .message — exercise the path that
+    motivated logging with exc_info=True."""
+    import asyncio
+
+    monkeypatch.setattr("app.core.config.settings.RERANK_ENABLED", True)
+    monkeypatch.setattr("app.core.config.settings.RERANK_TIMEOUT_MS", 50)
+
+    class SlowReranker(reranker_service.RerankerService):
+        async def rerank(self, query, docs, top_n):
+            await asyncio.sleep(1.0)  # > 50ms timeout → asyncio.TimeoutError
+            return []
+
+    reranker_service.reset_reranker_for_tests()
+    reranker_service._reranker_singleton = SlowReranker()
+
+    fake_rows = [(1, 0.1), (2, 0.2), (3, 0.3)]
+    with patch("app.services.kb_retrieval.sa_text"), \
+         patch.object(session, "execute") as exec_mock:
+        exec_mock.return_value.fetchall.return_value = fake_rows
+
+        result = await _vector_search(
+            session=session,
+            query="hello",
+            qvec=[0.0] * 768,
+            top_k=2,
+            chat_id_filter=None,
+            topic_filter=None,
+            source_type=None,
+            category_filter=None,
+            similarity_threshold=0.45,
+            customer_id_filter=None,
+        )
+
+    assert [kb.id for kb in result] == [1, 2]
