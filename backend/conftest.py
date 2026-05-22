@@ -8,6 +8,7 @@ Provides:
 """
 import os
 import sys
+import types
 
 # Ensure settings are test-friendly before any app imports.
 # These must be set before importing anything from app.core.config
@@ -19,6 +20,112 @@ os.environ.setdefault("ADMIN_PASSWORD", "testpassword1234")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault("DATABASE_URL", "sqlite://")
 os.environ.setdefault("SECURITY_ENABLED", "false")
+
+# ---------------------------------------------------------------------------
+# Stub out celery + kombu so the test environment doesn't need them installed.
+# The actual tasks are never executed in tests — callers mock .delay().
+# ---------------------------------------------------------------------------
+def _make_celery_stub():
+    """Return a minimal Celery stub sufficient to let app.worker import cleanly."""
+
+    class _FakeConf:
+        def update(self, **kwargs):
+            pass
+
+    class Task:
+        """Minimal stub for celery.Task base class."""
+        name = ""
+        autoretry_for = ()
+        retry_backoff = False
+        retry_backoff_max = 600
+        retry_jitter = False
+
+        def on_failure(self, exc, task_id, args, kwargs, einfo):
+            pass
+
+        def on_retry(self, exc, task_id, args, kwargs, einfo):
+            pass
+
+        def on_success(self, retval, task_id, args, kwargs):
+            pass
+
+    class _FakeCelery:
+        def __init__(self, *a, **kw):
+            self.conf = _FakeConf()
+            self.Task = Task
+
+        def task(self, *a, **kw):
+            def decorator(fn):
+                fn.delay = lambda *a, **kw: type("R", (), {"id": "fake-task-id"})()
+                fn.apply_async = lambda *a, **kw: type("R", (), {"id": "fake-task-id"})()
+                return fn
+            return decorator
+
+        def config_from_object(self, *a, **kw):
+            pass
+
+        def autodiscover_tasks(self, *a, **kw):
+            pass
+
+    mod = types.ModuleType("celery")
+    mod.Celery = _FakeCelery
+    mod.Task = Task
+    return mod
+
+
+def _make_kombu_stub():
+    class _FakeQueue:
+        def __init__(self, *a, **kw):
+            pass
+
+    mod = types.ModuleType("kombu")
+    mod.Queue = _FakeQueue
+    return mod
+
+
+if "celery" not in sys.modules:
+    _celery_mod = _make_celery_stub()
+    sys.modules["celery"] = _celery_mod
+
+    # celery.exceptions  — SoftTimeLimitExceeded used in many task files
+    _exc_mod = types.ModuleType("celery.exceptions")
+
+    class SoftTimeLimitExceeded(Exception):
+        pass
+
+    _exc_mod.SoftTimeLimitExceeded = SoftTimeLimitExceeded
+    sys.modules["celery.exceptions"] = _exc_mod
+
+    # celery.result  — AsyncResult used in task status endpoints
+    _result_mod = types.ModuleType("celery.result")
+
+    class AsyncResult:
+        def __init__(self, task_id, *a, **kw):
+            self.id = task_id
+            self.status = "PENDING"
+            self.result = None
+
+        def get(self, *a, **kw):
+            return None
+
+    _result_mod.AsyncResult = AsyncResult
+    sys.modules["celery.result"] = _result_mod
+
+    # shared_task decorator (used by billing_tasks)
+    def shared_task(*a, **kw):
+        def decorator(fn):
+            fn.delay = lambda *a, **kw: type("R", (), {"id": "fake-task-id"})()
+            fn.apply_async = lambda *a, **kw: type("R", (), {"id": "fake-task-id"})()
+            return fn
+        # If called with no arguments (bare @shared_task), the first arg is the fn
+        if len(a) == 1 and callable(a[0]) and not kw:
+            return decorator(a[0])
+        return decorator
+
+    _celery_mod.shared_task = shared_task
+
+if "kombu" not in sys.modules:
+    sys.modules["kombu"] = _make_kombu_stub()
 
 import pytest
 from datetime import datetime, timedelta

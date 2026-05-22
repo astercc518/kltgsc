@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from app.core.db import get_session
 from app.core import security
-from app.core.account_roles import VALID_ROLES, tier_for_role
+from app.core.account_roles import VALID_ROLES, tier_for_role, role_for_usage_level
 from app.models.account import Account, AccountCreate, AccountRead
 from app.models.proxy import Proxy
 from app.services.proxy_assigner import auto_assign_proxy
@@ -64,6 +64,7 @@ class MegaImportRequest(BaseModel):
     urls: List[str]
     target_channels: Optional[str] = "kltgsc"  # 养号目标频道，逗号分隔
     role: Optional[str] = None  # 导入后默认角色（worker/master/support/sales/listener/collector）
+    usage_level: Optional[int] = None  # UI 等级 1/2/3, overrides role when present
     # 安全默认值：导入后不自动触碰 Telegram
     auto_check: bool = False   # 导入完成后自动验活（低风险验活模式）
     auto_warmup: bool = False  # 导入完成后自动启动养号/热身任务
@@ -323,9 +324,15 @@ async def upload_session(
     request: Request,
     file: UploadFile = File(...),
     role: Optional[str] = Query(None),
+    usage_level: Optional[int] = Query(None, description="UI 等级 1/2/3, overrides role"),
     session: Session = Depends(get_session)
 ):
     """上传单个 Session 文件"""
+    if usage_level is not None:
+        translated = role_for_usage_level(usage_level)
+        if translated is None:
+            raise HTTPException(status_code=400, detail=f"Invalid usage_level: {usage_level}")
+        role = translated  # usage_level wins over role
     if role and role not in VALID_ROLES:
         raise HTTPException(status_code=400, detail="Invalid role")
     os.makedirs("sessions", exist_ok=True)
@@ -399,12 +406,18 @@ def upload_sessions_batch(
     request: Request,
     files: List[UploadFile] = File(...),
     role: Optional[str] = Query(None),
+    usage_level: Optional[int] = Query(None, description="UI 等级 1/2/3, overrides role"),
     session: Session = Depends(get_session)
 ):
     """
     批量上传 Session 文件
     支持同时上传同名的 .json 文件以导入 API 信息
     """
+    if usage_level is not None:
+        translated = role_for_usage_level(usage_level)
+        if translated is None:
+            raise HTTPException(status_code=400, detail=f"Invalid usage_level: {usage_level}")
+        role = translated  # usage_level wins over role
     if role and role not in VALID_ROLES:
         raise HTTPException(status_code=400, detail="Invalid role")
     os.makedirs("sessions", exist_ok=True)
@@ -545,8 +558,14 @@ MAX_TDATA_FILE_SIZE = 500 * 1024 * 1024  # 500MB
 async def upload_tdata_batch(
     files: List[UploadFile] = File(...),
     role: Optional[str] = Query(None),
+    usage_level: Optional[int] = Query(None, description="UI 等级 1/2/3, overrides role"),
 ):
     """批量上传 tdata 压缩包（ZIP/RAR）"""
+    if usage_level is not None:
+        translated = role_for_usage_level(usage_level)
+        if translated is None:
+            raise HTTPException(status_code=400, detail=f"Invalid usage_level: {usage_level}")
+        role = translated  # usage_level wins over role
     if role and role not in VALID_ROLES:
         raise HTTPException(status_code=400, detail="Invalid role")
     task_ids = []
@@ -880,6 +899,11 @@ async def import_from_mega(
     """从 MEGA 链接导入账号"""
     from app.worker import create_warmup_after_imports
 
+    if request.usage_level is not None:
+        translated = role_for_usage_level(request.usage_level)
+        if translated is None:
+            raise HTTPException(status_code=400, detail=f"Invalid usage_level: {request.usage_level}")
+        request.role = translated  # usage_level wins over role
     if request.role and request.role not in VALID_ROLES:
         raise HTTPException(status_code=400, detail="Invalid role")
 
