@@ -129,12 +129,24 @@ def test_activate_invoice_is_idempotent_on_paid_invoice(session, customer, monke
 
 
 def test_activate_invoice_sets_activated_via_usdt(session, customer, monkeypatch):
-    """Pin Epic 1: USDT path leaves activated_via at default 'usdt'."""
+    """Pin Epic 1: USDT path OVERWRITES activated_via to 'usdt' (not just default).
+
+    Pre-set the field to a non-default value so the test fails if
+    activate_invoice ever stops writing it explicitly. This is the regression
+    safety net for the line `subscription.activated_via = "usdt"` in
+    billing_service.activate_invoice.
+    """
     monkeypatch.setattr(
         "app.services.allocation_service.provision_customer",
         lambda s, c: None, raising=False,
     )
     inv, sub = _make_pending(session, customer)
+    # Pre-set to a non-default value so the assertion proves activate_invoice
+    # actually writes the field (rather than picking up the model default).
+    sub.activated_via = "bogus_pretend_previous_state"
+    session.add(sub)
+    session.commit()
+
     result = activate_invoice(session, inv, tx_hash="0xabc")
     assert result.activated_via == "usdt"
     assert result.activation_code_id is None
