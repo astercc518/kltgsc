@@ -439,6 +439,111 @@ def provision_internal_pool(
     }
 
 
+# ── Epic 1 — Activation codes ─────────────────────────────────────────
+from typing import Optional as _Optional
+
+from app.models.activation_code import (
+    ActivationCode,
+    ActivationCodeGenerateRequest,
+    ActivationCodeGenerateResponse,
+    ActivationCodeRead,
+)
+from app.services.activation_code_service import (
+    ActivationCodeError,
+    generate_codes as ac_generate,
+    revoke_code as ac_revoke,
+)
+
+
+@router.post(
+    "/activation-codes/generate",
+    response_model=ActivationCodeGenerateResponse,
+)
+def admin_generate_activation_codes(
+    request: ActivationCodeGenerateRequest,
+    session: Session = Depends(get_session),
+    admin: User = Depends(get_current_admin),
+) -> Any:
+    """Generate a batch of bearer activation codes for a given plan."""
+    try:
+        codes = ac_generate(
+            session,
+            admin_user_id=admin.id,
+            plan=request.plan,
+            count=request.count,
+            duration_days=request.duration_days,
+            notes=request.notes,
+        )
+    except ActivationCodeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return ActivationCodeGenerateResponse(
+        batch_id=codes[0].batch_id,
+        codes=[ActivationCodeRead.model_validate(c) for c in codes],
+    )
+
+
+@router.get(
+    "/activation-codes",
+    response_model=List[ActivationCodeRead],
+)
+def admin_list_activation_codes(
+    status: _Optional[str] = Query(None),
+    plan: _Optional[str] = Query(None),
+    batch_id: _Optional[str] = Query(None),
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    session: Session = Depends(get_session),
+    _admin: User = Depends(get_current_admin),
+) -> Any:
+    """List activation codes with optional filters."""
+    stmt = select(ActivationCode)
+    if status:
+        stmt = stmt.where(ActivationCode.status == status)
+    if plan:
+        stmt = stmt.where(ActivationCode.plan == plan)
+    if batch_id:
+        stmt = stmt.where(ActivationCode.batch_id == batch_id)
+    stmt = stmt.order_by(ActivationCode.created_at.desc()).offset(offset).limit(limit)
+    rows = session.exec(stmt).all()
+    return [ActivationCodeRead.model_validate(r) for r in rows]
+
+
+@router.get(
+    "/activation-codes/{code_id}",
+    response_model=ActivationCodeRead,
+)
+def admin_get_activation_code(
+    code_id: int,
+    session: Session = Depends(get_session),
+    _admin: User = Depends(get_current_admin),
+) -> Any:
+    """Fetch a single activation code by its database ID."""
+    code = session.get(ActivationCode, code_id)
+    if not code:
+        raise HTTPException(status_code=404, detail="Code not found")
+    return ActivationCodeRead.model_validate(code)
+
+
+@router.post(
+    "/activation-codes/{code_id}/revoke",
+    response_model=ActivationCodeRead,
+)
+def admin_revoke_activation_code(
+    code_id: int,
+    session: Session = Depends(get_session),
+    admin: User = Depends(get_current_admin),
+) -> Any:
+    """Revoke an unused activation code. Idempotent on already-revoked codes."""
+    try:
+        code = ac_revoke(session, code_id, admin_user_id=admin.id)
+    except ActivationCodeError as e:
+        msg = str(e)
+        if "not found" in msg.lower():
+            raise HTTPException(status_code=404, detail=msg)
+        raise HTTPException(status_code=409, detail=msg)
+    return ActivationCodeRead.model_validate(code)
+
+
 @router.get("/internal-pools")
 def list_internal_pools(
     _admin: User = Depends(get_current_admin),
