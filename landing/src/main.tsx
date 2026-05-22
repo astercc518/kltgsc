@@ -1,15 +1,15 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App';
-import './index.css';
+import { RouterProvider } from 'react-router-dom';
+import { router } from './routes';
 import { initAnalytics } from '@/lib/analytics';
+import './index.css';
 
-// Plausible init — no-op in dev / when no domain configured. Set
-// VITE_PLAUSIBLE_DOMAIN at build time to enable.
+// Plausible init — no-op in dev / when no VITE_PLAUSIBLE_DOMAIN is set.
 initAnalytics();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    <RouterProvider router={router} />
   </React.StrictMode>,
 );

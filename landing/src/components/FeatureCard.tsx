@@ -14,7 +14,7 @@ import type { ComponentType, ReactNode } from 'react';
 
 type Accent = 'blue' | 'purple' | 'neutral';
 
-type IconProps = { className?: string; size?: number };
+type IconProps = { className?: string; size?: number | string };
 
 type Props = {
   icon?: ComponentType<IconProps>;
