@@ -220,9 +220,10 @@ async def _vector_search(
 
     try:
         ranked = await _rerank_with_timeout(reranker, query, docs, top_k)
-    except Exception as e:
+    except Exception:
         # Timeout, model load failure, anything — retrieval must not break.
-        logger.error(f"Reranker failed, returning cosine order: {e}")
+        # exc_info=True so production diagnoses get a traceback (asyncio.TimeoutError has no message).
+        logger.error("Reranker failed, returning cosine order", exc_info=True)
         return candidates[:top_k]
 
     return [candidates[idx] for idx, _score in ranked]
