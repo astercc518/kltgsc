@@ -25,6 +25,7 @@ from .knowledge_base import KnowledgeBase, KnowledgeBaseCreate, KnowledgeBaseUpd
 from .group_message import GroupMessage, GroupMessageRead
 from .llm_usage import LLMUsage
 from .customer import Customer, CustomerCreate, CustomerLogin, CustomerRead, CustomerUpdate
+from .activation_code import ActivationCode  # noqa: F401
 from .subscription import (
     Subscription, SubscriptionRead,
     Invoice, InvoiceRead,

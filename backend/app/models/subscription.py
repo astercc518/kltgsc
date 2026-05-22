@@ -62,6 +62,10 @@ class Subscription(SQLModel, table=True):
     activated_at: Optional[datetime] = None
     canceled_at: Optional[datetime] = None
 
+    # Epic 1 — activation provenance
+    activated_via: str = Field(default="usdt", max_length=20)  # usdt / code / admin_manual
+    activation_code_id: Optional[int] = Field(default=None, foreign_key="activation_code.id")
+
 
 class Invoice(SQLModel, table=True):
     __tablename__ = "invoice"
@@ -126,6 +130,7 @@ class SubscriptionRead(SQLModel):
     auto_renew: bool
     activated_at: Optional[datetime]
     created_at: datetime
+    activated_via: str = "usdt"  # default for back-compat with old DB rows
 
 
 class SubscribeRequest(SQLModel):
