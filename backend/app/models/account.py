@@ -1,6 +1,7 @@
 from typing import Optional
 from sqlmodel import SQLModel, Field, Relationship
 from datetime import datetime
+from pydantic import model_validator
 from app.models.proxy import Proxy
 
 
@@ -80,3 +81,14 @@ class AccountRead(AccountBase):
     id: int
     created_at: datetime
     proxy: Optional[Proxy] = None
+    usage_level: Optional[int] = None  # derived from role; UI display only
+    # Allow role=None when serializing (AccountBase declares str, but
+    # in-flight objects may carry None before DB constraint fires).
+    role: Optional[str] = Field(default="worker", index=True)
+
+    @model_validator(mode="after")
+    def _set_usage_level(self) -> "AccountRead":
+        if self.usage_level is None and self.role:
+            from app.core.account_roles import usage_level_for_role
+            self.usage_level = usage_level_for_role(self.role)
+        return self
