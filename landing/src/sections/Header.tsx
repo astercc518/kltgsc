@@ -62,12 +62,12 @@ export default function Header() {
 
         <div className="hidden md:flex items-center gap-3">
           <LangSwitcher />
-          <Link
-            to={LINKS.signIn}
+          <a
+            href={LINKS.signIn}
             className="text-sm text-brand-ink-700 hover:text-brand-ink-900 px-3 py-1.5"
           >
             {t.nav.signIn}
-          </Link>
+          </a>
           <CTAButton
             variant="primary"
             href={LINKS.trial}
@@ -116,13 +116,12 @@ export default function Header() {
                 {l.label}
               </a>
             ))}
-            <Link
-              to={LINKS.signIn}
-              onClick={() => setMobileOpen(false)}
+            <a
+              href={LINKS.signIn}
               className="py-3 text-brand-ink-700"
             >
               {t.nav.signIn}
-            </Link>
+            </a>
             <div className="py-4">
               <LangSwitcher />
             </div>
