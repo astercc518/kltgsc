@@ -185,3 +185,22 @@ def test_revoke_already_revoked_is_idempotent(session):
     # Second revoke succeeds silently (idempotent)
     result = revoke_code(session, code.id, admin_user_id=1)
     assert result.status == CODE_REVOKED
+
+
+# ── race-safety lock ───────────────────────────────────────────────────
+
+def test_redeem_code_acquires_row_lock_on_select():
+    """Verify redeem_code's ActivationCode SELECT opts into row locking.
+
+    SQLite (test env) ignores the hint silently. PostgreSQL (prod) emits
+    SELECT ... FOR UPDATE which serializes concurrent redemptions. We
+    verify by source-inspection — the actual lock behavior needs a Postgres
+    integration test, but the absence of with_for_update() is a regression
+    we can catch here.
+    """
+    import inspect
+    src = inspect.getsource(redeem_code)
+    assert "with_for_update" in src, (
+        "redeem_code must call with_for_update() on the ActivationCode "
+        "SELECT to serialize concurrent redemptions on Postgres."
+    )

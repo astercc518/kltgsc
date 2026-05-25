@@ -103,10 +103,10 @@ def redeem_code(session: Session, customer: Customer, code_str: str) -> Subscrip
       - Uppercase
       - Must match ^[A-Z0-9]{12}$ after normalization
 
-    Race-safety: row is fetched, status checked, status flipped + relations
-    set, then committed. On SQLite single-writer there is no race. On
-    Postgres, an UPDATE ... WHERE status='unused' guard could be added if
-    we see contention (TODO comment, not implemented in this Epic).
+    Race-safety: SELECT ... FOR UPDATE locks the row in PostgreSQL for the
+    duration of this transaction, so two concurrent customers redeeming the
+    same code are serialized. The second one finds status=='redeemed' and
+    raises. SQLite (test env, single-writer) silently ignores the hint.
     """
     from app.services.billing_service import _apply_subscription_activation, BillingError
 
@@ -115,7 +115,9 @@ def redeem_code(session: Session, customer: Customer, code_str: str) -> Subscrip
         raise ActivationCodeError(f"Invalid code format")
 
     code = session.exec(
-        select(ActivationCode).where(ActivationCode.code == normalized)
+        select(ActivationCode)
+        .where(ActivationCode.code == normalized)
+        .with_for_update()
     ).first()
     if not code:
         raise ActivationCodeError("Code not found")
