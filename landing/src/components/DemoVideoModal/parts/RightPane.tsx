@@ -3,6 +3,7 @@ import { Terminal } from 'lucide-react';
 import { useT } from '@/i18n';
 import { CONSOLE_LINES } from '../demoScript';
 import ScoreCard from './ScoreCard';
+import InboxItem from './InboxItem';
 
 interface Props {
   elapsedMs: number;
@@ -41,8 +42,10 @@ export default function RightPane({ elapsedMs }: Props) {
         <ScoreCard elapsedMs={elapsedMs} />
       </div>
 
-      {/* Inbox area — filled in Task 9 */}
-      <div className="flex-1 px-4 pb-4 text-xs font-mono text-white/30">[inbox — task 9]</div>
+      {/* Inbox area */}
+      <div className="flex-1 px-4 pb-4">
+        <InboxItem elapsedMs={elapsedMs} />
+      </div>
     </div>
   );
 }
