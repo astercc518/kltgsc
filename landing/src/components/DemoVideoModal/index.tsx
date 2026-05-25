@@ -13,6 +13,7 @@ import { useTimeline } from './useTimeline';
 import { DURATION_MS } from './demoScript';
 import TopBar from './parts/TopBar';
 import BottomBar from './parts/BottomBar';
+import LeftPane from './parts/LeftPane';
 
 interface Props {
   open: boolean;
@@ -68,9 +69,8 @@ export default function DemoVideoModal({ open, onClose }: Props) {
           >
             <TopBar act={timeline.act} onClose={onClose} />
             <div className="flex-1 relative bg-gradient-to-br from-brand-ink-950 to-brand-ink-900 grid grid-cols-12 gap-px">
-              {/* LeftPane / RightPane slot in later tasks */}
-              <div className="col-span-7 p-4 text-white/30 text-xs font-mono">[left pane — task 7]</div>
-              <div className="col-span-5 p-4 text-white/30 text-xs font-mono">[right pane — tasks 8, 9]</div>
+              <LeftPane elapsedMs={timeline.elapsedMs} />
+              <div className="col-span-12 md:col-span-5 p-4 text-white/30 text-xs font-mono">[right pane — tasks 8, 9]</div>
             </div>
             <BottomBar
               elapsedMs={timeline.elapsedMs}
