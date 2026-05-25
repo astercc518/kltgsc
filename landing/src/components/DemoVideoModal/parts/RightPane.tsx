@@ -19,7 +19,7 @@ export default function RightPane({ elapsedMs }: Props) {
       <div className="border-b border-white/10">
         <div className="flex items-center gap-1.5 px-4 py-2 text-xs font-mono text-white/50">
           <Terminal className="w-3 h-3" />
-          <span>ai-console</span>
+          <span>{t.demo.consoleLabel}</span>
         </div>
         <div className="px-4 pb-3 space-y-1 font-mono text-xs text-white/70 min-h-[5rem]">
           <AnimatePresence initial={false}>

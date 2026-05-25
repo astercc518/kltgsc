@@ -13,7 +13,7 @@ export default function InboxItem({ elapsedMs }: Props) {
     return (
       <div className="flex items-center gap-2 text-xs font-mono text-white/30">
         <Inbox className="w-3 h-3" />
-        <span>inbox · empty</span>
+        <span>{t.demo.inbox.empty}</span>
       </div>
     );
   }
@@ -25,7 +25,7 @@ export default function InboxItem({ elapsedMs }: Props) {
       <div className="flex items-center justify-between text-xs font-mono text-white/60">
         <div className="flex items-center gap-1.5">
           <Inbox className="w-3 h-3" />
-          <span>inbox</span>
+          <span>{t.demo.inbox.label}</span>
         </div>
         <motion.span
           initial={{ scale: 0.6, opacity: 0 }}
@@ -68,7 +68,7 @@ export default function InboxItem({ elapsedMs }: Props) {
                 transition={{ duration: 1.4, repeat: Infinity }}
                 className="text-[10px] font-mono text-white/40"
               >
-                typing…
+                {t.demo.handover.typing}
               </motion.span>
             </div>
             <p className="text-xs text-white/70 leading-snug pl-7">

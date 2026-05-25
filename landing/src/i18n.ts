@@ -203,12 +203,15 @@ export type Dict = {
   demo: {
     title: string;
     badge: string;
+    consoleLabel: string;
+    inbox: { label: string; empty: string };
     acts: { listening: string; incoming: string; scoring: string; handover: string };
     kpi: { rate: string; rateUnit: string; captured: string };
     console: { line1: string; line2: string; line3: string; line4: string };
     score: {
       label: string;
       keywords: string;
+      keywordsValue: string;
       persona: string;
       personaValue: string;
       suggestion: string;
@@ -217,6 +220,7 @@ export type Dict = {
     handover: {
       salesName: string;
       salesReply: string;
+      typing: string;
     };
     controls: { pause: string; resume: string; restart: string; close: string };
     reduced: { intro: string };
@@ -289,6 +293,8 @@ const en: Dict = {
   demo: {
     title: 'TG1 AI Assistant · Live Demo',
     badge: 'Listening to 3 groups',
+    consoleLabel: 'ai-console',
+    inbox: { label: 'inbox', empty: 'inbox · empty' },
     acts: {
       listening: '1/4 · Listening',
       incoming: '2/4 · Incoming',
@@ -309,6 +315,7 @@ const en: Dict = {
     score: {
       label: 'Intent score',
       keywords: 'Keywords',
+      keywordsValue: 'USDT · cross-border',
       persona: 'Persona',
       personaValue: 'SMB merchant',
       suggestion: 'Suggested opener',
@@ -317,6 +324,7 @@ const en: Dict = {
     handover: {
       salesName: 'Sales · Alex',
       salesReply: 'Hi — saw your question in the group about USDT receiving…',
+      typing: 'typing…',
     },
     controls: {
       pause: 'Pause',
@@ -665,6 +673,8 @@ const zhCN: Dict = {
   demo: {
     title: 'TG1 AI 助手 · 实时演示',
     badge: '正在监听 3 个群',
+    consoleLabel: 'AI 控制台',
+    inbox: { label: '收件箱', empty: '收件箱 · 空' },
     acts: {
       listening: '1/4 · 监听就绪',
       incoming: '2/4 · 消息流入',
@@ -685,6 +695,7 @@ const zhCN: Dict = {
     score: {
       label: '意向分',
       keywords: '关键词',
+      keywordsValue: 'USDT · 跨境支付',
       persona: '用户画像',
       personaValue: '中小商户',
       suggestion: '推荐话术',
@@ -693,6 +704,7 @@ const zhCN: Dict = {
     handover: {
       salesName: '销售 · Alex',
       salesReply: '您好，看到您在群里问 USDT 收款……',
+      typing: '输入中…',
     },
     controls: {
       pause: '暂停',
@@ -1041,6 +1053,8 @@ const ja: Dict = {
   demo: {
     title: 'TG1 AI アシスタント · ライブデモ',
     badge: '3 つのグループを監視中',
+    consoleLabel: 'AI コンソール',
+    inbox: { label: '受信箱', empty: '受信箱 · 空' },
     acts: {
       listening: '1/4 · 監視中',
       incoming: '2/4 · 受信',
@@ -1057,6 +1071,7 @@ const ja: Dict = {
     score: {
       label: '意向スコア',
       keywords: 'キーワード',
+      keywordsValue: 'USDT · クロスボーダー',
       persona: 'ペルソナ',
       personaValue: '中小事業者',
       suggestion: '推奨トーク',
@@ -1065,6 +1080,7 @@ const ja: Dict = {
     handover: {
       salesName: '営業 · Alex',
       salesReply: 'こんにちは、グループでの USDT 受け取りに関するご質問を拝見しました…',
+      typing: '入力中…',
     },
     controls: { pause: '一時停止', resume: '再開', restart: '再生', close: 'デモを閉じる' },
     reduced: { intro: 'モーション設定によりアニメーションは無効です。4 幕をご覧ください：' },
@@ -1344,6 +1360,8 @@ const ko: Dict = {
   demo: {
     title: 'TG1 AI 어시스턴트 · 라이브 데모',
     badge: '3개 그룹 모니터링 중',
+    consoleLabel: 'AI 콘솔',
+    inbox: { label: '받은편지함', empty: '받은편지함 · 비어있음' },
     acts: {
       listening: '1/4 · 모니터링',
       incoming: '2/4 · 수신',
@@ -1360,6 +1378,7 @@ const ko: Dict = {
     score: {
       label: '의향 점수',
       keywords: '키워드',
+      keywordsValue: 'USDT · 국경 간 결제',
       persona: '페르소나',
       personaValue: '중소 사업자',
       suggestion: '추천 멘트',
@@ -1368,6 +1387,7 @@ const ko: Dict = {
     handover: {
       salesName: '영업 · Alex',
       salesReply: '안녕하세요, 그룹에서 USDT 수금에 대한 질문을 보았습니다…',
+      typing: '입력 중…',
     },
     controls: { pause: '일시정지', resume: '재개', restart: '다시 재생', close: '데모 닫기' },
     reduced: { intro: '모션 설정에 따라 애니메이션이 비활성화되었습니다. 4막을 보세요:' },
@@ -1647,6 +1667,8 @@ const es: Dict = {
   demo: {
     title: 'Asistente IA de TG1 · Demo en vivo',
     badge: 'Escuchando 3 grupos',
+    consoleLabel: 'consola IA',
+    inbox: { label: 'bandeja', empty: 'bandeja · vacía' },
     acts: {
       listening: '1/4 · Escuchando',
       incoming: '2/4 · Entrante',
@@ -1663,6 +1685,7 @@ const es: Dict = {
     score: {
       label: 'Puntuación de intención',
       keywords: 'Palabras clave',
+      keywordsValue: 'USDT · transfronterizo',
       persona: 'Persona',
       personaValue: 'PYME / comerciante',
       suggestion: 'Apertura sugerida',
@@ -1671,6 +1694,7 @@ const es: Dict = {
     handover: {
       salesName: 'Ventas · Alex',
       salesReply: 'Hola — vi tu pregunta en el grupo sobre recibir USDT…',
+      typing: 'escribiendo…',
     },
     controls: { pause: 'Pausar', resume: 'Reanudar', restart: 'Reproducir', close: 'Cerrar demo' },
     reduced: { intro: 'Animación desactivada según tu preferencia de movimiento. Explora los 4 actos:' },

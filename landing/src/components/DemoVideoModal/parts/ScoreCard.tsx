@@ -32,7 +32,7 @@ export default function ScoreCard({ elapsedMs }: Props) {
       <dl className="space-y-1.5 text-xs">
         <div className="flex justify-between gap-3">
           <dt className="text-white/50">{t.demo.score.keywords}</dt>
-          <dd className="text-white/85 text-right">USDT · cross-border</dd>
+          <dd className="text-white/85 text-right">{t.demo.score.keywordsValue}</dd>
         </div>
         <div className="flex justify-between gap-3">
           <dt className="text-white/50">{t.demo.score.persona}</dt>
