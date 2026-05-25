@@ -52,19 +52,33 @@ export default function Header() {
         </Link>
 
         {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-8 text-sm text-brand-ink-700">
+        <nav
+          className={[
+            'hidden md:flex items-center gap-8 text-sm transition-colors',
+            scrolled ? 'text-brand-ink-700' : 'text-white/80',
+          ].join(' ')}
+        >
           {navLinks.map((l) => (
-            <a key={l.href} href={l.href} className="hover:text-brand-ink-900 transition-colors">
+            <a
+              key={l.href}
+              href={l.href}
+              className={scrolled ? 'hover:text-brand-ink-900' : 'hover:text-white'}
+            >
               {l.label}
             </a>
           ))}
         </nav>
 
         <div className="hidden md:flex items-center gap-3">
-          <LangSwitcher />
+          <LangSwitcher onDark={!scrolled} />
           <a
             href={LINKS.signIn}
-            className="text-sm text-brand-ink-700 hover:text-brand-ink-900 px-3 py-1.5"
+            className={[
+              'text-sm px-3 py-1.5 transition-colors',
+              scrolled
+                ? 'text-brand-ink-700 hover:text-brand-ink-900'
+                : 'text-white/80 hover:text-white',
+            ].join(' ')}
           >
             {t.nav.signIn}
           </a>
@@ -83,7 +97,10 @@ export default function Header() {
         {/* Mobile hamburger */}
         <button
           type="button"
-          className="md:hidden text-brand-ink-700 p-2"
+          className={[
+            'md:hidden p-2 transition-colors',
+            scrolled ? 'text-brand-ink-700' : 'text-white/80',
+          ].join(' ')}
           onClick={() => setMobileOpen(true)}
           aria-label="Open menu"
         >
