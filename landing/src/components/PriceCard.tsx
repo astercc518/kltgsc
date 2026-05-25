@@ -24,17 +24,20 @@ type Props = {
   tier: TierCode;
   name: string;
   pricePerMonthUsd: number;
+  /** Suffix shown right of the price. Override for i18n; defaults to "/ month · USDT". */
+  priceSuffix?: string;
   quotaLines: string[];        // 3-4 lines like "5 TG 账号", "1,000 群配额"
   featureLines: string[];      // 4-6 short feature highlights
   ctaLabel: string;
   ctaHref: string;
   featured?: boolean;
+  /** Featured-tier ribbon label. Defaults to "Most Popular". */
   badge?: ReactNode;
   className?: string;
 };
 
 export default function PriceCard({
-  tier, name, pricePerMonthUsd, quotaLines, featureLines,
+  tier, name, pricePerMonthUsd, priceSuffix, quotaLines, featureLines,
   ctaLabel, ctaHref, featured, badge, className,
 }: Props) {
   const dollars = pricePerMonthUsd.toFixed(0);
@@ -60,7 +63,7 @@ export default function PriceCard({
 
       <div className="flex items-baseline gap-1 mb-6">
         <span className="font-mono text-5xl font-bold text-brand-ink-900">${dollars}</span>
-        <span className="text-brand-ink-500 text-sm">/ month · USDT</span>
+        <span className="text-brand-ink-500 text-sm">{priceSuffix ?? '/ month · USDT'}</span>
       </div>
 
       <ul className="space-y-2 mb-6 text-sm text-brand-ink-700">

@@ -14,6 +14,7 @@ import { ArrowRight, Sparkles, Package, Bot, Shield } from 'lucide-react';
 import CTAButton from '@/components/CTAButton';
 import { LINKS } from '@/lib/links';
 import { Events } from '@/lib/analytics';
+import { useT } from '@/i18n';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -24,6 +25,7 @@ const fadeUp = {
 };
 
 export default function HeroDual() {
+  const t = useT();
   return (
     <section className="relative overflow-hidden">
       {/* Subtle gradient backdrop. The .bg-noise utility (defined in
@@ -43,7 +45,7 @@ export default function HeroDual() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
             </span>
-            <span>1,247 AI monitor rules running right now</span>
+            <span>{t.hero.liveBadge}</span>
           </div>
         </motion.div>
 
@@ -52,9 +54,9 @@ export default function HeroDual() {
           initial="hidden" animate="visible" variants={fadeUp} custom={0.1}
           className="mt-6 text-center font-display text-display-1 text-white"
         >
-          Two ways to grow{' '}
+          {t.hero.titlePart1}{' '}
           <span className="bg-gradient-to-r from-brand-blue-400 to-brand-purple-400 bg-clip-text text-transparent">
-            on Telegram
+            {t.hero.titlePart2}
           </span>
         </motion.h1>
 
@@ -62,10 +64,9 @@ export default function HeroDual() {
           initial="hidden" animate="visible" variants={fadeUp} custom={0.2}
           className="mt-5 text-center text-lg md:text-xl text-white/70 max-w-3xl mx-auto leading-relaxed"
         >
-          Pay-as-you-go scraping &amp; bulk send + an AI marketing assistant that listens
-          to your target groups and pushes high-intent leads to your inbox.
+          {t.hero.subtitle}
           <br className="hidden md:block" />
-          <span className="text-white/50 text-base">One platform, one account pool, one wallet.</span>
+          <span className="text-white/50 text-base">{t.hero.subtitleQuiet}</span>
         </motion.p>
 
         {/* Three-tier CTA ladder */}
@@ -79,7 +80,7 @@ export default function HeroDual() {
             trackEvent={Events.CTA_SIGNUP_CLICK}
             trackProps={{ source: 'hero' }}
           >
-            Free $20 Trial
+            {t.hero.ctaPrimary}
           </CTAButton>
           <CTAButton
             variant="secondary"
@@ -87,7 +88,7 @@ export default function HeroDual() {
             trackEvent={Events.CTA_DEMO_CLICK}
             trackProps={{ source: 'hero' }}
           >
-            Watch 90s Demo
+            {t.hero.ctaSecondary}
           </CTAButton>
           <CTAButton
             variant="tertiary"
@@ -97,7 +98,7 @@ export default function HeroDual() {
             trackProps={{ source: 'hero' }}
             className="!text-white/80 hover:!text-white"
           >
-            Talk on Telegram
+            {t.hero.ctaTertiary}
           </CTAButton>
         </motion.div>
 
@@ -108,32 +109,26 @@ export default function HeroDual() {
         >
           <ProductCard
             tone="blue"
-            tag="Self-Serve"
+            tag={t.hero.selfServe.tag}
             icon={Package}
-            title="Pay-as-you-go bulk ops"
-            blurb="Scrape, send, invite — three core actions, billed per unit, prepaid with USDT."
-            bullets={[
-              { label: 'Group scrape', price: '$0.01 / member' },
-              { label: 'Bulk send',    price: '$0.10 / message' },
-              { label: 'Bulk invite',  price: '$0.05 / invite' },
-            ]}
-            fit="Best for: in-house SDR tooling"
+            title={t.hero.selfServe.title}
+            blurb={t.hero.selfServe.blurb}
+            bullets={t.hero.selfServe.bullets}
+            fit={t.hero.selfServe.fit}
+            seeLabel={t.hero.selfServe.see}
             anchor="#self-serve"
           />
           <ProductCard
             tone="purple"
-            tag="AI Marketing Assistant"
+            tag={t.hero.aiAssistant.tag}
             icon={Bot}
-            title="Subscription that hires itself"
-            blurb="Your TG accounts listen 24/7. AI replies in group on intent hits, pushes leads to your sales inbox."
-            bullets={[
-              { label: 'Listens to', price: 'your target groups' },
-              { label: 'Replies in', price: 'group (not DM)' },
-              { label: 'Hands off',  price: 'to your humans' },
-            ]}
-            fit="Best for: replacing an SDR / BDR team"
+            title={t.hero.aiAssistant.title}
+            blurb={t.hero.aiAssistant.blurb}
+            bullets={t.hero.aiAssistant.bullets}
+            fit={t.hero.aiAssistant.fit}
+            seeLabel={t.hero.aiAssistant.see}
             anchor="#ai-assistant"
-            safetyNote={<><Shield className="w-3 h-3 inline -mt-0.5 mr-1" /> AI never auto-DMs users — that decision stays with your sales</>}
+            safetyNote={<><Shield className="w-3 h-3 inline -mt-0.5 mr-1" /> {t.hero.aiAssistant.safetyNote}</>}
           />
         </motion.div>
       </div>
@@ -150,10 +145,11 @@ type CardProps = {
   bullets: { label: string; price: string }[];
   fit: string;
   anchor: string;
+  seeLabel: string;
   safetyNote?: React.ReactNode;
 };
 
-function ProductCard({ tone, tag, icon: Icon, title, blurb, bullets, fit, anchor, safetyNote }: CardProps) {
+function ProductCard({ tone, tag, icon: Icon, title, blurb, bullets, fit, anchor, seeLabel, safetyNote }: CardProps) {
   const accent = tone === 'blue'
     ? { tag: 'text-brand-blue-400 bg-brand-blue-500/10 border-brand-blue-500/20', icon: 'text-brand-blue-400', divider: 'from-brand-blue-500/30' }
     : { tag: 'text-brand-purple-400 bg-brand-purple-500/10 border-brand-purple-500/20', icon: 'text-brand-purple-400', divider: 'from-brand-purple-500/30' };
@@ -193,7 +189,7 @@ function ProductCard({ tone, tag, icon: Icon, title, blurb, bullets, fit, anchor
       <div className="flex items-center justify-between text-sm">
         <span className="text-white/50">{fit}</span>
         <span className="inline-flex items-center gap-1 text-white/70 group-hover:text-white transition-colors">
-          See details
+          {seeLabel}
           <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
         </span>
       </div>

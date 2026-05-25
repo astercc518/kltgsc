@@ -16,17 +16,19 @@ import LangSwitcher from '@/components/LangSwitcher';
 import CTAButton from '@/components/CTAButton';
 import { LINKS } from '@/lib/links';
 import { Events } from '@/lib/analytics';
-
-const navLinks = [
-  { label: 'Self-Serve',   href: '#self-serve' },
-  { label: 'AI Assistant', href: '#ai-assistant' },
-  { label: 'Pricing',      href: '#pricing' },
-  { label: 'Docs',         href: LINKS.docs },
-];
+import { useT } from '@/i18n';
 
 export default function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const t = useT();
+
+  const navLinks = [
+    { label: t.nav.selfServe,   href: '#self-serve' },
+    { label: t.nav.aiAssistant, href: '#ai-assistant' },
+    { label: t.nav.pricing,     href: '#pricing' },
+    { label: t.nav.docs,        href: LINKS.docs },
+  ];
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
@@ -64,7 +66,7 @@ export default function Header() {
             to={LINKS.signIn}
             className="text-sm text-brand-ink-700 hover:text-brand-ink-900 px-3 py-1.5"
           >
-            Sign In
+            {t.nav.signIn}
           </Link>
           <CTAButton
             variant="primary"
@@ -74,7 +76,7 @@ export default function Header() {
             className="!px-4 !py-2 !text-sm"
             noIcon
           >
-            Free $20 Trial
+            {t.nav.freeTrial}
           </CTAButton>
         </div>
 
@@ -119,7 +121,7 @@ export default function Header() {
               onClick={() => setMobileOpen(false)}
               className="py-3 text-brand-ink-700"
             >
-              Sign In
+              {t.nav.signIn}
             </Link>
             <div className="py-4">
               <LangSwitcher />
@@ -131,7 +133,7 @@ export default function Header() {
               trackProps={{ source: 'header_mobile' }}
               noIcon
             >
-              Free $20 Trial
+              {t.nav.freeTrial}
             </CTAButton>
           </nav>
         </div>

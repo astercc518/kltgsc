@@ -1,7 +1,7 @@
 import React from 'react';
-import { Form, Input, Button, Card, Typography, message, Select } from 'antd';
-import { LockOutlined, MailOutlined, UserOutlined, ShopOutlined } from '@ant-design/icons';
-import { Link, useNavigate } from 'react-router-dom';
+import { Form, Input, Button, Card, Typography, message, Select, Alert } from 'antd';
+import { LockOutlined, MailOutlined, UserOutlined, ShopOutlined, GiftOutlined } from '@ant-design/icons';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { authApi } from '../api';
 import { setCustomerToken } from '../auth';
@@ -20,6 +20,14 @@ const INDUSTRIES = [
 const PortalRegister: React.FC = () => {
   const navigate = useNavigate();
   const [form] = Form.useForm();
+  const [searchParams] = useSearchParams();
+
+  // Landing-driven trial credit. If the URL carries ?ref=landing&trial=20,
+  // show a confirmation banner so the visitor immediately sees the $20
+  // promise is recognized; the actual wallet credit lands server-side on
+  // first successful login (backend will read the ref token).
+  const trialCents = parseInt(searchParams.get('trial') ?? '0', 10) || 0;
+  const trialFromLanding = trialCents > 0 && searchParams.get('ref') === 'landing';
 
   const mutation = useMutation({
     mutationFn: (values: any) => authApi.register(values),
@@ -51,9 +59,24 @@ const PortalRegister: React.FC = () => {
             5-minute setup. Start growing today.
           </Text>
         </div>
-        <Title level={4} style={{ textAlign: 'center', marginBottom: 24 }}>
+        <Title level={4} style={{ textAlign: 'center', marginBottom: 16 }}>
           Create Customer Account
         </Title>
+
+        {trialFromLanding && (
+          <Alert
+            type="success"
+            showIcon
+            icon={<GiftOutlined />}
+            style={{ marginBottom: 16 }}
+            message={`$${trialCents} wallet credit on signup`}
+            description={
+              `Welcome from the landing page — your wallet starts with ` +
+              `$${trialCents} USDT equivalent. Enough for ~2,000 scraped members ` +
+              `or ~40 AI auto-leads. No card required.`
+            }
+          />
+        )}
         <Form form={form} layout="vertical" onFinish={(v) => mutation.mutate(v)}>
           <Form.Item
             name="email"

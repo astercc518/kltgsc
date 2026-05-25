@@ -9,8 +9,10 @@ import { ArrowRight } from 'lucide-react';
 import CTAButton from '@/components/CTAButton';
 import { LINKS } from '@/lib/links';
 import { Events } from '@/lib/analytics';
+import { useT } from '@/i18n';
 
 export default function FinalCTA() {
+  const t = useT();
   return (
     <section className="bg-brand-ink-950 relative overflow-hidden">
       {/* Gradient orbs in the corners */}
@@ -25,10 +27,10 @@ export default function FinalCTA() {
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
           className="font-display text-display-1 text-white"
         >
-          Stop firefighting bans.
+          {t.finalCta.titlePart1}
           <br />
           <span className="bg-gradient-to-r from-brand-blue-400 to-brand-purple-400 bg-clip-text text-transparent">
-            Start shipping revenue.
+            {t.finalCta.titlePart2}
           </span>
         </motion.h2>
         <motion.p
@@ -38,8 +40,7 @@ export default function FinalCTA() {
           transition={{ duration: 0.7, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
           className="mt-5 text-lg text-white/70 max-w-2xl mx-auto"
         >
-          $20 free credit, 24 hours to first leads. Onboard in your own time, talk to
-          a human only when you want to.
+          {t.finalCta.subtitle}
         </motion.p>
 
         <motion.div
@@ -55,7 +56,7 @@ export default function FinalCTA() {
             trackEvent={Events.CTA_SIGNUP_CLICK}
             trackProps={{ source: 'final_cta' }}
           >
-            Free $20 Trial
+            {t.hero.ctaPrimary}
           </CTAButton>
           <CTAButton
             variant="secondary"
@@ -63,7 +64,7 @@ export default function FinalCTA() {
             trackEvent={Events.CTA_DEMO_CLICK}
             trackProps={{ source: 'final_cta' }}
           >
-            Watch 90s Demo
+            {t.hero.ctaSecondary}
           </CTAButton>
           <CTAButton
             variant="tertiary"
@@ -73,7 +74,7 @@ export default function FinalCTA() {
             trackProps={{ source: 'final_cta' }}
             className="!text-white/80 hover:!text-white"
           >
-            Talk on Telegram
+            {t.hero.ctaTertiary}
             <ArrowRight className="w-4 h-4" />
           </CTAButton>
         </motion.div>

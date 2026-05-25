@@ -13,21 +13,32 @@
     <meta property="og:title" content="TG1.AI — Telegram Growth, On Autopilot" />
     <meta property="og:description" content="Two ways to grow on Telegram: pay-as-you-go bulk ops + an AI assistant that listens, replies in group, and hands off to your sales." />
     <meta property="og:url" content="https://tg1.ai/" />
-    <meta property="og:image" content="/og.png" />
+    <meta property="og:image" content="/og.svg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:type" content="image/svg+xml" />
 
     <!-- Twitter card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@tg1ai" />
     <meta name="twitter:title" content="TG1.AI — Telegram Growth, On Autopilot" />
     <meta name="twitter:description" content="Two ways to grow on Telegram: pay-as-you-go bulk ops + AI marketing assistant. USDT-only." />
-    <meta name="twitter:image" content="/og.png" />
+    <meta name="twitter:image" content="/og.svg" />
 
-    <!-- Favicon (multi-size; PR4 ships the real PNG set) -->
+    <!-- Favicon (svg works on Chrome/FF/Safari 13+; PNG fallback set ships in PR5) -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
 
     <!-- SEO -->
     <link rel="canonical" href="https://tg1.ai/" />
+
+    <!-- hreflang alternates — all 5 languages live at the same URL (client-side i18n). -->
+    <link rel="alternate" hreflang="en"        href="https://tg1.ai/" />
+    <link rel="alternate" hreflang="zh-CN"     href="https://tg1.ai/" />
+    <link rel="alternate" hreflang="ja"        href="https://tg1.ai/" />
+    <link rel="alternate" hreflang="ko"        href="https://tg1.ai/" />
+    <link rel="alternate" hreflang="es"        href="https://tg1.ai/" />
+    <link rel="alternate" hreflang="x-default" href="https://tg1.ai/" />
   </head>
   <body class="bg-brand-ink-950">
     <div id="root"></div>

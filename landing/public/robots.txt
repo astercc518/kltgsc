@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+Disallow: /portal/
+Disallow: /sales/
+Disallow: /api/
+
+# Vite dev hot-reload + dev module loaders — never index these.
+Disallow: /@vite/
+Disallow: /@id/
+Disallow: /@fs/
+Disallow: /@react-refresh
+Disallow: /src/
+Disallow: /node_modules/
+
+Sitemap: https://tg1.ai/sitemap.xml
