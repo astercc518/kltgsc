@@ -31,6 +31,4 @@ export const LINKS = {
   github:        'https://github.com/astercc518/kltgsc',
   twitter:       'https://x.com/tg1ai',
 
-  // Demo
-  demoVideo:     '#demo-video', // anchor — actual mp4 lands in PR4
 } as const;
