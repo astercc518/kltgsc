@@ -6,15 +6,16 @@
  * body scroll is locked. Honors prefers-reduced-motion (renders a
  * tabbed static fallback instead of the timeline — added in task 10).
  */
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useTimeline } from './useTimeline';
+import { useTimeline, type Act } from './useTimeline';
 import { DURATION_MS } from './demoScript';
 import TopBar from './parts/TopBar';
 import BottomBar from './parts/BottomBar';
 import LeftPane from './parts/LeftPane';
 import RightPane from './parts/RightPane';
+import ReducedFallback from './parts/ReducedFallback';
 
 interface Props {
   open: boolean;
@@ -23,6 +24,17 @@ interface Props {
 
 export default function DemoVideoModal({ open, onClose }: Props) {
   const timeline = useTimeline(DURATION_MS);
+
+  const [reducedMotion, setReducedMotion] = useState(false);
+  const [fallbackAct, setFallbackAct] = useState<Act>(1);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setReducedMotion(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
 
   // Body scroll lock + ESC handler
   useEffect(() => {
@@ -68,18 +80,24 @@ export default function DemoVideoModal({ open, onClose }: Props) {
             className="relative w-full max-w-5xl aspect-[16/10] rounded-2xl overflow-hidden bg-brand-ink-950 border border-white/10 shadow-2xl flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <TopBar act={timeline.act} onClose={onClose} />
-            <div className="flex-1 relative bg-gradient-to-br from-brand-ink-950 to-brand-ink-900 grid grid-cols-12 gap-px">
-              <LeftPane elapsedMs={timeline.elapsedMs} />
-              <RightPane elapsedMs={timeline.elapsedMs} />
-            </div>
-            <BottomBar
-              elapsedMs={timeline.elapsedMs}
-              paused={timeline.paused}
-              onPause={timeline.pause}
-              onResume={timeline.resume}
-              onRestart={timeline.restart}
-            />
+            <TopBar act={reducedMotion ? fallbackAct : timeline.act} onClose={onClose} />
+            {reducedMotion ? (
+              <ReducedFallback act={fallbackAct} onActChange={setFallbackAct} />
+            ) : (
+              <>
+                <div className="flex-1 relative bg-gradient-to-br from-brand-ink-950 to-brand-ink-900 grid grid-cols-12 gap-px min-h-0">
+                  <LeftPane elapsedMs={timeline.elapsedMs} />
+                  <RightPane elapsedMs={timeline.elapsedMs} />
+                </div>
+                <BottomBar
+                  elapsedMs={timeline.elapsedMs}
+                  paused={timeline.paused}
+                  onPause={timeline.pause}
+                  onResume={timeline.resume}
+                  onRestart={timeline.restart}
+                />
+              </>
+            )}
           </motion.div>
         </motion.div>
       )}
