@@ -20,6 +20,8 @@ lib64/
 !landing/src/lib/
 !frontend/src/lib/
 parts/
+# Python `parts/` rule above must not swallow landing TS component sub-dirs.
+!landing/src/components/**/parts/
 sdist/
 var/
 wheels/

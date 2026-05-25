@@ -10,8 +10,10 @@
  * via a portal copy update).
  */
 import { motion } from 'framer-motion';
+import { useCallback, useState } from 'react';
 import { ArrowRight, Sparkles, Package, Bot, Shield } from 'lucide-react';
 import CTAButton from '@/components/CTAButton';
+import DemoVideoModal from '@/components/DemoVideoModal';
 import { LINKS } from '@/lib/links';
 import { Events } from '@/lib/analytics';
 import { useT } from '@/i18n';
@@ -26,7 +28,10 @@ const fadeUp = {
 
 export default function HeroDual() {
   const t = useT();
+  const [demoOpen, setDemoOpen] = useState(false);
+  const closeDemo = useCallback(() => setDemoOpen(false), []);
   return (
+  <>
     <section className="relative overflow-hidden">
       {/* Subtle gradient backdrop. The .bg-noise utility (defined in
           tailwind.config.js) adds a 3% white-noise overlay so the
@@ -84,7 +89,7 @@ export default function HeroDual() {
           </CTAButton>
           <CTAButton
             variant="secondary"
-            href={LINKS.demoVideo}
+            onClick={() => setDemoOpen(true)}
             trackEvent={Events.CTA_DEMO_CLICK}
             trackProps={{ source: 'hero' }}
           >
@@ -133,6 +138,8 @@ export default function HeroDual() {
         </motion.div>
       </div>
     </section>
+    <DemoVideoModal open={demoOpen} onClose={closeDemo} />
+  </>
   );
 }
 

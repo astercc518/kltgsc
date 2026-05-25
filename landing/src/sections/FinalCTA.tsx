@@ -5,15 +5,20 @@
  * gradient pulled in. Same three CTAs (Free Trial / Demo / TG).
  */
 import { motion } from 'framer-motion';
+import { useCallback, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import CTAButton from '@/components/CTAButton';
+import DemoVideoModal from '@/components/DemoVideoModal';
 import { LINKS } from '@/lib/links';
 import { Events } from '@/lib/analytics';
 import { useT } from '@/i18n';
 
 export default function FinalCTA() {
   const t = useT();
+  const [demoOpen, setDemoOpen] = useState(false);
+  const closeDemo = useCallback(() => setDemoOpen(false), []);
   return (
+    <>
     <section className="bg-brand-ink-950 relative overflow-hidden">
       {/* Gradient orbs in the corners */}
       <div className="absolute -left-32 -top-32 w-96 h-96 rounded-full bg-brand-blue-500 opacity-15 blur-3xl pointer-events-none" />
@@ -60,7 +65,7 @@ export default function FinalCTA() {
           </CTAButton>
           <CTAButton
             variant="secondary"
-            href={LINKS.demoVideo}
+            onClick={() => setDemoOpen(true)}
             trackEvent={Events.CTA_DEMO_CLICK}
             trackProps={{ source: 'final_cta' }}
           >
@@ -80,5 +85,7 @@ export default function FinalCTA() {
         </motion.div>
       </div>
     </section>
+    <DemoVideoModal open={demoOpen} onClose={closeDemo} />
+    </>
   );
 }
