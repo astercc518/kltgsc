@@ -12,6 +12,8 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTimeline, type Act } from './useTimeline';
+import { useBodyScrollLock } from './useBodyScrollLock';
+import { useFocusTrap } from './useFocusTrap';
 import { DURATION_MS } from './demoScript';
 import TopBar from './parts/TopBar';
 import BottomBar from './parts/BottomBar';
@@ -36,10 +38,14 @@ export default function DemoVideoModal({ open, onClose }: Props) {
 function ModalContent({ onClose }: { onClose: () => void }) {
   const timeline = useTimeline(DURATION_MS);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
 
   const [reducedMotion, setReducedMotion] = useState(false);
   const [fallbackAct, setFallbackAct] = useState<Act>(1);
+
+  useBodyScrollLock();
+  useFocusTrap(panelRef);
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -49,12 +55,10 @@ function ModalContent({ onClose }: { onClose: () => void }) {
     return () => mq.removeEventListener('change', onChange);
   }, []);
 
-  // Body scroll lock + ESC + focus management. Mounted only while open
-  // because ModalContent itself is gated by `{open && ...}` upstream.
+  // ESC + initial/restored focus. Mounted only while open because
+  // ModalContent itself is gated by `{open && ...}` upstream.
   useEffect(() => {
     previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
 
     // Defer focus to next frame so the close button is mounted + paintable.
     const focusFrame = requestAnimationFrame(() => {
@@ -68,7 +72,6 @@ function ModalContent({ onClose }: { onClose: () => void }) {
 
     return () => {
       cancelAnimationFrame(focusFrame);
-      document.body.style.overflow = prevOverflow;
       document.removeEventListener('keydown', onKey);
       // Restore focus to the element that opened the modal.
       previouslyFocusedRef.current?.focus?.();
@@ -87,6 +90,7 @@ function ModalContent({ onClose }: { onClose: () => void }) {
       role="presentation"
     >
       <motion.div
+        ref={panelRef}
         initial={{ opacity: 0, scale: 0.96, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 12 }}

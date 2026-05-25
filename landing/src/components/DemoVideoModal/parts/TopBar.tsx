@@ -1,16 +1,12 @@
 import { forwardRef } from 'react';
 import { X } from 'lucide-react';
 import { useT } from '@/i18n';
-import type { Act } from '../useTimeline';
+import { ACT_I18N_KEY, type Act } from '../useTimeline';
 
 interface Props {
   act: Act;
   onClose: () => void;
 }
-
-const actKey: Record<Act, 'listening' | 'incoming' | 'scoring' | 'handover'> = {
-  1: 'listening', 2: 'incoming', 3: 'scoring', 4: 'handover',
-};
 
 const TopBar = forwardRef<HTMLButtonElement, Props>(function TopBar({ act, onClose }, closeBtnRef) {
   const t = useT();
@@ -25,7 +21,7 @@ const TopBar = forwardRef<HTMLButtonElement, Props>(function TopBar({ act, onClo
           {t.demo.title}
         </h2>
         <span className="hidden md:inline-flex items-center rounded-full bg-white/10 border border-white/15 px-2.5 py-0.5 text-xs font-mono text-white/70">
-          {t.demo.acts[actKey[act]]}
+          {t.demo.acts[ACT_I18N_KEY[act]]}
         </span>
       </div>
       <button

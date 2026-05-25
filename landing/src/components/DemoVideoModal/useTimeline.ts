@@ -12,6 +12,14 @@ export const ACT_BOUNDARIES = [0, 15000, 35000, 55000, 75000] as const;
 
 export type Act = 1 | 2 | 3 | 4;
 
+/** Maps an Act to its i18n key under `t.demo.acts.*`. */
+export const ACT_I18N_KEY: Record<Act, 'listening' | 'incoming' | 'scoring' | 'handover'> = {
+  1: 'listening',
+  2: 'incoming',
+  3: 'scoring',
+  4: 'handover',
+};
+
 export interface Timeline {
   elapsedMs: number;
   progress: number;
