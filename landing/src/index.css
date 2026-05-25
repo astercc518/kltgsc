@@ -7,6 +7,9 @@
 /* Global resets, font-face wiring, base typography. */
 @import './styles/globals.css';
 
+/* Long-form (mdx) typography — used by /docs /changelog /legal. */
+@import './styles/prose.css';
+
 /* Tailwind layers come AFTER imports per spec; utilities can still
    reference the CSS vars set by tokens.css. */
 @tailwind base;

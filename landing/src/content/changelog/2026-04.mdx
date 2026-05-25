@@ -1,0 +1,32 @@
+## 2026-04 — Sales workbench + internal lead pool
+
+A big month for the operations side of the platform. Three meaty
+deliveries that together turn TG1.AI from a "customer-facing product"
+into a "customer-facing product + internal sales engine".
+
+### New
+
+- **Sales workbench SPA at `/sales/*`** — the third route tree, after
+  `/` (admin) and `/portal/*` (customer). Has Inbox, Lead detail,
+  Monitor self-service, assigned-account ops, personal Wallet,
+  zh-CN/en language switch.
+- **CustomerUser model** (Epic C1) — customers can create sales seats
+  inside their tenant. Each seat is its own login that scopes lead
+  visibility + writes to a per-seat SalesWallet (Epic C2).
+- **Per-view lead charging** — sales pay $0.10 from their wallet on
+  the first view of a lead. Re-views are free; the charge tracks
+  inside `SalesWalletTransaction` with idempotency keys.
+- **Internal lead pool** (Epics F1–F5) — customers flagged with
+  `is_internal_pool=true` mark leads reserved for platform sales.
+  Atomic `view+claim` SQL prevents double-claim races.
+
+### Process
+
+- **Unified `/api/v1/auth/login`**. The old login / customer_auth /
+  unified_auth code paths merged into a single handler that returns
+  the right JWT type based on the identifier (email → customer,
+  username → admin).
+- **Admin impersonate** ("登录该账号") opens a new tab with the
+  target's JWT pre-stashed in localStorage. The handoff runs at
+  module load before React mounts, so SPA routing sees the user
+  as already logged in.

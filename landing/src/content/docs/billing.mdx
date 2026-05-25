@@ -1,0 +1,111 @@
+# Billing rules
+
+The product runs on a **two-layer** billing model. Subscription is
+the recurring infrastructure cost (accounts, group slots, token
+budget, sales seats). Wallet is the variable cost (per-action,
+prepaid).
+
+If you remember only one sentence: **subscription unlocks ability,
+wallet meters use.**
+
+## Subscription tiers
+
+| | Starter | Growth ⭐ | Pro |
+|---|---:|---:|---:|
+| Monthly USD | $199 | $299 | $599 |
+| TG accounts | 3 | 5 | 10 |
+| Group slots | 500 | 1,000 | 3,000 |
+| LLM token budget | 2 M | 5 M | 15 M |
+| Sales seats | 1 | 3 | 10 |
+| Replace-account SLA | 24 h | 12 h | 4 h |
+| AI marketing assistant | ✓ | ✓ | ✓ |
+
+USDT-only on TRC20 / ERC20 / BEP20. Settlement is on-chain — we
+never custodian funds. Invoice amount carries a random 0.0X suffix so
+ops matches your transfer purely by amount.
+
+## Unit prices (variable, wallet-metered)
+
+Every action that hits Telegram or invokes an LLM is metered. Admin
+can override any line per-customer for volume deals — talk to sales.
+
+| Product | Action | Billed as | Default |
+|---|---|---|---:|
+| Self-Serve | Group scrape          | per member  | **$0.01** |
+| Self-Serve | Bulk send             | per message | **$0.10** |
+| Self-Serve | Bulk invite           | per invite  | **$0.05** |
+| AI Assistant | AI group reply      | per reply   | **$0.05** |
+| AI Assistant | AI auto-lead        | per lead    | **$0.50** |
+| AI Assistant | Sales lead view     | per view    | **$0.10** |
+| KB | File embed                  | per MB      | **$0.20** |
+
+Costs include the AI tokens needed for that action — you do not pay
+LLM tokens separately on the wallet. Your subscription's monthly token
+budget is a soft envelope; we'll alert you (not bill) if you cross it.
+
+## "Half-automatic" AI
+
+Customer-owned monitors and sales-owned monitors can both fire
+`marketing_mode='active'` — meaning AI generates a reply automatically.
+**But the reply only ever posts in the source group**, never as a
+private DM.
+
+The API rejects `reply_mode='private_dm'` for any non-admin owner.
+This is a deliberate safety contract:
+
+- Ban risk on Telegram is concentrated in unsolicited DMs.
+- In-group replies look the same as any other group member chiming in.
+- Your sales team should DM the prospect after takeover.
+
+You can read more about why in the
+[product positioning blog post](/changelog) — but practically, this
+is the line that keeps your TG accounts alive.
+
+## Auto-pause on low wallet
+
+When your wallet balance drops below the cost of the **next** task
+unit, the platform transitions in-flight tasks to `paused_no_funds`.
+
+- Already-issued ops (in-flight scrape rows, queued bulk targets)
+  continue until each one's idempotency key has been consumed.
+- New ops stop. No retries, no exponential backoff storm, no
+  duplicate charges on resume.
+- Sales seats still see existing leads in their inbox. Just no
+  new ones get pre-assigned until you top up.
+
+When you top up, paused tasks resume from where they left off.
+
+## Free trial
+
+New customers get **$20 USDT-equivalent** wallet credit on first
+register at [/portal/register?trial=20](https://tg1.ai/portal/register?trial=20).
+That's enough for about:
+
+- 2,000 scraped members, **or**
+- 200 bulk sends, **or**
+- 40 AI auto-leads, **or**
+- some mix of the above
+
+Trial credit does not expire. It does not require a card. If you
+exhaust it, top up with USDT and continue.
+
+## Refunds
+
+We don't issue refunds for wallet balance — it never debits unless
+you actually used the service. Subscription refunds within the
+first 7 days are pro-rated and processed back to your USDT address.
+After day 7, sub is non-refundable but you can downgrade or cancel
+at any time (no auto-renewal trap).
+
+## Auditing
+
+Every wallet transaction has an idempotency key encoding what it
+paid for: `feat:bulk_send_message:42:1024` is "bulk_send_message
+for batch 42, target 1024". Export your full history any month as
+CSV from the **Portal → Wallet → 月度报表 → 导出 CSV** button or
+via [GET /customer/wallet/report.csv](./api).
+
+---
+
+Done with the docs tour. [Talk to us](https://t.me/tg1ai_sales) if
+you want a custom plan, volume override, or self-hosted deployment.

@@ -1,0 +1,152 @@
+# API examples
+
+All endpoints are JSON over HTTPS at `https://tg1.ai/api/v1`. Auth is
+JWT in the `Authorization: Bearer …` header. Three token kinds coexist
+(admin / customer / sales) — most public integrations want the
+**customer** token.
+
+## Authenticate as a customer
+
+```bash
+curl -X POST https://tg1.ai/api/v1/customer/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"you@company.com","password":"…"}'
+```
+
+```json
+{
+  "access_token": "eyJhbGciOi…",
+  "token_type": "bearer",
+  "customer": { "id": 42, "email": "you@company.com", "plan": "growth", ... }
+}
+```
+
+Set the token once:
+
+```bash
+export TG1_TOKEN="eyJhbGciOi…"
+```
+
+## Check wallet balance + monthly report
+
+```bash
+curl -H "Authorization: Bearer $TG1_TOKEN" \
+  https://tg1.ai/api/v1/customer/wallet
+```
+
+```json
+{
+  "customer_id": 42,
+  "balance_cents": 49945,
+  "total_topup_cents": 50000,
+  "total_spent_cents": 55,
+  ...
+}
+```
+
+By-source rollup for the current month:
+
+```bash
+curl -H "Authorization: Bearer $TG1_TOKEN" \
+  'https://tg1.ai/api/v1/customer/wallet/report?month=2026-05'
+```
+
+```json
+{
+  "month": "2026-05",
+  "by_source": { "scrape": 0, "bulk_send": 0, "invite": 0, "ai_marketing": 55, "other": 0 },
+  "by_day": [...],
+  "topup_total_cents": 50000,
+  "charge_total_cents": 55,
+  "txn_count": 3
+}
+```
+
+Add `.csv` for full row-level export:
+
+```bash
+curl -H "Authorization: Bearer $TG1_TOKEN" \
+  'https://tg1.ai/api/v1/customer/wallet/report.csv?month=2026-05' \
+  -o wallet-2026-05.csv
+```
+
+## Top up the wallet
+
+```bash
+curl -X POST -H "Authorization: Bearer $TG1_TOKEN" \
+  -H 'Content-Type: application/json' \
+  https://tg1.ai/api/v1/customer/wallet/topup \
+  -d '{"amount_usd":500,"network":"TRC20"}'
+```
+
+Returns a USDT pay-to address + the exact amount (with a 0.0X suffix
+so we can match your transfer without needing per-customer addresses):
+
+```json
+{
+  "invoice_id": 78,
+  "amount_usd": 500,
+  "amount_crypto": 500.27,
+  "bonus_pct": 2,
+  "bonus_cents": 1000,
+  "final_credit_cents": 51000,
+  "currency": "USDT",
+  "network": "TRC20",
+  "payment_address": "TXyZ…",
+  "expires_at": "2026-05-26T03:00:00Z"
+}
+```
+
+Send exactly `500.27 USDT` to that address. NowPayments webhook
+auto-credits your wallet on confirmation; expect ~10 minutes on TRC20.
+
+## Create a monitor rule
+
+```bash
+curl -X POST -H "Authorization: Bearer $TG1_TOKEN" \
+  -H 'Content-Type: application/json' \
+  https://tg1.ai/api/v1/customer/monitors \
+  -d '{
+    "keyword": "looking for crypto exchange",
+    "target_groups": "@crypto_signals, @altcoin_chat",
+    "marketing_mode": "active",
+    "reply_mode": "group_reply",
+    "match_type": "semantic",
+    "scenario_description": "Users actively shopping for a new exchange.",
+    "ai_persona": "expert",
+    "max_replies_per_day": 20
+  }'
+```
+
+> Note: `reply_mode: "private_dm"` is hard-rejected with **400**
+> for customer-owned rules. Use group reply; takeover the DM manually.
+
+## List today's hits on a rule
+
+```bash
+curl -H "Authorization: Bearer $TG1_TOKEN" \
+  'https://tg1.ai/api/v1/customer/monitors/123/recent-hits?limit=50'
+```
+
+## Claim a lead (sales workbench)
+
+This one uses the **sales** token, not the customer token. CustomerUser
+seats receive a sales token on login.
+
+```bash
+curl -X POST -H "Authorization: Bearer $SALES_TOKEN" \
+  https://tg1.ai/api/v1/sales/leads/456/view
+```
+
+The first view charges your wallet `lead_view` ($0.10 default) and
+atomically claims the lead. Repeat views from the same sales are free.
+
+## Webhook (NowPayments)
+
+We don't yet offer a customer-facing webhook for lead events — that's
+on the PR4 backlog. Until then, poll `/customer/leads?since=…` every
+minute.
+
+---
+
+Next: [Billing rules](./billing).

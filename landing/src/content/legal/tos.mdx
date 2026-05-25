@@ -1,0 +1,120 @@
+# Terms of Service
+
+_Last updated: 2026-05-25._
+
+By signing up at tg1.ai you agree to these terms. Read them. If you
+disagree with any part, don't use the service — there are other
+options, and we'd rather you be happy elsewhere than confused here.
+
+## 1. What we provide
+
+TG1.AI is a Telegram automation platform with two surfaces:
+
+1. **Self-Serve** — pay-as-you-go group scrape, bulk send, and bulk
+   invite operations, billed from a prepaid USDT wallet.
+2. **AI Marketing Assistant** — a subscription that listens to your
+   chosen Telegram groups and posts contextual replies on intent
+   matches. Subscription unlocks ability; wallet meters use.
+
+Detailed feature breakdown lives at [/docs](/docs).
+
+## 2. What you do
+
+- Provide accurate information at signup. Tenant-level fraud
+  (multiple registrations for trial farming, stolen identity)
+  is grounds for immediate suspension.
+- Comply with Telegram's Terms of Service. We provide tooling;
+  Telegram's spam / impersonation / harm policies still apply.
+  We follow Telegram's flood-wait, never bypass it.
+- Comply with marketing law in your jurisdiction — CAN-SPAM, GDPR,
+  PIPL, etc. We give you the audit log; the legal posture is yours.
+- Pay your invoices in USDT on time. Wallet auto-pause protects
+  you from overage; if your subscription lapses 30 days past due,
+  your tenant is suspended (cold storage, not deletion — see
+  [Privacy](/legal/privacy)).
+
+## 3. What we do (and don't do)
+
+We do:
+
+- Maintain ≥99.9% uptime SLA on Growth + Pro tiers.
+- Replace banned accounts per the SLA in your plan (24 h Starter /
+  12 h Growth / 4 h Pro).
+- Encrypt your session strings + tdata at rest with AES-256.
+- Enforce the half-automatic boundary — AI never auto-DMs your
+  prospects, in code, at the API layer.
+- Enforce tenant isolation in the listener + API + RAG retrieval.
+
+We don't:
+
+- Custody funds. USDT goes to your tenant's payment address; we
+  never hold your money.
+- Send messages without your account. Every outbound action is
+  authored by one of your Telegram accounts via Pyrogram.
+- Read your DMs unless you've opted in to logging them to CRM
+  (which is the default on Lead claim, but you can disable per-lead).
+- Train AI models on your data. Vertex Gemini calls are billed as
+  inference, never as training contributions.
+
+## 4. Fees
+
+- Subscription: charged monthly in advance. Billed in USDT.
+- Wallet: prepaid. Charges per-action only on success (idempotency
+  keys prevent double-debit on retry).
+- Refunds: subscription pro-rated within first 7 days; wallet
+  balance never refunded but never spent without your action.
+
+All prices are public at [/docs/billing](/docs/billing). We can
+change defaults for new customers with 30 days notice; your
+contract price is locked for the duration of your active sub.
+
+## 5. Termination
+
+You can cancel at any time from **Portal → Billing → Cancel**.
+We can suspend or terminate if you breach §2 (fraud, ToS violation,
+unlawful use). We try to give you 7 days written notice before
+termination unless the breach is severe (e.g. CSAM, sanctions).
+
+On termination:
+
+- Your data enters cold storage for 30 days.
+- After 30 days it's deleted.
+- Wallet residual balance refunds to your last-used USDT address.
+
+## 6. Limitation of liability
+
+To the maximum extent permitted by law, TG1.AI's total liability for
+any claim is capped at the fees you paid us in the 12 months prior to
+the claim. We're not liable for:
+
+- Telegram account bans caused by your use beyond plan limits.
+- Lost revenue from market or platform changes outside our control.
+- Third-party services we depend on (Vertex AI outage, NowPayments
+  delay, proxy provider downtime).
+
+This is standard SaaS limitation language; if you need a more bespoke
+indemnity, your Pro tier plan is the right tier for that conversation.
+
+## 7. Disputes
+
+Arbitration in Singapore (SIAC rules), one arbitrator, English. Class
+actions waived. Either party may seek injunctive relief in a court
+of competent jurisdiction for IP or confidentiality breaches.
+
+## 8. Changes
+
+We can update these terms with 30 days notice via email + in-portal
+banner. Continued use after the effective date = acceptance. Material
+changes (price, refund terms, data handling) explicitly require your
+consent on the next portal sign-in.
+
+## 9. Contact
+
+[legal@tg1.ai](mailto:legal@tg1.ai) for contractual matters.
+[support@tg1.ai](mailto:support@tg1.ai) for everything else.
+
+---
+
+The plain-English version above is the operative one. Where this
+document is silent, default to "the most reasonable interpretation
+that respects both parties' good faith."

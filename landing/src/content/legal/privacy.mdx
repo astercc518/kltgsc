@@ -1,0 +1,89 @@
+# Privacy Policy
+
+_Last updated: 2026-05-25._
+
+TG1.AI ("we", "us") operates the tg1.ai platform. This page describes
+what data we collect, why, how long we keep it, and what choices you
+have. It's deliberately short — if you want the legal-form version
+with the IRAC headings, email [privacy@tg1.ai](mailto:privacy@tg1.ai)
+and we'll send it.
+
+## Who's the controller?
+
+Customer data (everything you upload, scrape, or store on the platform)
+is **yours**. We are the **processor**. You are the controller. If
+your end users have rights under GDPR / CCPA / PIPL, those rights flow
+to you, not us; we provide the tooling for you to respond.
+
+For the marketing site itself — the landing you're reading right now —
+TG1.AI is the controller of the data we collect (page views, language
+selection, conversion events).
+
+## What we collect on the landing site
+
+| Source | Field | Why |
+|---|---|---|
+| Plausible analytics | URL path, referrer, country, browser, device class | Did the redesign actually improve conversion? No cookies, no fingerprint. |
+| localStorage | `tg1_lang` | Remember your language between visits. |
+| Signup form | email, password (hashed) | Create your tenant. |
+
+We don't run Google Analytics. We don't run Facebook Pixel. We don't
+share visitor data with anyone outside our infrastructure.
+
+## What we collect from your tenant (the actual product)
+
+- **Session strings + tdata blobs** — encrypted at rest with AES-256
+  using a per-instance KEK. Used by Pyrogram to talk to Telegram on
+  your behalf.
+- **Group messages your accounts can see** — only on monitored
+  channels; stored as `KeywordHit` and `GroupMessage` rows scoped to
+  your `customer_id`.
+- **Lead conversations** — DMs your accounts have with prospects,
+  for the duration you have the lead. Logged to CRM at close.
+- **Usage records** — every wallet transaction with idempotency key
+  encoding what it paid for. Used for billing + your CSV export.
+- **LLM call traces** — input prompt + output reply for every AI
+  reply or rewrite, with token counts. Used for cost attribution
+  and quality improvements.
+
+Everything tagged with `customer_id` — the listener, the API, the RAG
+retrieval, and the sales workbench all enforce row-level filters.
+
+## How long do we keep it?
+
+- Active tenant data: while your subscription is active.
+- 30 days after cancel: cold storage in case of dispute / reactivation.
+- After day 30: deleted. We do not sell archived customer data.
+
+You can request immediate deletion at
+[privacy@tg1.ai](mailto:privacy@tg1.ai) with a signed message from
+the email used to register.
+
+## Subprocessors
+
+- **Vertex AI (Google Cloud)** — LLM completions + 768-dim
+  embeddings. Data processed in-region; not used to train Google
+  models per their TOS.
+- **NowPayments** — invoice processing. Forwards tx_hash callbacks
+  via webhook. We never see your private keys.
+- **Plausible Analytics (EU)** — landing site visitor metrics.
+- **Hetzner / VPS provider** — server hosting. Customer data lives
+  on encrypted volumes.
+
+## Your rights
+
+- Access — export everything via `/customer/wallet/report.csv` plus a
+  full data-export request.
+- Rectification — edit any record via the portal.
+- Erasure — see "How long" above.
+- Portability — CSV exports are CSV; the format is documented in
+  [api docs](/docs/api).
+
+## Contact
+
+[privacy@tg1.ai](mailto:privacy@tg1.ai)
+
+---
+
+This page is informational, not contractual. The binding terms are in
+the [Terms of Service](/legal/tos).

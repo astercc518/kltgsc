@@ -1,0 +1,51 @@
+## 2026-05 — AI marketing assistant goes GA
+
+This month's highlight: every paid customer now has the AI marketing
+assistant enabled by default. Configure a monitor rule, drop in your
+target groups, and AI handles first-touch in-group while your sales
+seat owns the DM. The half-automatic boundary is enforced at the API
+layer — `reply_mode=private_dm` is hard-rejected for customer-owned
+rules, by design.
+
+### New
+
+- **Customer-owned monitor rules** at `/portal/monitors`. Authors a
+  rule scoped to your tenant; the listener applies a third filter
+  (after the Phase G sales-ownership check) so monitors only fire
+  on your accounts.
+- **Sales-owned `marketing_mode='active'`** is now allowed (was
+  hard-rejected). Reply mode is forced to `group_reply`; daily limit
+  defaults to 20 per rule to bound ban risk.
+- **Auto-enable AI marketing slugs on subscription activation**. The
+  gate (`ai_marketing_assistant`) + per-event slugs
+  (`ai_marketing_group_reply`, `ai_marketing_lead_created`) all flip
+  to `enabled=True` when a customer activates any plan. Stops the
+  silent-free-service bug we caught in smoke.
+- **Lead pre-assignment now covers CustomerUser seats**, not just
+  platform sales (`assigned_to_sales_kind='customer'`). Your sales
+  team sees AI-captured leads pre-pinned to them on first inbox load.
+
+### Portal UX
+
+- **Portal-wide low-balance banner**. Any portal page (except wallet
+  itself) shows a red banner when wallet < $20, with a one-click
+  topup link. Hides on `/portal/wallet` to avoid double-warning.
+- **Monthly wallet report**, including `/customer/wallet/report.csv`
+  export. Six source buckets (scrape / bulk_send / invite / ai_marketing
+  / other_feature / other) inferred from idempotency keys.
+
+### Performance
+
+- **BGE cross-encoder reranker** landed (`fastembed` ONNX, opt-in via
+  `RERANK_ENABLED=true`). On dev queries we see ~12pt recall gain on
+  the top-3 retrieved KB chunks.
+
+### Bug fixes
+
+- `conftest.py` now imports `app.models` package eagerly so
+  `SQLModel.metadata.create_all()` builds every table. Prior to the
+  fix, `tests/test_api_accounts.py` had 15 fixture-level errors and
+  0 passes; now 43/46 pass.
+- Tier was being persisted from a stale role on tdata-import races.
+  `[ALC] retire manual tier picker` derives tier from role at every
+  write point, removing the redundant manual UI.

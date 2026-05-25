@@ -1,0 +1,101 @@
+# Module dictionary
+
+TG1.AI's internals split into 6 modules. Every public feature traces
+back to one or two of them. When you see a commit prefixed `[BIL]` or a
+support ticket tagged `LED`, this is the map.
+
+## TEN — Tenancy
+
+Multi-tenant scaffolding: `Customer` (the paying entity), `CustomerUser`
+(sales seats), JWT scoping. Every business table carries a
+`customer_id` column; the API + listener + RAG retrieval enforce row-
+level filters so cross-tenant leakage is structurally impossible.
+
+| Surface | Code |
+|---|---|
+| Models | `customer`, `customer_user`, `user`, `customer_wallet` |
+| Auth   | unified `/api/v1/auth/login` returns either an admin or customer JWT |
+| Portal | `/portal/*` SPA route tree |
+
+## BIL — Billing
+
+Two payment surfaces: **Subscription** (monthly USD via USDT) and
+**Wallet** (per-action prepay). One platform, one wallet.
+
+| Concept | Behaviour |
+|---|---|
+| Subscription | $199 / $299 / $599 monthly. Refreshes account / group / token / seat quotas on activation. |
+| Invoice      | USDT amount with a random 0.0X suffix so ops can match incoming transfers without per-customer HD wallets. |
+| Wallet       | Prepaid balance, denominated in cents. Charged on every metered action (scrape / bulk / invite / AI reply / lead). |
+| Auto-pause   | Tasks transition to `paused_no_funds` when balance < next-op cost. No retry storms, no surprise overage. |
+
+See [Billing rules](./billing) for the unit-price table.
+
+## ALC — Allocation
+
+When a subscription activates, ALC takes the customer's tier and:
+
+1. Picks 3 / 5 / 10 TG accounts from the platform's warmed pool
+2. Sets `account.customer_id`, opens the seat for QR rebinding
+3. Auto-enables `ai_marketing_assistant` + per-event slugs
+4. Generates 4 industry-template KB seeds (Gemini, 10s each)
+5. Pre-allocates 500 / 1000 / 3000 group slots
+
+Reallocation is admin-only: `/admin/customers/{id}/reallocate-accounts`.
+
+## KBA — Knowledge Base
+
+Customer documents → 768-dim Gemini embedding → pgvector index, tenant-
+scoped. Source types: `industry_template` (auto-seeded), `file_import`
+(customer upload), `qa_extracted` (LLM extracts QA pairs from chat
+history), and `manual`.
+
+Retrieval pipeline:
+
+1. Query string → Gemini embedding
+2. pgvector cosine search, filtered by `customer_id`
+3. BGE cross-encoder rerank (optional, opt-in flag)
+4. Top-K (default 4) chunks injected into the reply prompt
+
+## LED — Lead Flow
+
+The big one. From the moment a group message arrives to the moment
+your sales claims a lead:
+
+```
+group message
+  → listener (5 prod shards, hash by account_id)
+  → KeywordMonitor filter (target_groups + cooldown + circuit breaker)
+  → match: keyword pre-filter → Gemini semantic judge
+  → if hit & active: _execute_active_marketing posts in-group reply
+  → _upsert_internal_pool_lead creates Lead row, pre-assigned
+  → sales inbox receives lead (atomic claim)
+  → ai_enabled=False, conversation switches to draft mode
+  → human DM via sales seat
+  → CRM lands the outcome (won / lost / unresponsive)
+```
+
+## OPS — Operations
+
+Admin-facing analytics + customer-health surfaces. The 6-panel
+BusinessOps Dashboard (MRR / funnel / pool utilisation / LLM usage /
+handover SLA / customer health) lives here. Read-only for sales,
+write for admin (force-pause campaigns, credit wallets, override
+unit prices).
+
+---
+
+## Where does a feature live?
+
+When you're tracing through commits, the prefix tells you the module:
+
+| Prefix | Meaning |
+|---|---|
+| `[TEN]` | Tenancy, auth, customer admin |
+| `[BIL]` | Subscription, wallet, invoice, feature gating |
+| `[ALC]` | Account pool, allocation, role/tier |
+| `[KBA]` | KB upload, embedding, retrieval, reranker |
+| `[LED]` | Listener, monitor, AI reply, lead, sales takeover |
+| `[OPS]` | Admin dashboard, audit log, alerting |
+
+Next: [API examples](./api).

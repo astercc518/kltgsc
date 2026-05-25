@@ -1,0 +1,40 @@
+## 2026-03 — Multi-tenancy + USDT billing
+
+The month TG1.AI became a real SaaS platform. Six Epics landed
+together (commit `ef2e22b` is the consolidated marker), turning the
+codebase from "single-tenant tool" into a multi-tenant product with
+USDT subscriptions, auto-allocated account pools, vectored KB, and
+the admin ops dashboard.
+
+### New
+
+- **Epic 1 — Multi-tenant `Customer` model**. Six business tables
+  carry a `customer_id` FK; the API + listener + RAG retrieval all
+  enforce row-level filters. Migration `e1a2b3c4d5f6` is the
+  consolidating change.
+- **Epic 1.5 — Customer portal at `/portal/*`** (second SPA tree).
+  Login / Register / Dashboard / Billing / Accounts / Leads /
+  Knowledge Base — 7 pages shipped.
+- **Epic 2 — USDT subscription engine**. Three plans
+  ($199 / $299 / $599), Invoice with unique amount-suffix matching,
+  Subscription lifecycle. NowPayments webhook integration in 2.5.
+- **Epic 3.0 — Account auto-allocation**. On subscription activation,
+  3 / 5 / 10 accounts get tagged with `customer_id`, customized
+  username + bio are pushed.
+- **Epic 4.0 — Industry KB auto-generation**. LLM generates 4
+  industry-template KB entries per tier, each with a 768-dim Vertex
+  Gemini embedding stored in pgvector.
+- **Epic 5 — Main account QR login**. Customers bind their personal
+  TG account via QR. Saved Messages becomes the inbox for handover
+  notifications. Migration `d5e6f7a8b9c0`.
+- **Epic 6 — Admin BusinessOps Dashboard**. Six panels: MRR /
+  funnel / pool utilisation / LLM usage / handover SLA / customer
+  health.
+
+### Infra
+
+- **PG / Redis / Listener sharding / Worker replicas** infrastructure
+  brought online to support 1000+ accounts per tenant. Prod compose
+  configured for 5 listener shards × ~200 accounts each.
+- **Vertex AI Gemini** as the unified LLM + embedding provider.
+  Replaces the AI Studio free-tier path that had RPM limits.

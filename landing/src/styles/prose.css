@@ -1,0 +1,174 @@
+/**
+ * .prose-tg1 — brand typography for mdx-rendered content.
+ *
+ * Wrap any mdx article in <article className="prose-tg1"> and the raw
+ * HTML emitted by @mdx-js (h1/h2/p/ul/code/...) inherits TG1.AI's
+ * display font, palette, and rhythm.
+ *
+ * Designed for /docs /changelog /legal long-form content. Avoids
+ * @tailwindcss/typography because we want tighter control over the
+ * monospace insertions (we cite file:line everywhere) and brand-
+ * specific link / code-block treatments.
+ */
+
+.prose-tg1 {
+  color: var(--tg1-ink-700);
+  font-family: var(--tg1-font-sans);
+  font-size: 1rem;
+  line-height: 1.7;
+  max-width: 72ch;
+}
+
+/* Headings */
+.prose-tg1 h1,
+.prose-tg1 h2,
+.prose-tg1 h3,
+.prose-tg1 h4 {
+  font-family: var(--tg1-font-display);
+  color: var(--tg1-ink-900);
+  letter-spacing: -0.01em;
+  font-weight: 700;
+  margin-top: 2.4em;
+  margin-bottom: 0.6em;
+}
+.prose-tg1 > :first-child { margin-top: 0; }
+
+.prose-tg1 h1 { font-size: 2.25rem; line-height: 1.15; }
+.prose-tg1 h2 { font-size: 1.625rem; line-height: 1.2; }
+.prose-tg1 h3 { font-size: 1.25rem;  line-height: 1.3; }
+.prose-tg1 h4 { font-size: 1rem;     line-height: 1.4; }
+
+/* Paragraphs + lists */
+.prose-tg1 p,
+.prose-tg1 ul,
+.prose-tg1 ol {
+  margin: 1em 0;
+}
+.prose-tg1 ul,
+.prose-tg1 ol {
+  padding-left: 1.4em;
+}
+.prose-tg1 ul li::marker  { color: var(--tg1-ink-300); }
+.prose-tg1 ol li::marker  { color: var(--tg1-ink-400); font-family: var(--tg1-font-mono); }
+.prose-tg1 li             { margin: 0.4em 0; }
+
+/* Links */
+.prose-tg1 a {
+  color: var(--tg1-blue-600);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1.5px;
+  text-decoration-color: var(--tg1-blue-200);
+  transition: text-decoration-color 0.15s ease;
+}
+.prose-tg1 a:hover {
+  text-decoration-color: var(--tg1-blue-500);
+}
+
+/* Inline code */
+.prose-tg1 code {
+  font-family: var(--tg1-font-mono);
+  font-size: 0.875em;
+  background: var(--tg1-ink-100);
+  color: var(--tg1-ink-900);
+  padding: 0.15em 0.4em;
+  border-radius: 0.25em;
+  border: 1px solid var(--tg1-ink-200);
+}
+
+/* Code blocks (output of rehype-highlight) */
+.prose-tg1 pre {
+  font-family: var(--tg1-font-mono);
+  background: var(--tg1-ink-950);
+  color: var(--tg1-ink-100);
+  padding: 1.1em 1.25em;
+  border-radius: 0.75em;
+  overflow-x: auto;
+  font-size: 0.875em;
+  line-height: 1.6;
+  margin: 1.5em 0;
+  border: 1px solid var(--tg1-ink-800);
+}
+.prose-tg1 pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
+/* Highlight.js token colors — subdued, matches dark surface */
+.prose-tg1 .hljs-keyword,
+.prose-tg1 .hljs-built_in   { color: #C084FC; }   /* brand-purple-400 */
+.prose-tg1 .hljs-string,
+.prose-tg1 .hljs-attr        { color: #93C5FD; }   /* brand-blue-300 */
+.prose-tg1 .hljs-number,
+.prose-tg1 .hljs-literal     { color: #F59E0B; }   /* warning */
+.prose-tg1 .hljs-comment     { color: #64748B; font-style: italic; }
+.prose-tg1 .hljs-title,
+.prose-tg1 .hljs-function    { color: #22C55E; }   /* success */
+
+/* Tables */
+.prose-tg1 table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5em 0;
+  font-size: 0.9rem;
+}
+.prose-tg1 th,
+.prose-tg1 td {
+  border-bottom: 1px solid var(--tg1-ink-100);
+  padding: 0.6em 0.8em;
+  text-align: left;
+}
+.prose-tg1 thead th {
+  border-bottom: 2px solid var(--tg1-ink-200);
+  font-family: var(--tg1-font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--tg1-ink-500);
+  font-weight: 600;
+}
+
+/* Blockquote */
+.prose-tg1 blockquote {
+  border-left: 3px solid var(--tg1-purple-500);
+  padding: 0.4em 0 0.4em 1.2em;
+  margin: 1.5em 0;
+  color: var(--tg1-ink-600);
+  font-style: italic;
+}
+
+/* Horizontal rule */
+.prose-tg1 hr {
+  border: 0;
+  border-top: 1px solid var(--tg1-ink-200);
+  margin: 2.5em 0;
+}
+
+/* Strong / em */
+.prose-tg1 strong { color: var(--tg1-ink-900); font-weight: 600; }
+.prose-tg1 em     { font-style: italic; }
+
+/* Escape hatch — opt out of prose styling for islands of UI inside
+   long-form pages (used by /docs index card grid, /changelog filters). */
+.prose-tg1 .not-prose,
+.prose-tg1 .not-prose * {
+  margin: revert;
+}
+.prose-tg1 .not-prose a {
+  text-decoration: none;
+  color: inherit;
+}
+.prose-tg1 .not-prose h1,
+.prose-tg1 .not-prose h2,
+.prose-tg1 .not-prose h3,
+.prose-tg1 .not-prose h4 {
+  margin: 0;
+}
+.prose-tg1 .not-prose code {
+  background: transparent;
+  border: none;
+  padding: 0;
+}

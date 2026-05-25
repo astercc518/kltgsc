@@ -1,15 +1,22 @@
-/** Privacy — populated in PR3. */
-import { Link } from 'react-router-dom';
-import BrandMark from '@/components/BrandMark';
+/**
+ * /legal/privacy — long-form privacy policy.
+ *
+ * Renders the mdx article inside SimpleLayout. .prose-tg1 inherits
+ * brand typography; max-w-3xl keeps line length comfortable.
+ */
+import { lazy, Suspense } from 'react';
+import { SimpleLayout } from '@/layouts/SubpageChrome';
+
+const PrivacyMdx = lazy(() => import('@/content/legal/privacy.mdx'));
 
 export default function Privacy() {
   return (
-    <div className="min-h-screen bg-brand-ink-50">
-      <div className="max-w-3xl mx-auto px-6 py-24">
-        <Link to="/" className="inline-block mb-8"><BrandMark size="sm" /></Link>
-        <h1 className="font-display text-display-2 text-brand-ink-900 mb-4">Privacy Policy</h1>
-        <p className="text-brand-ink-500">Full text lands in PR3. Contact privacy@tg1.ai for current terms.</p>
-      </div>
-    </div>
+    <SimpleLayout>
+      <article className="prose-tg1 mx-auto">
+        <Suspense fallback={<p className="text-brand-ink-400">Loading…</p>}>
+          <PrivacyMdx />
+        </Suspense>
+      </article>
+    </SimpleLayout>
   );
 }

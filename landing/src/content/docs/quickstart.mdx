@@ -1,0 +1,75 @@
+# Quickstart
+
+This is the 15-minute path from sign-up to your first AI-captured lead.
+If you only read one doc, read this one.
+
+## 1. Register + claim your $20 trial
+
+Go to [https://tg1.ai/portal/register?trial=20](https://tg1.ai/portal/register?trial=20).
+Use your work email. The trial credit lands in your wallet immediately —
+no card, no chain transfer required.
+
+> You're now an active tenant on the Starter feature set. You have 3 TG
+> accounts pre-allocated, 500 group slots, 2M token budget, 1 sales seat.
+
+## 2. Bind your main account
+
+Go to **Portal → My Telegram** and scan the QR code from your phone.
+This main account is what AI uses to push lead notifications to your
+Saved Messages — handy during onboarding, optional later.
+
+The system never asks for your password. We use Telegram's official
+QR-login flow, encrypted at rest.
+
+## 3. Upload a Knowledge Base
+
+**Portal → Knowledge Base → New KB**. Drop in a PDF / markdown of your
+product description, FAQ, or top sales objections. The platform indexes
+it into a 768-dim pgvector store using Vertex Gemini embeddings.
+
+AI replies will cite your KB on intent matches (paraphrased — never
+copy-pasted). One KB takes ~10 seconds to embed per MB.
+
+## 4. Create a monitor rule
+
+**Portal → AI Listener → New rule**. Pick:
+
+- **Keyword(s)** — comma-separated, language-agnostic
+- **Target groups** — paste @handles or invite links (required, so you
+  never monitor "the whole world")
+- **Mode** — `passive` (record hits only) or `active` (AI replies in-group)
+- **Persona** — pick one your KB cites well
+
+⚠️ Customer-owned rules can **only** reply in-group. `reply_mode=private_dm`
+is hard-rejected. AI never auto-DMs your prospects — that's your sales
+team's job. See [Billing rules](./billing) for why.
+
+## 5. Wait for a hit
+
+The listener fires on each new message in your target groups. Two-stage
+match: keyword pre-filter → Gemini semantic judge. When confidence
+clears your threshold, a `KeywordHit` row is recorded, and if the rule
+is `active`, AI posts a contextual reply.
+
+A `Lead` row is created automatically, pre-assigned to whoever owns
+that TG account. Cost: **$0.05** for the AI reply + **$0.50** for the
+lead — both metered from your wallet on success only.
+
+## 6. Take over the conversation
+
+Open **Sales Workbench → Inbox**. New leads land at the top. One click
+on **Claim** transitions the lead to your name — AI switches to "draft
+mode" (suggestions in the side pane, no auto-send). You DM the prospect
+manually using your bound account.
+
+After takeover, the conversation logs to **CRM**. Unconverted leads
+stay there for follow-up.
+
+## Next steps
+
+- Read the [Module dictionary](./modules) to understand TG1.AI's
+  internal vocabulary (`TEN`, `BIL`, `ALC`, `KBA`, `LED`, `OPS`).
+- Skim [API examples](./api) if you're integrating from another tool.
+- Read [Billing rules](./billing) to budget for production volumes.
+
+Stuck? [Talk to us on Telegram](https://t.me/tg1ai_sales).
