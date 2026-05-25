@@ -5,9 +5,10 @@
  *   secondary  Watch 90s Demo (medium — outlined, opens video modal)
  *   tertiary   Talk on Telegram (low — ghost + paper plane icon)
  *
- * Wraps an <a> by default (so right-click → open in new tab works). If
- * `onClick` is provided, the click handler still fires before the link
- * follows (useful for analytics).
+ * Renders as `<a>` when `href` is provided (right-click → open in new tab
+ * works for navigation CTAs). Renders as `<button type="button">` when
+ * only `onClick` is provided (action CTAs like opening a modal — avoids
+ * the URL hash flash from `href="#"` + preventDefault).
  *
  * Analytics: pass `trackEvent` to fire a Plausible event when clicked.
  */
@@ -19,16 +20,17 @@ type Variant = 'primary' | 'secondary' | 'tertiary';
 
 type Props = {
   variant?: Variant;
-  href: string;
+  /** Render as `<a href>` for navigation. Omit to render as `<button>`. */
+  href?: string;
   children: ReactNode;
-  /** External link opens in a new tab. */
+  /** External link opens in a new tab. Ignored when rendering as `<button>`. */
   external?: boolean;
   /** Plausible event name to fire on click. */
   trackEvent?: string;
   /** Extra props for analytics. */
   trackProps?: Record<string, string | number | boolean>;
-  /** Extra click handler that runs before navigation. */
-  onClick?: MouseEventHandler<HTMLAnchorElement>;
+  /** Click handler. Required when `href` is omitted. */
+  onClick?: MouseEventHandler<HTMLElement>;
   /** Override Tailwind classes (appended). */
   className?: string;
   /** Hide the default trailing icon. */
@@ -65,11 +67,27 @@ export default function CTAButton({
   onClick, className, noIcon,
 }: Props) {
   const Icon = variantIcon[variant];
+  const cls = [baseClasses, variantClasses[variant], className || ''].join(' ');
 
-  const handleClick: MouseEventHandler<HTMLAnchorElement> = (e) => {
+  const handleClick: MouseEventHandler<HTMLElement> = (e) => {
     if (trackEvent) track(trackEvent, trackProps);
     onClick?.(e);
   };
+
+  const content = (
+    <>
+      <span>{children}</span>
+      {!noIcon && <Icon className="w-4 h-4" aria-hidden />}
+    </>
+  );
+
+  if (href === undefined) {
+    return (
+      <button type="button" onClick={handleClick} className={cls}>
+        {content}
+      </button>
+    );
+  }
 
   return (
     <a
@@ -77,10 +95,9 @@ export default function CTAButton({
       target={external ? '_blank' : undefined}
       rel={external ? 'noopener noreferrer' : undefined}
       onClick={handleClick}
-      className={[baseClasses, variantClasses[variant], className || ''].join(' ')}
+      className={cls}
     >
-      <span>{children}</span>
-      {!noIcon && <Icon className="w-4 h-4" aria-hidden />}
+      {content}
     </a>
   );
 }

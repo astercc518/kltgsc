@@ -89,11 +89,7 @@ export default function HeroDual() {
           </CTAButton>
           <CTAButton
             variant="secondary"
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              setDemoOpen(true);
-            }}
+            onClick={() => setDemoOpen(true)}
             trackEvent={Events.CTA_DEMO_CLICK}
             trackProps={{ source: 'hero' }}
           >
