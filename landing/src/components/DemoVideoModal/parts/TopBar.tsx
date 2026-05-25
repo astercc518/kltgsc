@@ -1,3 +1,4 @@
+import { forwardRef } from 'react';
 import { X } from 'lucide-react';
 import { useT } from '@/i18n';
 import type { Act } from '../useTimeline';
@@ -11,7 +12,7 @@ const actKey: Record<Act, 'listening' | 'incoming' | 'scoring' | 'handover'> = {
   1: 'listening', 2: 'incoming', 3: 'scoring', 4: 'handover',
 };
 
-export default function TopBar({ act, onClose }: Props) {
+const TopBar = forwardRef<HTMLButtonElement, Props>(function TopBar({ act, onClose }, closeBtnRef) {
   const t = useT();
   return (
     <div className="flex items-center justify-between px-5 py-3 border-b border-white/10">
@@ -28,6 +29,7 @@ export default function TopBar({ act, onClose }: Props) {
         </span>
       </div>
       <button
+        ref={closeBtnRef}
         type="button"
         onClick={onClose}
         className="text-white/60 hover:text-white p-1.5 rounded-full hover:bg-white/10 transition-colors"
@@ -37,4 +39,6 @@ export default function TopBar({ act, onClose }: Props) {
       </button>
     </div>
   );
-}
+});
+
+export default TopBar;
