@@ -12,6 +12,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useTimeline } from './useTimeline';
 import { DURATION_MS } from './demoScript';
 import TopBar from './parts/TopBar';
+import BottomBar from './parts/BottomBar';
 
 interface Props {
   open: boolean;
@@ -71,10 +72,13 @@ export default function DemoVideoModal({ open, onClose }: Props) {
               <div className="col-span-7 p-4 text-white/30 text-xs font-mono">[left pane — task 7]</div>
               <div className="col-span-5 p-4 text-white/30 text-xs font-mono">[right pane — tasks 8, 9]</div>
             </div>
-            {/* BottomBar slot — task 6 */}
-            <div className="h-14 border-t border-white/10 px-5 flex items-center text-white/30 text-xs font-mono">
-              [bottom bar — task 6] elapsed={Math.round(timeline.elapsedMs)}ms act={timeline.act}
-            </div>
+            <BottomBar
+              elapsedMs={timeline.elapsedMs}
+              paused={timeline.paused}
+              onPause={timeline.pause}
+              onResume={timeline.resume}
+              onRestart={timeline.restart}
+            />
           </motion.div>
         </motion.div>
       )}
