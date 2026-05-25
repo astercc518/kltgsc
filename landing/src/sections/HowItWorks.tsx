@@ -13,17 +13,18 @@ import ScrollPin from '@/components/ScrollPin';
 import {
   CreditCard, BookOpen, Sliders, Sparkles, MessageSquareText, Users,
 } from 'lucide-react';
+import { useT } from '@/i18n';
 
-const steps = [
-  { num: 1, title: 'Activate a plan',     blurb: 'USDT → Subscription active → 3/5/10 accounts auto-assigned + AI marketing feature unlocked.', icon: CreditCard },
-  { num: 2, title: 'Upload your KB',      blurb: 'PDF / markdown / chat history → Gemini embedding → pgvector index. Cited automatically in replies.', icon: BookOpen },
-  { num: 3, title: 'Configure a monitor', blurb: 'Pick keywords + target groups + persona. Active mode = AI replies in group; private DM is locked off.', icon: Sliders },
-  { num: 4, title: 'AI engages in group', blurb: 'Listener fires → semantic judge confirms → AI posts a contextual reply with KB-cited details.', icon: Sparkles },
-  { num: 5, title: 'Lead lands in inbox', blurb: 'Captured user → pre-assigned to your sales seat → atomic claim, no double-handoff.', icon: MessageSquareText },
-  { num: 6, title: 'Sales closes',        blurb: 'One-click takeover. AI switches to draft mode, sales takes the DM, conversation logged to CRM.', icon: Users },
-];
+const STEP_ICONS = [CreditCard, BookOpen, Sliders, Sparkles, MessageSquareText, Users];
 
 export default function HowItWorks() {
+  const t = useT();
+  const steps = t.howItWorks.steps.map((s, i) => ({
+    num: i + 1,
+    title: s.title,
+    blurb: s.blurb,
+    icon: STEP_ICONS[i],
+  }));
   return (
     <ScrollPin steps={steps.length} className="bg-white relative">
       {({ step, progress }) => {
@@ -33,12 +34,12 @@ export default function HowItWorks() {
             {/* Left: text */}
             <div>
               <div className="text-eyebrow font-mono text-brand-blue-500 uppercase mb-3">
-                How it works · {String(step + 1).padStart(2, '0')} / 06
+                {t.howItWorks.eyebrowPrefix} {String(step + 1).padStart(2, '0')} / 06
               </div>
               <h2 className="font-display text-display-2 text-brand-ink-900 mb-6 leading-tight">
-                From cold lead to closed deal,
+                {t.howItWorks.titleA}
                 <br />
-                <span className="text-brand-ink-500">one autonomous loop.</span>
+                <span className="text-brand-ink-500">{t.howItWorks.titleB}</span>
               </h2>
 
               <div className="space-y-3">

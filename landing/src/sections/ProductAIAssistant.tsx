@@ -10,48 +10,23 @@
  */
 import {
   Ear, Brain, MessageCircleMore, Inbox, HandshakeIcon, BookOpenCheck,
-  Shield, Lock,
+  Shield,
 } from 'lucide-react';
 import Reveal from '@/components/Reveal';
 import CTAButton from '@/components/CTAButton';
 import { LINKS } from '@/lib/links';
 import { Events } from '@/lib/analytics';
+import { useT } from '@/i18n';
 
-const steps = [
-  {
-    icon: Ear,
-    title: 'Listen',
-    desc: 'Your TG accounts sit in your target groups 24/7. The listener fans out across 5 prod shards, ~200 accounts each.',
-  },
-  {
-    icon: Brain,
-    title: 'Recognize',
-    desc: 'Two-stage match: keyword pre-filter (fast) → Vertex Gemini semantic judge (precise). Cosine-rerank via BGE cross-encoder for the win.',
-  },
-  {
-    icon: MessageCircleMore,
-    title: 'Engage',
-    desc: 'On intent hit, AI posts a contextual reply IN the source group. Personas come from your KB, with sales-line stripping so it never looks like a billboard.',
-    highlight: true,
-  },
-  {
-    icon: Inbox,
-    title: 'Push',
-    desc: 'A Lead row materialises — pre-assigned to the salesperson who owns that TG account, source-group attribution intact.',
-  },
-  {
-    icon: HandshakeIcon,
-    title: 'Takeover',
-    desc: 'Sales clicks once: AI drops to "draft mode" (suggestions only), conversation is theirs. Atomic claim, no double-handoff.',
-  },
-  {
-    icon: BookOpenCheck,
-    title: 'CRM sink',
-    desc: 'Unconverted leads land in CRM with industry tag + interaction history — your sales team has tomorrow\'s call list before they wake up.',
-  },
-];
+const STEP_ICONS = [Ear, Brain, MessageCircleMore, Inbox, HandshakeIcon, BookOpenCheck];
 
 export default function ProductAIAssistant() {
+  const t = useT();
+  const steps = t.aiAssistant.steps.map((s, i) => ({
+    ...s,
+    icon: STEP_ICONS[i],
+    highlight: i === 2, // "Engage" step gets the purple-glow card
+  }));
   return (
     <section id="ai-assistant" className="bg-brand-ink-950 scroll-mt-24 relative overflow-hidden">
       {/* Subtle purple glow at the top */}
@@ -62,15 +37,14 @@ export default function ProductAIAssistant() {
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 text-eyebrow font-mono text-brand-purple-400 uppercase">
               <span className="h-px w-8 bg-brand-purple-500" />
-              AI Marketing Assistant — Subscription
+              {t.aiAssistant.eyebrow}
             </div>
             <h2 className="mt-4 font-display text-display-2 text-white">
-              An SDR / BDR team that ships in 24 hours.
-              <span className="text-white/50"> Half-automatic by design.</span>
+              {t.aiAssistant.titleA}
+              <span className="text-white/50"> {t.aiAssistant.titleB}</span>
             </h2>
             <p className="mt-5 text-lg text-white/70 leading-relaxed">
-              Configure a monitor rule once. AI handles first-touch in the group — friendly, on-brand,
-              contextual — and routes high-intent leads to a human inbox. You decide who gets the DM.
+              {t.aiAssistant.subtitle}
             </p>
           </div>
         </Reveal>
@@ -115,19 +89,15 @@ export default function ProductAIAssistant() {
               </div>
               <div className="flex-1">
                 <h3 className="font-display text-xl font-semibold text-white mb-2">
-                  AI never auto-DMs your prospects.
+                  {t.aiAssistant.safetyTitle}
                 </h3>
                 <p className="text-white/70 leading-relaxed">
-                  The reply layer is half-automatic on purpose. AI posts <em>in the source group</em>
-                  where everyone can see — that's social proof. Private outreach stays a human
-                  decision; your sales clicks "claim", AI switches to draft suggestions, the DM is
-                  yours to send.
+                  {t.aiAssistant.safetyDesc}
                 </p>
                 <p className="mt-3 text-sm text-white/50">
-                  Why? Ban risk is concentrated in unsolicited DMs, not in-group replies. We keep
-                  your accounts alive by design.{' '}
+                  {t.aiAssistant.safetyWhy}{' '}
                   <a href={LINKS.docsBilling} className="text-brand-purple-300 hover:text-brand-purple-200 underline underline-offset-4">
-                    Read the safety doc →
+                    {t.aiAssistant.safetyLink}
                   </a>
                 </p>
               </div>
@@ -138,8 +108,8 @@ export default function ProductAIAssistant() {
         {/* CTA strip */}
         <div className="mt-12 flex flex-wrap items-center justify-between gap-6 rounded-2xl border border-white/10 bg-white/[0.03] px-6 py-5">
           <p className="text-white/80">
-            Activate the assistant on any paid plan.
-            <span className="text-white/40"> Sub gates access; wallet meters each AI reply ($0.05) + lead ($0.50).</span>
+            {t.aiAssistant.stripText}
+            <span className="text-white/40"> {t.aiAssistant.stripQuiet}</span>
           </p>
           <div className="flex gap-3">
             <CTAButton
@@ -148,7 +118,7 @@ export default function ProductAIAssistant() {
               trackEvent={Events.CTA_SIGNUP_CLICK}
               trackProps={{ source: 'ai_strip' }}
             >
-              See plans
+              {t.aiAssistant.stripSeePlans}
             </CTAButton>
             <CTAButton
               variant="tertiary"
@@ -158,7 +128,7 @@ export default function ProductAIAssistant() {
               trackProps={{ source: 'ai_strip' }}
               className="!text-white/80 hover:!text-white"
             >
-              Ask sales
+              {t.aiAssistant.stripAskSales}
             </CTAButton>
           </div>
         </div>

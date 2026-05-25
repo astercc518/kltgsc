@@ -7,6 +7,7 @@
  *
  * Numbers cite alembic seed migration 2b3c4d5e6f7a:85-103 — KEEP IN SYNC.
  */
+import React from 'react';
 import { motion } from 'framer-motion';
 import {
   Users, Send, UserPlus, Wallet, ArrowRight, PauseCircle,
@@ -16,32 +17,13 @@ import Reveal from '@/components/Reveal';
 import CTAButton from '@/components/CTAButton';
 import { LINKS } from '@/lib/links';
 import { Events } from '@/lib/analytics';
+import { useT } from '@/i18n';
 
-const triplet = [
-  {
-    icon: Users,
-    badge: '$0.01 / member',
-    title: 'Group scrape',
-    description:
-      'Pull member lists from any group your account can see. Filter by activity, language, or join-date before exporting. Each scraped member deducts $0.01 from your wallet — failed rows are not charged.',
-  },
-  {
-    icon: Send,
-    badge: '$0.10 / message',
-    title: 'Bulk send',
-    description:
-      'Schedule a campaign across hundreds of accounts. Template variants prevent flag detection; the dispatcher respects per-account daily limits. You pay only for deliveries that get a 200 OK.',
-  },
-  {
-    icon: UserPlus,
-    badge: '$0.05 / invite',
-    title: 'Bulk invite',
-    description:
-      'Pull users into your community group from a scraped list. Auto-pauses if Telegram throttles your accounts; resumes when the cooldown clears. Each invite attempt — successful or not — is metered.',
-  },
-];
+const TRIPLET_ICONS = [Users, Send, UserPlus];
 
 export default function ProductSelfServe() {
+  const t = useT();
+  const triplet = t.selfServe.triplet.map((item, i) => ({ ...item, icon: TRIPLET_ICONS[i] }));
   return (
     <section id="self-serve" className="bg-white scroll-mt-24">
       <div className="max-w-container mx-auto px-6 py-24 lg:py-32">
@@ -50,16 +32,14 @@ export default function ProductSelfServe() {
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 text-eyebrow font-mono text-brand-blue-500 uppercase">
               <span className="h-px w-8 bg-brand-blue-500" />
-              Self-Serve — Pay as you go
+              {t.selfServe.eyebrow}
             </div>
             <h2 className="mt-4 font-display text-display-2 text-brand-ink-900">
-              Three Telegram ops, three flat per-unit prices.
-              <span className="text-brand-ink-500"> No subscription needed.</span>
+              {t.selfServe.titleA}
+              <span className="text-brand-ink-500"> {t.selfServe.titleB}</span>
             </h2>
             <p className="mt-5 text-lg text-brand-ink-600 leading-relaxed">
-              Top up your USDT wallet, run scrape / send / invite. Any leftover credit rolls forward,
-              and the platform auto-pauses tasks when your balance dips below the operation cost —
-              you can't accidentally over-spend.
+              {t.selfServe.subtitle}
             </p>
           </div>
         </Reveal>
@@ -85,18 +65,22 @@ export default function ProductSelfServe() {
             <div className="flex items-center gap-3 mb-6">
               <Wallet className="w-5 h-5 text-brand-blue-500" />
               <span className="text-eyebrow font-mono text-brand-ink-500 uppercase">
-                How the wallet works
+                {t.selfServe.flowTitle}
               </span>
             </div>
 
             <div className="grid md:grid-cols-4 gap-4 items-stretch">
-              <FlowStep n="01" title="Top up" desc="Transfer USDT to your tenant address. Auto-credited on chain confirmation." />
-              <FlowArrow />
-              <FlowStep n="02" title="Run task" desc="Each action deducts at the published per-unit price. Receipts in wallet history." />
-              <FlowArrow />
-              <FlowStep n="03" title="Auto-pause" desc="If balance < next-op cost, task pauses with `paused_no_funds` — no surprise overage." icon={PauseCircle} />
-              <FlowArrow />
-              <FlowStep n="04" title="Resume" desc="Top up again. Tasks pick up where they left off — no replay risk via idempotency keys." />
+              {t.selfServe.flowSteps.map((s, i) => (
+                <React.Fragment key={i}>
+                  {i > 0 && <FlowArrow />}
+                  <FlowStep
+                    n={String(i + 1).padStart(2, '0')}
+                    title={s.title}
+                    desc={s.desc}
+                    icon={i === 2 ? PauseCircle : undefined}
+                  />
+                </React.Fragment>
+              ))}
             </div>
           </div>
         </Reveal>
@@ -110,8 +94,8 @@ export default function ProductSelfServe() {
           className="mt-12 flex flex-wrap items-center justify-between gap-6 rounded-2xl border border-brand-blue-200 bg-brand-blue-50 px-6 py-5"
         >
           <p className="text-brand-ink-700 font-medium">
-            Want to see the full unit price table?
-            <span className="text-brand-ink-500 font-normal"> Includes scrape / send / invite tiering above 50k volume.</span>
+            {t.selfServe.stripQuestion}
+            <span className="text-brand-ink-500 font-normal"> {t.selfServe.stripQuiet}</span>
           </p>
           <CTAButton
             variant="primary"
@@ -120,7 +104,7 @@ export default function ProductSelfServe() {
             trackProps={{ source: 'self_serve_strip' }}
             className="!bg-brand-ink-900 hover:!bg-brand-ink-700 !shadow-none"
           >
-            See pricing
+            {t.selfServe.stripCta}
           </CTAButton>
         </motion.div>
       </div>

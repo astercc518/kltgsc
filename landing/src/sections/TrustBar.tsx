@@ -11,15 +11,16 @@
  */
 import AnimatedNumber from '@/components/AnimatedNumber';
 import Reveal from '@/components/Reveal';
-
-const stats = [
-  { value: 1000, suffix: '+',  label: 'accounts per tenant',   format: (n: number) => Math.round(n).toLocaleString() },
-  { value: 5,    suffix: '',   label: 'listener shards (prod)' },
-  { value: 768,  suffix: '-dim', label: 'Vertex Gemini RAG' },
-  { value: 99.9, suffix: '%',  label: 'session uptime',       format: (n: number) => n.toFixed(1) },
-];
+import { useT } from '@/i18n';
 
 export default function TrustBar() {
+  const t = useT();
+  const stats = [
+    { value: 1000, suffix: '+',   label: t.trustBar.accounts, format: (n: number) => Math.round(n).toLocaleString() },
+    { value: 5,    suffix: '',    label: t.trustBar.shards },
+    { value: 768,  suffix: '-dim', label: t.trustBar.rag },
+    { value: 99.9, suffix: '%',   label: t.trustBar.uptime,   format: (n: number) => n.toFixed(1) },
+  ];
   return (
     <section
       aria-label="Trust signals"
@@ -48,7 +49,7 @@ export default function TrustBar() {
                 USDT
               </div>
               <div className="mt-1 text-xs uppercase tracking-wider text-white/40">
-                TRC20 · ERC20 · BEP20
+                {t.trustBar.networks}
               </div>
             </div>
           </div>

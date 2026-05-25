@@ -120,7 +120,7 @@ export interface LoginResponse {
 }
 
 export const authApi = {
-  register: (data: { email: string; password: string; name?: string; company?: string; industry?: string }) =>
+  register: (data: { email: string; password: string; name?: string; company?: string; industry?: string; ref?: string }) =>
     portalApi.post<LoginResponse>('/customer/register', data).then(r => r.data),
   login: (email: string, password: string) =>
     portalApi.post<LoginResponse>('/customer/login', { email, password }).then(r => r.data),

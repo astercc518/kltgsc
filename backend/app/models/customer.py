@@ -102,6 +102,11 @@ class CustomerCreate(SQLModel):
     name: Optional[str] = None
     company: Optional[str] = None
     industry: Optional[str] = None
+    # Landing trial grant tag. Free-text, but only the literal "landing" is
+    # honoured by register_customer to issue the $20 free credit. The amount
+    # is server-side fixed (clients can't request more) — see
+    # backend/app/api/v1/endpoints/auth.py register_customer.
+    ref: Optional[str] = None
 
 
 class CustomerLogin(SQLModel):

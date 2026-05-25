@@ -7,43 +7,23 @@
  */
 import { Coins, Briefcase, Megaphone } from 'lucide-react';
 import Reveal from '@/components/Reveal';
-
-const cases = [
-  {
-    icon: Coins,
-    title: 'Crypto & Web3 GTM',
-    blurb:
-      'IDO launches, airdrop campaigns, exchange referrals. AI listens across 30+ trader chats, posts contextual replies on "looking for X exchange" type intent, hands off conversion talk to your sales seat.',
-    metric: '~$0.50 per qualified lead',
-    sub: 'vs. $40 ICP CPL on paid social',
-    tone: 'purple',
-  },
-  {
-    icon: Briefcase,
-    title: 'Fintech & forex outbound',
-    blurb:
-      'Compliance-friendly first-touch: AI replies in-group with publicly visible language, never DMs first. Your licensed sales rep does the regulated conversation manually.',
-    metric: '50× cheaper than offshore SDRs',
-    sub: 'with a paper trail per interaction',
-    tone: 'blue',
-  },
-  {
-    icon: Megaphone,
-    title: 'Cross-border e-com & MCN',
-    blurb:
-      'Scrape competitor community members (per-MB billing). Run bulk send campaigns to high-overlap segments. AI assistant catches replies and triages to your team.',
-    metric: '3 ops, one wallet',
-    sub: 'scrape · send · invite — all USDT-metered',
-    tone: 'blue',
-  },
-] as const;
+import { useT } from '@/i18n';
 
 const toneClasses = {
   blue:   { ring: 'ring-brand-blue-100',   text: 'text-brand-blue-500',   pill: 'bg-brand-blue-50 text-brand-blue-700' },
   purple: { ring: 'ring-brand-purple-100', text: 'text-brand-purple-500', pill: 'bg-brand-purple-50 text-brand-purple-700' },
 } as const;
 
+// Icon + tone are visual (code-side); textual content comes from i18n.
+const VISUAL = [
+  { icon: Coins,     tone: 'purple' as const },
+  { icon: Briefcase, tone: 'blue'   as const },
+  { icon: Megaphone, tone: 'blue'   as const },
+];
+
 export default function UseCases() {
+  const t = useT();
+  const cases = t.useCases.cards.map((c, i) => ({ ...c, ...VISUAL[i] }));
   return (
     <section className="bg-brand-ink-50">
       <div className="max-w-container mx-auto px-6 py-24 lg:py-28">
@@ -51,10 +31,10 @@ export default function UseCases() {
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 text-eyebrow font-mono text-brand-ink-500 uppercase">
               <span className="h-px w-8 bg-brand-ink-300" />
-              Use cases
+              {t.useCases.eyebrow}
             </div>
             <h2 className="mt-4 font-display text-display-2 text-brand-ink-900">
-              Built for the teams that ship at Telegram scale.
+              {t.useCases.title}
             </h2>
           </div>
         </Reveal>

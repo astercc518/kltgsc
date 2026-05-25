@@ -23,11 +23,13 @@ const PortalRegister: React.FC = () => {
   const [searchParams] = useSearchParams();
 
   // Landing-driven trial credit. If the URL carries ?ref=landing&trial=20,
-  // show a confirmation banner so the visitor immediately sees the $20
-  // promise is recognized; the actual wallet credit lands server-side on
-  // first successful login (backend will read the ref token).
+  // show a confirmation banner + pass `ref=landing` to the register API
+  // so the backend issues a $20 wallet grant atomically with account
+  // creation. The dollar amount is server-side fixed at $20 regardless of
+  // the trial query param — we forward `trial` only for the banner copy.
   const trialCents = parseInt(searchParams.get('trial') ?? '0', 10) || 0;
-  const trialFromLanding = trialCents > 0 && searchParams.get('ref') === 'landing';
+  const refSource = searchParams.get('ref');
+  const trialFromLanding = trialCents > 0 && refSource === 'landing';
 
   const mutation = useMutation({
     mutationFn: (values: any) => authApi.register(values),
@@ -77,7 +79,11 @@ const PortalRegister: React.FC = () => {
             }
           />
         )}
-        <Form form={form} layout="vertical" onFinish={(v) => mutation.mutate(v)}>
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={(v) => mutation.mutate({ ...v, ref: refSource ?? undefined })}
+        >
           <Form.Item
             name="email"
             rules={[

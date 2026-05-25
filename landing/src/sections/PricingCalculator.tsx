@@ -11,6 +11,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Reveal from '@/components/Reveal';
 import { track, Events } from '@/lib/analytics';
+import { useT } from '@/i18n';
 
 // Single source of truth — matches Pricing.tsx + alembic seed.
 const UNIT = {
@@ -26,6 +27,7 @@ const PLANS = [
 ];
 
 export default function PricingCalculator() {
+  const t = useT();
   const [leads, setLeads]   = useState(50);
   const [sends, setSends]   = useState(500);
   const [tracked, setTracked] = useState(false);
@@ -63,15 +65,14 @@ export default function PricingCalculator() {
           <div className="max-w-3xl mx-auto text-center">
             <div className="inline-flex items-center gap-2 text-eyebrow font-mono text-brand-purple-500 uppercase">
               <span className="h-px w-8 bg-brand-purple-500" />
-              Calculator
+              {t.pricingCalc.eyebrow}
               <span className="h-px w-8 bg-brand-purple-500" />
             </div>
             <h2 className="mt-4 font-display text-display-3 text-brand-ink-900">
-              Estimate your monthly bill
+              {t.pricingCalc.title}
             </h2>
             <p className="mt-3 text-brand-ink-600">
-              Drag the sliders to your expected volume. We'll show you the cheapest plan +
-              what your wallet will spend on top.
+              {t.pricingCalc.subtitle}
             </p>
           </div>
         </Reveal>
@@ -80,34 +81,34 @@ export default function PricingCalculator() {
           <div className="mt-12 max-w-3xl mx-auto rounded-3xl border border-brand-ink-200 bg-brand-ink-50 p-6 lg:p-8">
             {/* Sliders */}
             <Slider
-              label="AI auto-leads per month"
+              label={t.pricingCalc.leadsLabel}
               tone="purple"
               value={leads}
               min={0} max={500} step={10}
-              suffix=" leads"
+              suffix={t.pricingCalc.leadsSuffix}
               onChange={setLeads}
             />
             <Slider
-              label="Bulk-send messages per month"
+              label={t.pricingCalc.sendsLabel}
               tone="blue"
               value={sends}
               min={0} max={10000} step={100}
-              suffix=" msgs"
+              suffix={t.pricingCalc.sendsSuffix}
               onChange={setSends}
             />
 
             {/* Variable preview line */}
             <div className="mt-6 rounded-xl bg-white border border-brand-ink-100 px-5 py-4">
               <div className="text-eyebrow font-mono text-brand-ink-500 uppercase mb-2">
-                Variable wallet cost · estimate
+                {t.pricingCalc.walletCostHeader}
               </div>
               <div className="grid sm:grid-cols-3 gap-3 text-sm">
-                <Line label="AI replies (~3 per lead)" qty={repliesEstimate} priceCents={UNIT.AI_REPLY_CENTS} />
-                <Line label="AI auto-leads"            qty={leads}            priceCents={UNIT.AI_LEAD_CENTS} />
-                <Line label="Bulk send"                qty={sends}            priceCents={UNIT.BULK_SEND_CENTS} />
+                <Line label={t.pricingCalc.aiRepliesLine} qty={repliesEstimate} priceCents={UNIT.AI_REPLY_CENTS} />
+                <Line label={t.pricingCalc.aiLeadsLine}   qty={leads}            priceCents={UNIT.AI_LEAD_CENTS} />
+                <Line label={t.pricingCalc.bulkSendLine}  qty={sends}            priceCents={UNIT.BULK_SEND_CENTS} />
               </div>
               <div className="mt-4 pt-3 border-t border-brand-ink-100 flex items-baseline justify-between">
-                <span className="text-brand-ink-500 text-sm">Total wallet spend / mo</span>
+                <span className="text-brand-ink-500 text-sm">{t.pricingCalc.totalLabel}</span>
                 <span className="font-mono text-2xl font-semibold text-brand-ink-900">
                   ${variableUsd.toFixed(2)}
                 </span>
@@ -131,14 +132,14 @@ export default function PricingCalculator() {
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-display font-semibold text-brand-ink-900">{p.label}</span>
                       {isCheap && (
-                        <span className="text-eyebrow font-mono text-brand-purple-500 uppercase">Best</span>
+                        <span className="text-eyebrow font-mono text-brand-purple-500 uppercase">{t.pricingCalc.bestBadge}</span>
                       )}
                     </div>
                     <div className="text-brand-ink-400 text-xs font-mono mb-2">
-                      ${p.monthlyUsd} sub · ${variableUsd.toFixed(0)} wallet
+                      ${p.monthlyUsd} {t.pricingCalc.subPlanLabel} · ${variableUsd.toFixed(0)} {t.pricingCalc.walletPlanLabel}
                     </div>
                     <div className="font-mono text-2xl font-semibold text-brand-ink-900">
-                      ${p.totalUsd.toFixed(2)}<span className="text-sm text-brand-ink-400">/mo</span>
+                      ${p.totalUsd.toFixed(2)}<span className="text-sm text-brand-ink-400">{t.pricingCalc.perMo}</span>
                     </div>
                   </div>
                 );

@@ -334,6 +334,35 @@ def register_customer(
         "success",
     )
 
+    # ── Landing trial grant (PR5) ──────────────────────────────────────
+    # If the registration carries `ref=landing`, credit the wallet with
+    # a fixed $20 USDT-equivalent. The amount is SERVER-SIDE FIXED — we
+    # don't read it from the payload to prevent trivial inflation. The
+    # idempotency key is anchored to customer.id so re-running with the
+    # same ref can't double-credit.
+    if (payload.ref or "").strip().lower() == "landing":
+        try:
+            from app.services.wallet_service import admin_credit_wallet
+            admin_credit_wallet(
+                session,
+                customer_id=customer.id,
+                amount_cents=2000,
+                idempotency_key=f"trial-landing:{customer.id}",
+                description="Landing $20 free trial credit",
+            )
+            security.create_log(
+                session, "trial_grant", customer.email,
+                f"customer_id={customer.id} amount_cents=2000 source=landing",
+                request.client.host if request.client else None,
+                "success",
+            )
+        except Exception as e:  # noqa: BLE001
+            # Don't fail registration if the grant misfires — log + move on.
+            import logging
+            logging.getLogger(__name__).warning(
+                "Trial credit grant failed for customer %s: %s", customer.id, e,
+            )
+
     token = create_customer_access_token(customer)
     return CustomerToken(
         access_token=token,
