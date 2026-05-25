@@ -215,12 +215,11 @@ export type Dict = {
       suggestionValue: string;
     };
     handover: {
-      newLead: string;
       salesName: string;
       salesReply: string;
     };
     controls: { pause: string; resume: string; restart: string; close: string };
-    reduced: { intro: string; tabPrefix: string };
+    reduced: { intro: string };
     messages: {
       m0: string; m1: string; m2: string; m3: string;
       m4: string; m5: string; m6: string; m7: string;
@@ -316,7 +315,6 @@ const en: Dict = {
       suggestionValue: 'Hi — saw your question about USDT receiving. We help merchants accept stablecoin without local-bank friction. Want a 2-min walkthrough?',
     },
     handover: {
-      newLead: 'New lead',
       salesName: 'Sales · Alex',
       salesReply: 'Hi — saw your question in the group about USDT receiving…',
     },
@@ -328,7 +326,6 @@ const en: Dict = {
     },
     reduced: {
       intro: 'Animation disabled per your motion preference. Browse the 4 acts:',
-      tabPrefix: 'Act',
     },
     messages: {
       m0: 'morning everyone, anyone here run a TG channel for crypto?',
@@ -694,7 +691,6 @@ const zhCN: Dict = {
       suggestionValue: '您好，看到您在问 USDT 收款。我们帮商户用稳定币收单，不走本地银行。要不要看 2 分钟演示？',
     },
     handover: {
-      newLead: '新线索',
       salesName: '销售 · Alex',
       salesReply: '您好，看到您在群里问 USDT 收款……',
     },
@@ -706,7 +702,6 @@ const zhCN: Dict = {
     },
     reduced: {
       intro: '已按您的动效偏好关闭动画。逐幕浏览：',
-      tabPrefix: '第',
     },
     messages: {
       m0: '早上好各位，有人这边做加密相关的 TG 频道吗',
@@ -1068,12 +1063,11 @@ const ja: Dict = {
       suggestionValue: 'こんにちは。USDT の受け取りについてのご質問を拝見しました。当社は加盟店がステーブルコインで受け取れるよう支援しています。2 分のデモはいかがですか？',
     },
     handover: {
-      newLead: '新規リード',
       salesName: '営業 · Alex',
       salesReply: 'こんにちは、グループでの USDT 受け取りに関するご質問を拝見しました…',
     },
     controls: { pause: '一時停止', resume: '再開', restart: '再生', close: 'デモを閉じる' },
-    reduced: { intro: 'モーション設定によりアニメーションは無効です。4 幕をご覧ください：', tabPrefix: '第' },
+    reduced: { intro: 'モーション設定によりアニメーションは無効です。4 幕をご覧ください：' },
     messages: {
       m0: 'おはよう、ここで暗号系の TG チャンネルやってる人いる？',
       m1: '昨日のエアドロップは詐欺だった、50u 損した',
@@ -1372,12 +1366,11 @@ const ko: Dict = {
       suggestionValue: '안녕하세요. USDT 수금에 대한 질문을 보았습니다. 저희는 가맹점이 스테이블코인으로 수금할 수 있도록 돕습니다. 2분 데모를 보시겠어요?',
     },
     handover: {
-      newLead: '신규 리드',
       salesName: '영업 · Alex',
       salesReply: '안녕하세요, 그룹에서 USDT 수금에 대한 질문을 보았습니다…',
     },
     controls: { pause: '일시정지', resume: '재개', restart: '다시 재생', close: '데모 닫기' },
-    reduced: { intro: '모션 설정에 따라 애니메이션이 비활성화되었습니다. 4막을 보세요:', tabPrefix: '제' },
+    reduced: { intro: '모션 설정에 따라 애니메이션이 비활성화되었습니다. 4막을 보세요:' },
     messages: {
       m0: '안녕하세요, 여기 암호 관련 TG 채널 운영하는 분 있나요?',
       m1: '어제 그 에어드롭 사기였어요, 50u 잃었어요',
@@ -1676,12 +1669,11 @@ const es: Dict = {
       suggestionValue: 'Hola — vi tu pregunta sobre recibir USDT. Ayudamos a comerciantes a aceptar stablecoin sin fricciones bancarias locales. ¿2 minutos de demo?',
     },
     handover: {
-      newLead: 'Nuevo lead',
       salesName: 'Ventas · Alex',
       salesReply: 'Hola — vi tu pregunta en el grupo sobre recibir USDT…',
     },
     controls: { pause: 'Pausar', resume: 'Reanudar', restart: 'Reproducir', close: 'Cerrar demo' },
-    reduced: { intro: 'Animación desactivada según tu preferencia de movimiento. Explora los 4 actos:', tabPrefix: 'Acto' },
+    reduced: { intro: 'Animación desactivada según tu preferencia de movimiento. Explora los 4 actos:' },
     messages: {
       m0: 'buenas, ¿alguien aquí lleva un canal TG de cripto?',
       m1: 'el airdrop de ayer era una estafa, perdí 50 usdt',
