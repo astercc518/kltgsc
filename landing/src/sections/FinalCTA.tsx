@@ -8,10 +8,14 @@ import { motion } from 'framer-motion';
 import { useCallback, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import CTAButton from '@/components/CTAButton';
+import BackgroundField from '@/components/BackgroundField';
+import SectionLabel from '@/components/SectionLabel';
 import DemoVideoModal from '@/components/DemoVideoModal';
 import { LINKS } from '@/lib/links';
 import { Events } from '@/lib/analytics';
 import { useT } from '@/i18n';
+
+const SNAP = [0.16, 1, 0.3, 1] as const;
 
 export default function FinalCTA() {
   const t = useT();
@@ -20,30 +24,47 @@ export default function FinalCTA() {
   return (
     <>
     <section className="bg-brand-ink-950 relative overflow-hidden">
-      {/* Gradient orbs in the corners */}
-      <div className="absolute -left-32 -top-32 w-96 h-96 rounded-full bg-brand-blue-500 opacity-15 blur-3xl pointer-events-none" />
-      <div className="absolute -right-32 -bottom-32 w-96 h-96 rounded-full bg-brand-purple-500 opacity-15 blur-3xl pointer-events-none" />
+      <BackgroundField variant="hero" gridOpacity={0.35} />
+      {/* Soft corner orbs — kept but tamed */}
+      <div className="absolute -left-32 -top-32 w-96 h-96 rounded-full bg-brand-blue-500 opacity-10 blur-3xl pointer-events-none" />
+      <div className="absolute -right-32 -bottom-32 w-96 h-96 rounded-full bg-brand-purple-500 opacity-10 blur-3xl pointer-events-none" />
 
-      <div className="relative max-w-container mx-auto px-6 py-24 lg:py-32 text-center">
-        <motion.h2
-          initial={{ opacity: 0, y: 16 }}
+      <div className="relative max-w-container mx-auto px-6 py-28 lg:py-36 text-center">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-15%' }}
-          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-          className="font-display text-display-1 text-white"
+          transition={{ duration: 0.7, ease: SNAP }}
+          className="flex justify-center mb-7"
+        >
+          <SectionLabel number="09" tone="dark">{t.hero.selfServe.tag} · {t.hero.aiAssistant.tag}</SectionLabel>
+        </motion.div>
+        <motion.h2
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-15%' }}
+          transition={{ duration: 0.75, delay: 0.07, ease: SNAP }}
+          className="font-display text-display-1 text-white tracking-tight text-balance"
         >
           {t.finalCta.titlePart1}
           <br />
-          <span className="bg-gradient-to-r from-brand-blue-400 to-brand-purple-400 bg-clip-text text-transparent">
-            {t.finalCta.titlePart2}
+          <span className="relative inline-block">
+            <span className="bg-gradient-to-br from-white via-brand-blue-200 to-brand-purple-300 bg-clip-text text-transparent">
+              {t.finalCta.titlePart2}
+            </span>
+            <span
+              aria-hidden
+              className="absolute -inset-x-2 -bottom-2 h-8 -z-10 blur-2xl opacity-70"
+              style={{ background: 'linear-gradient(90deg, rgba(0,102,255,0.25), rgba(168,85,247,0.25))' }}
+            />
           </span>
         </motion.h2>
         <motion.p
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-15%' }}
-          transition={{ duration: 0.7, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-          className="mt-5 text-lg text-white/70 max-w-2xl mx-auto"
+          transition={{ duration: 0.7, delay: 0.14, ease: SNAP }}
+          className="mt-6 text-lg text-fg-secondary max-w-2xl mx-auto text-balance"
         >
           {t.finalCta.subtitle}
         </motion.p>
@@ -52,7 +73,7 @@ export default function FinalCTA() {
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-15%' }}
-          transition={{ duration: 0.7, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.7, delay: 0.21, ease: SNAP }}
           className="mt-10 flex flex-wrap justify-center gap-3"
         >
           <CTAButton

@@ -8,6 +8,7 @@
 import { useState } from 'react';
 import { Plus, Minus } from 'lucide-react';
 import Reveal from '@/components/Reveal';
+import SectionLabel from '@/components/SectionLabel';
 import { useT } from '@/i18n';
 
 /** Render markdown-lite codespans (`code`) into <code> elements.
@@ -32,12 +33,10 @@ export default function FAQ() {
       <div className="max-w-container mx-auto px-6 py-24 lg:py-28">
         <Reveal>
           <div className="max-w-3xl mx-auto text-center">
-            <div className="inline-flex items-center gap-2 text-eyebrow font-mono text-brand-ink-500 uppercase">
-              <span className="h-px w-8 bg-brand-ink-300" />
-              {t.faq.eyebrow}
-              <span className="h-px w-8 bg-brand-ink-300" />
+            <div className="flex justify-center">
+              <SectionLabel number="08" tone="light">{t.faq.eyebrow}</SectionLabel>
             </div>
-            <h2 className="mt-4 font-display text-display-2 text-brand-ink-900">
+            <h2 className="mt-5 font-display text-display-2 text-brand-ink-900 tracking-tight text-balance">
               {t.faq.title}
             </h2>
           </div>

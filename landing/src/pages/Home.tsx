@@ -12,6 +12,7 @@
 import Header from '@/sections/Header';
 import HeroDual from '@/sections/HeroDual';
 import TrustBar from '@/sections/TrustBar';
+import ScrollProgress from '@/components/ScrollProgress';
 import ProductSelfServe from '@/sections/ProductSelfServe';
 import ProductAIAssistant from '@/sections/ProductAIAssistant';
 import HowItWorks from '@/sections/HowItWorks';
@@ -26,6 +27,7 @@ import Footer from '@/sections/Footer';
 export default function Home() {
   return (
     <>
+      <ScrollProgress />
       <Header />
       <main>
         <HeroDual />
