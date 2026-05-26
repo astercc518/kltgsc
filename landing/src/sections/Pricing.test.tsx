@@ -71,6 +71,7 @@ describe('Pricing tableAdminNote', () => {
         pattern.test(a.textContent ?? ''),
       );
       expect(links.length).toBeGreaterThanOrEqual(1);
+      expect(links[0].getAttribute('href')).toBe('/docs/billing');
 
       // No orphan English "billing docs" text outside a link.
       const linkText = links[0]?.textContent ?? '';
