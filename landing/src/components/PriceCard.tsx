@@ -43,8 +43,8 @@ export default function PriceCard({
   const dollars = pricePerMonthUsd.toFixed(0);
 
   const wrapperClasses = featured
-    ? 'relative bg-white border-2 border-brand-purple-500 shadow-glow-purple'
-    : 'relative bg-white border border-brand-ink-200 shadow-card hover:shadow-card-hover transition-shadow';
+    ? 'relative bg-brand-ink-900 border-2 border-brand-purple-500 shadow-glow-purple transition-transform duration-200 ease-out hover:-translate-y-0.5'
+    : 'relative bg-brand-ink-900 border border-line-subtle hover:border-line-strong transition-all duration-200 ease-out hover:-translate-y-0.5';
 
   return (
     <div className={['rounded-3xl p-7 flex flex-col', wrapperClasses, className || ''].join(' ')}>
@@ -54,27 +54,27 @@ export default function PriceCard({
         </div>
       )}
 
-      <div className="text-eyebrow text-brand-ink-500 font-mono uppercase">
+      <div className="text-eyebrow text-fg-muted font-mono uppercase">
         {tier}
       </div>
-      <h3 className="font-display text-2xl font-semibold text-brand-ink-900 mt-1 mb-4">
+      <h3 className="font-display text-2xl font-semibold text-fg-primary mt-1 mb-4">
         {name}
       </h3>
 
       <div className="flex items-baseline gap-1 mb-6">
-        <span className="font-mono text-5xl font-bold text-brand-ink-900">${dollars}</span>
-        <span className="text-brand-ink-500 text-sm">{priceSuffix ?? '/ month · USDT'}</span>
+        <span className="font-mono text-5xl font-bold text-fg-primary">${dollars}</span>
+        <span className="text-fg-muted text-sm">{priceSuffix ?? '/ month · USDT'}</span>
       </div>
 
-      <ul className="space-y-2 mb-6 text-sm text-brand-ink-700">
+      <ul className="space-y-2 mb-6 text-sm text-fg-secondary">
         {quotaLines.map((q, i) => (
           <li key={i} className="font-mono text-[0.85rem]">{q}</li>
         ))}
       </ul>
 
-      <div className="h-px bg-brand-ink-100 mb-5" />
+      <div className="h-px bg-line-subtle mb-5" />
 
-      <ul className="space-y-2.5 mb-7 text-sm text-brand-ink-700 flex-1">
+      <ul className="space-y-2.5 mb-7 text-sm text-fg-secondary flex-1">
         {featureLines.map((f, i) => (
           <li key={i} className="flex items-start gap-2.5">
             <Check className={`w-4 h-4 mt-0.5 shrink-0 ${featured ? 'text-brand-purple-500' : 'text-brand-blue-500'}`} aria-hidden />
@@ -90,7 +90,7 @@ export default function PriceCard({
           'block w-full text-center rounded-full px-5 py-3 font-medium transition-all',
           featured
             ? 'bg-brand-purple-500 text-white hover:bg-brand-purple-600'
-            : 'bg-brand-ink-900 text-white hover:bg-brand-ink-700',
+            : 'border border-line-strong text-fg-primary hover:bg-brand-ink-800',
         ].join(' ')}
       >
         {ctaLabel}
