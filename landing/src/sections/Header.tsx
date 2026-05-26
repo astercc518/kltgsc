@@ -17,6 +17,7 @@ import CTAButton from '@/components/CTAButton';
 import { LINKS } from '@/lib/links';
 import { Events } from '@/lib/analytics';
 import { useT } from '@/i18n';
+import { useBodyScrollLock } from '@/lib/useBodyScrollLock';
 
 export default function Header() {
   const [scrolled, setScrolled] = useState(false);
@@ -110,50 +111,66 @@ export default function Header() {
 
       {/* Mobile sheet */}
       {mobileOpen && (
-        <div className="md:hidden fixed inset-0 z-50 bg-white">
-          <div className="flex items-center justify-between px-6 h-16 border-b border-brand-ink-100">
-            <BrandMark size="sm" />
-            <button
-              type="button"
-              onClick={() => setMobileOpen(false)}
-              className="text-brand-ink-700 p-2"
-              aria-label="Close menu"
-            >
-              <X className="w-6 h-6" />
-            </button>
-          </div>
-          <nav className="flex flex-col gap-1 px-6 py-6 text-lg">
-            {navLinks.map((l) => (
-              <a
-                key={l.href}
-                href={l.href}
-                onClick={() => setMobileOpen(false)}
-                className="py-3 text-brand-ink-700 hover:text-brand-blue-500"
-              >
-                {l.label}
-              </a>
-            ))}
-            <a
-              href={LINKS.signIn}
-              className="py-3 text-brand-ink-700"
-            >
-              {t.nav.signIn}
-            </a>
-            <div className="py-4">
-              <LangSwitcher />
-            </div>
-            <CTAButton
-              variant="primary"
-              href={LINKS.trial}
-              trackEvent={Events.CTA_SIGNUP_CLICK}
-              trackProps={{ source: 'header_mobile' }}
-              noIcon
-            >
-              {t.nav.freeTrial}
-            </CTAButton>
-          </nav>
-        </div>
+        <MobileSheet
+          navLinks={navLinks}
+          onClose={() => setMobileOpen(false)}
+          signInLabel={t.nav.signIn}
+          freeTrialLabel={t.nav.freeTrial}
+        />
       )}
     </header>
+  );
+}
+
+interface MobileSheetProps {
+  navLinks: { label: string; href: string }[];
+  onClose: () => void;
+  signInLabel: string;
+  freeTrialLabel: string;
+}
+
+function MobileSheet({ navLinks, onClose, signInLabel, freeTrialLabel }: MobileSheetProps) {
+  useBodyScrollLock();
+  return (
+    <div className="md:hidden fixed inset-0 z-50 bg-white">
+      <div className="flex items-center justify-between px-6 h-16 border-b border-brand-ink-100">
+        <BrandMark size="sm" />
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-brand-ink-700 p-2"
+          aria-label="Close menu"
+        >
+          <X className="w-6 h-6" />
+        </button>
+      </div>
+      <nav className="flex flex-col gap-1 px-6 py-6 text-lg">
+        {navLinks.map((l) => (
+          <a
+            key={l.href}
+            href={l.href}
+            onClick={onClose}
+            className="py-3 text-brand-ink-700 hover:text-brand-blue-500"
+          >
+            {l.label}
+          </a>
+        ))}
+        <a href={LINKS.signIn} className="py-3 text-brand-ink-700">
+          {signInLabel}
+        </a>
+        <div className="py-4">
+          <LangSwitcher />
+        </div>
+        <CTAButton
+          variant="primary"
+          href={LINKS.trial}
+          trackEvent={Events.CTA_SIGNUP_CLICK}
+          trackProps={{ source: 'header_mobile' }}
+          noIcon
+        >
+          {freeTrialLabel}
+        </CTAButton>
+      </nav>
+    </div>
   );
 }
