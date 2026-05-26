@@ -10,8 +10,8 @@ import Reveal from '@/components/Reveal';
 import { useT } from '@/i18n';
 
 const toneClasses = {
-  blue:   { ring: 'ring-brand-blue-100',   text: 'text-brand-blue-500',   pill: 'bg-brand-blue-50 text-brand-blue-700' },
-  purple: { ring: 'ring-brand-purple-100', text: 'text-brand-purple-500', pill: 'bg-brand-purple-50 text-brand-purple-700' },
+  blue:   { ring: 'ring-brand-blue-500/20',   text: 'text-brand-blue-400',   wash: 'bg-brand-blue-500/[0.06]',   pill: 'bg-brand-blue-500/15 text-brand-blue-200' },
+  purple: { ring: 'ring-brand-purple-500/20', text: 'text-brand-purple-400', wash: 'bg-brand-purple-500/[0.06]', pill: 'bg-brand-purple-500/15 text-brand-purple-200' },
 } as const;
 
 // Icon + tone are visual (code-side); textual content comes from i18n.
@@ -25,15 +25,15 @@ export default function UseCases() {
   const t = useT();
   const cases = t.useCases.cards.map((c, i) => ({ ...c, ...VISUAL[i] }));
   return (
-    <section className="bg-brand-ink-50">
+    <section className="bg-surface-1">
       <div className="max-w-container mx-auto px-6 py-24 lg:py-28">
         <Reveal>
           <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 text-eyebrow font-mono text-brand-ink-500 uppercase">
-              <span className="h-px w-8 bg-brand-ink-300" />
+            <div className="inline-flex items-center gap-2 text-eyebrow font-mono text-fg-muted uppercase">
+              <span className="h-px w-8 bg-line-strong" />
               {t.useCases.eyebrow}
             </div>
-            <h2 className="mt-4 font-display text-display-2 text-brand-ink-900">
+            <h2 className="mt-4 font-display text-display-2 text-fg-primary">
               {t.useCases.title}
             </h2>
           </div>
@@ -45,20 +45,23 @@ export default function UseCases() {
             const tc = toneClasses[c.tone];
             return (
               <Reveal key={c.title} delay={i * 100}>
-                <div className={`h-full p-7 rounded-2xl bg-white border border-brand-ink-100 shadow-card hover:shadow-card-hover transition-shadow ring-1 ${tc.ring}`}>
-                  <Icon className={`w-7 h-7 mb-5 ${tc.text}`} />
-                  <h3 className="font-display text-xl font-semibold text-brand-ink-900 mb-3">
-                    {c.title}
-                  </h3>
-                  <p className="text-brand-ink-600 text-sm leading-relaxed mb-6">
-                    {c.blurb}
-                  </p>
-                  <div className={`inline-block rounded-full px-3 py-1 text-sm font-mono ${tc.pill}`}>
-                    {c.metric}
+                <div className={`relative h-full p-7 rounded-2xl bg-brand-ink-900 border border-line-subtle ring-1 ${tc.ring} transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-line-strong overflow-hidden`}>
+                  <div className={`absolute inset-0 ${tc.wash} pointer-events-none`} aria-hidden />
+                  <div className="relative">
+                    <Icon className={`w-7 h-7 mb-5 ${tc.text}`} />
+                    <h3 className="font-display text-xl font-semibold text-fg-primary mb-3">
+                      {c.title}
+                    </h3>
+                    <p className="text-fg-secondary text-sm leading-relaxed mb-6">
+                      {c.blurb}
+                    </p>
+                    <div className={`inline-block rounded-full px-3 py-1 text-sm font-mono ${tc.pill}`}>
+                      {c.metric}
+                    </div>
+                    <p className="mt-2 text-xs text-fg-muted font-mono">
+                      {c.sub}
+                    </p>
                   </div>
-                  <p className="mt-2 text-xs text-brand-ink-500 font-mono">
-                    {c.sub}
-                  </p>
                 </div>
               </Reveal>
             );
