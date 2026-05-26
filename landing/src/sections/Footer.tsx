@@ -3,20 +3,18 @@
  *
  * No `href="#"` placeholders. Each column groups by intent:
  *   Product   → docs, pricing, changelog, in-page anchors
- *   Company   → about (TODO route), contact, sales TG
- *   Legal     → privacy, tos
- *   Social    → github, x
+ *   Company   → contact, legal
+ *   Social    → two Telegram channels (sales + support)
  */
 import { Link } from 'react-router-dom';
-import { Github, Twitter, Send } from 'lucide-react';
+import { Send } from 'lucide-react';
 import BrandMark from '@/components/BrandMark';
 import { LINKS } from '@/lib/links';
 import { useT } from '@/i18n';
 
 const social = [
-  { icon: Send,    href: LINKS.telegramSales, label: 'Telegram' },
-  { icon: Twitter, href: LINKS.twitter,       label: 'X (Twitter)' },
-  { icon: Github,  href: LINKS.github,        label: 'GitHub' },
+  { icon: Send, href: LINKS.telegramSales,   label: 'Telegram — Sales' },
+  { icon: Send, href: LINKS.telegramSupport, label: 'Telegram — Support' },
 ];
 
 export default function Footer() {
@@ -36,10 +34,10 @@ export default function Footer() {
     {
       title: t.footer.columns.company,
       links: [
-        { label: t.footer.links.talkToSales, href: LINKS.telegramSales, external: true },
-        { label: 'sales@tg1.ai',             href: LINKS.salesEmail,    external: true },
-        { label: t.footer.links.privacy,     href: LINKS.privacy,       external: false },
-        { label: t.footer.links.terms,       href: LINKS.tos,           external: false },
+        { label: t.footer.links.talkToSales, href: LINKS.telegramSales,   external: true },
+        { label: '@klsmsz',                  href: LINKS.telegramSupport, external: true },
+        { label: t.footer.links.privacy,     href: LINKS.privacy,         external: false },
+        { label: t.footer.links.terms,       href: LINKS.tos,             external: false },
       ],
     },
   ];

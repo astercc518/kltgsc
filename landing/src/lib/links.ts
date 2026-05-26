@@ -13,9 +13,9 @@ export const LINKS = {
   signUp:        '/portal/register?ref=landing&trial=20',
   trial:         '/portal/register?ref=landing&trial=20',
 
-  // Sales outreach
-  telegramSales: 'https://t.me/tg1ai_sales',
-  salesEmail:    'mailto:sales@tg1.ai',
+  // Sales outreach — Telegram only
+  telegramSales:   'https://t.me/tg3ai',
+  telegramSupport: 'https://t.me/klsmsz',
 
   // Product subroutes (same-origin)
   docs:          '/docs',
@@ -26,9 +26,5 @@ export const LINKS = {
   changelog:     '/changelog',
   privacy:       '/legal/privacy',
   tos:           '/legal/tos',
-
-  // Social / company
-  github:        'https://github.com/astercc518/kltgsc',
-  twitter:       'https://x.com/tg1ai',
 
 } as const;

@@ -68,8 +68,8 @@ export default function DocsLayout({ children, slug }: { children: ReactNode; sl
               </nav>
               <div className="mt-8 rounded-xl border border-brand-ink-100 bg-brand-ink-50 p-4 text-xs text-brand-ink-500">
                 Found an error?{' '}
-                <a href="https://github.com/astercc518/kltgsc/issues" target="_blank" rel="noopener" className="text-brand-blue-600 underline underline-offset-2">
-                  Open an issue
+                <a href="https://t.me/tg3ai" target="_blank" rel="noopener" className="text-brand-blue-600 underline underline-offset-2">
+                  Tell us on Telegram
                 </a>
                 .
               </div>

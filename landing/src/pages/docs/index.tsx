@@ -58,8 +58,8 @@ export default function DocsIndex() {
       <h3>Looking for something else?</h3>
       <ul>
         <li><Link to="/changelog">Changelog</Link> — what shipped each month</li>
-        <li><a href="https://t.me/tg1ai_sales" target="_blank" rel="noopener">Talk to sales</a> — for everything you can't find here</li>
-        <li><a href="https://github.com/astercc518/kltgsc" target="_blank" rel="noopener">GitHub</a> — open an issue</li>
+        <li><a href="https://t.me/tg3ai" target="_blank" rel="noopener">Talk to sales</a> — for everything you can't find here</li>
+        <li><a href="https://t.me/klsmsz" target="_blank" rel="noopener">Support</a> — for help with your account</li>
       </ul>
     </DocsLayout>
   );
