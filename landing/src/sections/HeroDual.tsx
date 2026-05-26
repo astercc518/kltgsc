@@ -12,6 +12,7 @@
 import { motion } from 'framer-motion';
 import { useCallback, useState } from 'react';
 import { ArrowRight, Sparkles, Package, Bot, Shield } from 'lucide-react';
+import AuroraBlob from '@/components/AuroraBlob';
 import CTAButton from '@/components/CTAButton';
 import DemoVideoModal from '@/components/DemoVideoModal';
 import { LINKS } from '@/lib/links';
@@ -36,6 +37,28 @@ export default function HeroDual() {
       {/* Subtle gradient backdrop. The .bg-noise utility (defined in
           tailwind.config.js) adds a 3% white-noise overlay so the
           gradient doesn't band on cheap monitors. */}
+      {/* Aurora atmospheric layer — sits behind the radial gradient */}
+      <AuroraBlob
+        color="blue"
+        size={600}
+        blur={200}
+        opacity={0.35}
+        drift
+        top="-10%"
+        right="-10%"
+        className="-z-10"
+      />
+      <AuroraBlob
+        color="purple"
+        size={700}
+        blur={240}
+        opacity={0.30}
+        drift
+        driftAlt
+        bottom="-15%"
+        left="-15%"
+        className="-z-10"
+      />
       <div className="absolute inset-0 -z-10 bg-grad-radial-dark" />
       <div className="absolute inset-0 -z-10 bg-noise opacity-60" />
 
