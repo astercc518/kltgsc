@@ -96,7 +96,11 @@ export type Dict = {
       unit:    string;
       price:   string;
     };
-    tableAdminNote: string;     // "Admin can override any line per-customer for volume deals. See billing docs."
+    tableAdminNote: {
+      before: string;            // "Admin can override any line per-customer for volume deals. See "
+      linkLabel: string;         // "billing docs"
+      after: string;             // "."
+    };
   };
   finalCta: {
     titlePart1: string;        // "Stop firefighting bans."
@@ -406,7 +410,11 @@ const en: Dict = {
       unit:    'Billed as',
       price:   'Default',
     },
-    tableAdminNote: 'Admin can override any line per-customer for volume deals. See billing docs.',
+    tableAdminNote: {
+      before: 'Admin can override any line per-customer for volume deals. See ',
+      linkLabel: 'billing docs',
+      after: '.',
+    },
   },
   finalCta: {
     titlePart1: 'Stop firefighting bans.',
@@ -786,7 +794,11 @@ const zhCN: Dict = {
       unit:    '计费方式',
       price:   '默认单价',
     },
-    tableAdminNote: '大客户可向 admin 申请单价覆盖，详见 billing 文档。',
+    tableAdminNote: {
+      before: '大客户可向 admin 申请单价覆盖，详见',
+      linkLabel: 'billing 文档',
+      after: '。',
+    },
   },
   finalCta: {
     titlePart1: '停止跟封号救火。',
@@ -1151,7 +1163,11 @@ const ja: Dict = {
       unit:    '課金単位',
       price:   'デフォルト',
     },
-    tableAdminNote: '大口取引は管理者が顧客ごとに単価を上書きできます。billing ドキュメントを参照。',
+    tableAdminNote: {
+      before: '大口取引は管理者が顧客ごとに単価を上書きできます。',
+      linkLabel: 'billing ドキュメント',
+      after: 'を参照。',
+    },
   },
   finalCta: {
     titlePart1: 'BAN との戦いをやめよう。',
@@ -1458,7 +1474,11 @@ const ko: Dict = {
       unit:    '청구 단위',
       price:   '기본',
     },
-    tableAdminNote: '대량 거래는 관리자가 고객별로 단가를 재정의할 수 있습니다. billing 문서 참조.',
+    tableAdminNote: {
+      before: '대량 거래는 관리자가 고객별로 단가를 재정의할 수 있습니다. ',
+      linkLabel: 'billing 문서',
+      after: ' 참조.',
+    },
   },
   finalCta: {
     titlePart1: '계정 차단과의 싸움을 멈추세요.',
@@ -1765,7 +1785,11 @@ const es: Dict = {
       unit:    'Unidad',
       price:   'Por defecto',
     },
-    tableAdminNote: 'Para grandes volúmenes, el admin puede sobrescribir cualquier línea por cliente. Ver docs de billing.',
+    tableAdminNote: {
+      before: 'Para grandes volúmenes, el admin puede sobrescribir cualquier línea por cliente. Ver ',
+      linkLabel: 'docs de billing',
+      after: '.',
+    },
   },
   finalCta: {
     titlePart1: 'Deja de apagar incendios de bans.',

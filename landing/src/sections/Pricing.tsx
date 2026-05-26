@@ -136,9 +136,10 @@ export default function Pricing() {
                     ))}
                   </tbody>
                 </table>
-                <div className="px-6 py-3 bg-brand-ink-50 text-xs text-brand-ink-500">
-                  {t.pricing.tableAdminNote.replace('billing docs', '')}
-                  <a href={LINKS.docsBilling} className="text-brand-blue-500 underline underline-offset-2">billing docs</a>.
+                <div data-testid="pricing-table-admin-note" className="px-6 py-3 bg-brand-ink-50 text-xs text-brand-ink-500">
+                  {t.pricing.tableAdminNote.before}
+                  <a href={LINKS.docsBilling} className="text-brand-blue-500 underline underline-offset-2">{t.pricing.tableAdminNote.linkLabel}</a>
+                  {t.pricing.tableAdminNote.after}
                 </div>
               </div>
             )}
