@@ -161,18 +161,22 @@ async def main():
         wallet_after = wallet.balance_cents if wallet else 0
         print(f"[wallet] {wallet_before} -> {wallet_after} cents (delta {wallet_after-wallet_before})")
 
-    is_new = new_count >= 1
+    is_new = new_count == 1
     # On first run: new lead + single charge -> PASS
     # On re-run (dedup): no new lead, idempotent single charge, wallet unchanged -> PASS
     # Failure: first run produces no new lead at all
     if leads_after:
-        lead = leads_after[0]
-        dedup_ok = (not is_new) and (len(txs) == 1) and (wallet_after == wallet_before)
+        dedup_ok = (new_count == 0) and (len(txs) == 1) and (wallet_after == wallet_before)
         new_ok = is_new and (len(txs) == 1)
         passed = new_ok or dedup_ok
     else:
         passed = False
-    print("\n[PASS]" if passed else "\n[CHECK MANUALLY]")
+
+    if passed:
+        print("\n[PASS]")
+    else:
+        print("\n[FAIL]")
+        sys.exit(1)
 
 
 asyncio.run(main())
