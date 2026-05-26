@@ -45,9 +45,23 @@
   --tg1-section-pad-y: clamp(4rem, 8vw, 7rem);
 
   /* ── Motion ───────────────────────────────────────────────────── */
-  --tg1-ease-out:  cubic-bezier(0.22, 1, 0.36, 1);
-  --tg1-ease-in:   cubic-bezier(0.55, 0, 1, 0.45);
-  --tg1-ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+  --tg1-ease-out:   cubic-bezier(0.22, 1, 0.36, 1);
+  --tg1-ease-in:    cubic-bezier(0.55, 0, 1, 0.45);
+  --tg1-ease-soft:  cubic-bezier(0.4, 0, 0.2, 1);
+  /* Sharper "snap" curve — used for fadeUp / scroll-reveal in polished sections */
+  --tg1-ease-snap:  cubic-bezier(0.16, 1, 0.3, 1);
+  /* Linear stagger step used by hero / section reveals */
+  --tg1-stagger:    70ms;
+
+  /* ── Surface (dark theme layers) ─────────────────────────────── */
+  --tg1-surface-1: #0A0F1E;
+  --tg1-surface-2: #0E1426;
+  --tg1-surface-3: #131A30;
+
+  /* ── Hairlines & terminus ─────────────────────────────────────── */
+  --tg1-line-subtle: rgba(255, 255, 255, 0.06);
+  --tg1-line-medium: rgba(255, 255, 255, 0.10);
+  --tg1-line-strong: rgba(255, 255, 255, 0.16);
 }
 
 @media (prefers-color-scheme: dark) {

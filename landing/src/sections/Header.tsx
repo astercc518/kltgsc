@@ -40,9 +40,10 @@ export default function Header() {
   return (
     <header
       className={[
-        'sticky top-0 z-40 transition-all duration-200',
+        'sticky top-0 z-40 transition-all duration-300 ease-out',
         scrolled
-          ? 'bg-white/80 backdrop-blur-xl border-b border-brand-ink-100'
+          // Scrolled: refined frosted glass — saturate boost so brand colors stay punchy under blur
+          ? 'bg-white/75 [backdrop-filter:saturate(180%)_blur(20px)] border-b border-brand-ink-100/80'
           : 'bg-transparent border-b border-transparent',
       ].join(' ')}
     >
