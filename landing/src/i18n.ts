@@ -50,7 +50,6 @@ export type Dict = {
     freeTrial: string;
   };
   hero: {
-    liveBadge: string;         // "1,247 AI monitor rules running right now"
     titlePart1: string;        // "Two ways to grow"
     titlePart2: string;        // "on Telegram"
     subtitle: string;
@@ -259,7 +258,6 @@ const en: Dict = {
     freeTrial: 'Free $20 Trial',
   },
   hero: {
-    liveBadge: '1,247 AI monitor rules running right now',
     titlePart1: 'Two ways to grow',
     titlePart2: 'on Telegram',
     subtitle:
@@ -643,7 +641,6 @@ const zhCN: Dict = {
     freeTrial: '免费试用 $20',
   },
   hero: {
-    liveBadge: '此刻有 1,247 条 AI 监听规则正在运行',
     titlePart1: 'Telegram 营销的两种',
     titlePart2: '打开方式',
     subtitle:
@@ -1027,7 +1024,6 @@ const ja: Dict = {
     freeTrial: '$20 無料トライアル',
   },
   hero: {
-    liveBadge: '現在 1,247 件の AI モニターが稼働中',
     titlePart1: 'Telegram で成長する',
     titlePart2: '2 つの方法',
     subtitle:
@@ -1338,7 +1334,6 @@ const ko: Dict = {
     freeTrial: '$20 무료 체험',
   },
   hero: {
-    liveBadge: '지금 1,247개의 AI 모니터가 가동 중',
     titlePart1: '텔레그램에서 성장하는',
     titlePart2: '두 가지 방법',
     subtitle:
@@ -1649,7 +1644,6 @@ const es: Dict = {
     freeTrial: 'Prueba $20',
   },
   hero: {
-    liveBadge: '1,247 reglas de monitor IA activas ahora mismo',
     titlePart1: 'Dos formas de crecer',
     titlePart2: 'en Telegram',
     subtitle:
