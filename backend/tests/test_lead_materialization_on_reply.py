@@ -232,6 +232,39 @@ async def test_account_without_customer_skipped(session):
 
 
 @pytest.mark.asyncio
+async def test_monitor_without_customer_skipped(session):
+    """Sales-owned / global monitors (customer_id=None) must not create
+    customer-scoped Leads via this helper."""
+    _make_feature_registry(session)
+    cust = _make_customer(session)
+    acc = _make_account(session, customer_id=cust.id)
+    # Monitor with customer_id=None — represents a sales-owned or global rule
+    monitor = KeywordMonitor(
+        keyword="BTC", match_type="partial",
+        target_groups="-100123",
+        marketing_mode="active", action_type="trigger_ai",
+        reply_mode="group_reply",
+        is_active=True,
+        customer_id=None,   # <- the skip condition under test
+        industry="crypto",
+        score_weight=10, max_replies_per_day=10,
+    )
+    session.add(monitor); session.commit(); session.refresh(monitor)
+
+    listener = ListenerService()
+    listener.client_accounts["c1"] = acc
+
+    await listener._upsert_lead_for_customer_reply(
+        session=session, client=SimpleNamespace(name="c1"),
+        monitor=monitor, message=_fake_message(),
+        reply_text="nope",
+    )
+
+    leads = list(session.exec(select(Lead)).all())
+    assert len(leads) == 0
+
+
+@pytest.mark.asyncio
 async def test_dedup_with_existing_f4_lead(session):
     _make_feature_registry(session)
     cust = _make_customer(session, is_internal_pool=True)

@@ -610,6 +610,8 @@ class ListenerService:
             lead.last_interaction_at = datetime.utcnow()
             if not lead.industry and industry:
                 lead.industry = industry
+            if lead.source != "monitor":
+                lead.source = "monitor"
             session.add(lead)
             session.commit()
 
@@ -630,7 +632,7 @@ class ListenerService:
             try:
                 fb.charge(
                     session,
-                    customer_id=cust.id,
+                    customer_id=monitor.customer_id,
                     slug="ai_marketing_lead_created",
                     units=1,
                     idempotency_key=f"feat:ai_marketing_lead_created:{lead.id}",
