@@ -140,6 +140,7 @@ for _mod_name in (
     "pyrogram.types",
     "pyrogram.client",
     "pyrogram.enums",
+    "pyrogram.handlers",
     "telethon",
     "telethon.sessions",
     "telethon.tl",

@@ -530,6 +530,118 @@ class ListenerService:
                     monitor.id, lead.id, e,
                 )
 
+    async def _upsert_lead_for_customer_reply(
+        self, session: Session, client, monitor: KeywordMonitor,
+        message, reply_text: str,
+    ):
+        """Materialize a Lead after _execute_active_marketing sent an in-group reply.
+
+        Sibling of _upsert_internal_pool_lead. Difference: fires on reply
+        (active mode) rather than on hit (passive F4). Dedup by
+        (account_id, telegram_user_id). Idempotent on repeat hits.
+
+        Skip rules:
+          - account has no customer_id (= platform-internal account)
+          - monitor.customer_id IS NULL (= sales-owned or global rule)
+        Does NOT skip on customer.is_internal_pool: F4 only runs in passive
+        mode, so internal-pool customers with active monitors still need
+        a Lead here. Race with F4 is handled by the dedup lookup.
+        """
+        from app.models.lead import Lead, LeadInteraction
+        from app.models.customer import Customer
+        from app.services import feature_billing as fb
+
+        client_name = getattr(client, "name", None) or ""
+        acc = self.client_accounts.get(client_name)
+        if not acc or not acc.customer_id:
+            return
+        if monitor.customer_id is None:
+            return
+
+        sender_tg_user_id = message.from_user.id if message.from_user else 0
+        if not sender_tg_user_id:
+            return
+
+        cust = session.get(Customer, acc.customer_id)
+        if not cust:
+            return
+
+        lead = session.exec(
+            select(Lead).where(
+                Lead.account_id == acc.id,
+                Lead.telegram_user_id == sender_tg_user_id,
+            )
+        ).first()
+
+        industry = monitor.industry or cust.industry
+        chat_title = getattr(message.chat, "title", None) or ""
+        snippet = (message.text or message.caption or "")[:200]
+        sender_username = message.from_user.username if message.from_user else ""
+        sender_first_name = message.from_user.first_name if message.from_user else ""
+
+        is_new_lead = lead is None
+        if not lead:
+            import json as _json
+            preassign_uid = None
+            preassign_at = None
+            if (acc.assigned_to_sales_user_id
+                    and acc.assigned_to_sales_kind in ("platform", "customer")):
+                preassign_uid = acc.assigned_to_sales_user_id
+                preassign_at = datetime.utcnow()
+            lead = Lead(
+                account_id=acc.id,
+                telegram_user_id=sender_tg_user_id,
+                username=sender_username,
+                first_name=sender_first_name,
+                status="new",
+                source="monitor",
+                tags_json=_json.dumps([f"monitor:{monitor.keyword}"]),
+                customer_id=cust.id,
+                industry=industry,
+                notes=f"From {chat_title!r}: {snippet}" if snippet else None,
+                last_interaction_at=datetime.utcnow(),
+                assigned_to_user_id=preassign_uid,
+                claimed_at=preassign_at,
+            )
+            session.add(lead)
+            session.commit()
+            session.refresh(lead)
+        else:
+            lead.last_interaction_at = datetime.utcnow()
+            if not lead.industry and industry:
+                lead.industry = industry
+            session.add(lead)
+            session.commit()
+
+        # Two-direction interaction history (always logged per touch)
+        session.add(LeadInteraction(
+            lead_id=lead.id, direction="inbound",
+            message_type="text", content=message.text or "",
+        ))
+        session.add(LeadInteraction(
+            lead_id=lead.id, direction="outbound",
+            message_type="text", content=reply_text or "",
+        ))
+        session.commit()
+
+        # Charge $0.50 on truly-new rows only. Idempotency key includes
+        # lead.id so retries can't double-charge.
+        if is_new_lead:
+            try:
+                fb.charge(
+                    session,
+                    customer_id=cust.id,
+                    slug="ai_marketing_lead_created",
+                    units=1,
+                    idempotency_key=f"feat:ai_marketing_lead_created:{lead.id}",
+                    description=f"AI auto-lead from monitor #{monitor.id}",
+                )
+            except Exception as e:  # noqa: BLE001
+                logger.warning(
+                    "ai_marketing_lead_created charge failed for monitor %s lead %s: %s",
+                    monitor.id, lead.id, e,
+                )
+
     async def _execute_active_marketing(
         self, client: Client, message, session: Session,
         monitor: KeywordMonitor, hit: KeywordHit
