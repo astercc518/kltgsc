@@ -57,8 +57,9 @@ describe('Pricing tableAdminNote', () => {
       });
 
       // The unit-price table is collapsed by default — expand it.
-      // The toggle button uses aria-expanded; find the one that is collapsed.
-      const toggleBtn = screen.getByRole('button', { expanded: false });
+      // Use data-testid for a stable selector that won't break if more
+      // buttons are added to PriceCards in the future.
+      const toggleBtn = screen.getByTestId('pricing-table-toggle');
       fireEvent.click(toggleBtn);
 
       // The admin note container must exist.

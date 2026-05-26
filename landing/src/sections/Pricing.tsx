@@ -98,6 +98,7 @@ export default function Pricing() {
           <div className="mt-14 max-w-3xl mx-auto rounded-2xl border border-brand-ink-200 bg-white overflow-hidden">
             <button
               type="button"
+              data-testid="pricing-table-toggle"
               className="w-full flex items-center justify-between gap-3 px-6 py-4 text-left transition-colors hover:bg-brand-ink-50"
               onClick={() => setTableOpen((v) => !v)}
               aria-expanded={tableOpen}

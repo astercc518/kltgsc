@@ -795,7 +795,7 @@ const zhCN: Dict = {
       price:   '默认单价',
     },
     tableAdminNote: {
-      before: '大客户可向 admin 申请单价覆盖，详见',
+      before: '大客户可向 admin 申请单价覆盖，详见 ',
       linkLabel: 'billing 文档',
       after: '。',
     },
