@@ -727,10 +727,13 @@ class ListenerService:
                 # customers' CRM gets the user contact (with interaction
                 # history + $0.50 charge). Fail-soft: never block the reply
                 # that already shipped.
+                # Use `client` (listening account), NOT `reply_client`. Account
+                # rotation may pick a reply_client from a different tenant; the
+                # Lead must attribute to the listening account's customer.
                 try:
                     await self._upsert_lead_for_customer_reply(
                         session=session,
-                        client=reply_client,
+                        client=client,
                         monitor=monitor,
                         message=message,
                         reply_text=reply_text,

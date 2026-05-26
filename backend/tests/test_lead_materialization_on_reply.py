@@ -311,3 +311,42 @@ async def test_dedup_with_existing_f4_lead(session):
                == f"feat:ai_marketing_lead_created:{original_id}")
     ).all())
     assert len(txs) == 0
+
+
+@pytest.mark.asyncio
+async def test_lead_attributes_to_listening_account_customer(session):
+    """When the helper is invoked, the Lead must attribute to the customer
+    of the account passed in (the listening account), not to any potential
+    rotated reply account.
+
+    Regression: an earlier version of the wire-in passed reply_client to
+    the helper; with enable_account_rotation=True that could silently
+    drop the Lead or attribute it to the wrong customer.
+    """
+    _make_feature_registry(session)
+    listening_cust = _make_customer(session)
+    rotated_cust = _make_customer(session)  # different customer
+    listening_acc = _make_account(session, customer_id=listening_cust.id)
+    rotated_acc = _make_account(session, customer_id=rotated_cust.id)
+    monitor = _make_monitor(session, customer_id=listening_cust.id)
+
+    listener = ListenerService()
+    listener.client_accounts["listening"] = listening_acc
+    listener.client_accounts["rotated"] = rotated_acc
+
+    # Invoke helper with the listening client (what the wire-in now does)
+    await listener._upsert_lead_for_customer_reply(
+        session=session,
+        client=SimpleNamespace(name="listening"),
+        monitor=monitor,
+        message=_fake_message(),
+        reply_text="ok",
+    )
+
+    leads_listening = list(session.exec(
+        select(Lead).where(Lead.customer_id == listening_cust.id)).all())
+    leads_rotated = list(session.exec(
+        select(Lead).where(Lead.customer_id == rotated_cust.id)).all())
+    assert len(leads_listening) == 1
+    assert len(leads_rotated) == 0
+    assert leads_listening[0].account_id == listening_acc.id
