@@ -723,6 +723,24 @@ class ListenerService:
                         monitor.id, hit.id, e,
                     )
 
+                # Materialize a Lead row from the in-group reply so paying
+                # customers' CRM gets the user contact (with interaction
+                # history + $0.50 charge). Fail-soft: never block the reply
+                # that already shipped.
+                try:
+                    await self._upsert_lead_for_customer_reply(
+                        session=session,
+                        client=reply_client,
+                        monitor=monitor,
+                        message=message,
+                        reply_text=reply_text,
+                    )
+                except Exception as e:  # noqa: BLE001
+                    logger.warning(
+                        "lead materialization failed for monitor %s hit %s: %s",
+                        monitor.id, hit.id, e,
+                    )
+
         except Exception as e:
             logger.error(f"Failed to send active marketing reply: {e}")
             hit.status = "failed"
