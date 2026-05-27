@@ -42,33 +42,46 @@ export default function PriceCard({
 }: Props) {
   const dollars = pricePerMonthUsd.toFixed(0);
 
+  // Featured tier gets a real glow stack (no "border-2 + shadow" which fights
+  // browser kerning); non-featured uses a hairline + card shadow that lifts
+  // a hair on hover.
   const wrapperClasses = featured
-    ? 'relative bg-white border-2 border-brand-purple-500 shadow-glow-purple'
-    : 'relative bg-white border border-brand-ink-200 shadow-card hover:shadow-card-hover transition-shadow';
+    ? 'relative bg-white shadow-glow-purple'
+    : 'relative bg-white border border-brand-ink-200 shadow-card hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-300';
 
   return (
-    <div className={['rounded-3xl p-7 flex flex-col', wrapperClasses, className || ''].join(' ')}>
+    <div className={['rounded-3xl p-7 lg:p-8 flex flex-col', wrapperClasses, className || ''].join(' ')}>
       {featured && (
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 rounded-full bg-brand-purple-500 px-3 py-1 text-xs font-medium text-white">
+        <span className="absolute -top-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 rounded-full bg-gradient-to-b from-brand-purple-400 to-brand-purple-600 px-3 py-1 text-[0.7rem] font-medium uppercase tracking-[0.12em] text-white shadow-[0_4px_12px_rgba(168,85,247,0.35)]">
           {badge ?? 'Most Popular'}
-        </div>
+        </span>
       )}
 
-      <div className="text-eyebrow text-brand-ink-500 font-mono uppercase">
-        {tier}
-      </div>
-      <h3 className="font-display text-2xl font-semibold text-brand-ink-900 mt-1 mb-4">
+      <h3 className="font-display text-2xl font-semibold text-brand-ink-900 mb-5 tracking-tight">
         {name}
       </h3>
 
-      <div className="flex items-baseline gap-1 mb-6">
-        <span className="font-mono text-5xl font-bold text-brand-ink-900">${dollars}</span>
-        <span className="text-brand-ink-500 text-sm">{priceSuffix ?? '/ month · USDT'}</span>
+      <div className="flex items-end gap-2 mb-6">
+        <span
+          className="font-display text-[3.25rem] leading-[0.95] font-bold text-brand-ink-900 tracking-tight"
+          style={{ fontVariantNumeric: 'tabular-nums' }}
+        >
+          ${dollars}
+        </span>
+        <span className="text-brand-ink-500 text-xs font-mono pb-1.5 whitespace-nowrap">
+          {priceSuffix ?? '/ mo · USDT'}
+        </span>
       </div>
 
       <ul className="space-y-2 mb-6 text-sm text-brand-ink-700">
         {quotaLines.map((q, i) => (
-          <li key={i} className="font-mono text-[0.85rem]">{q}</li>
+          <li
+            key={i}
+            className="font-mono text-[0.82rem] text-brand-ink-600"
+            style={{ fontVariantNumeric: 'tabular-nums slashed-zero' }}
+          >
+            {q}
+          </li>
         ))}
       </ul>
 
@@ -87,10 +100,10 @@ export default function PriceCard({
         href={ctaHref}
         onClick={() => track(Events.CTA_SIGNUP_CLICK, { tier })}
         className={[
-          'block w-full text-center rounded-full px-5 py-3 font-medium transition-all',
+          'block w-full text-center rounded-full px-5 py-3 font-medium transition-all duration-200 ease-out',
           featured
-            ? 'bg-brand-purple-500 text-white hover:bg-brand-purple-600'
-            : 'bg-brand-ink-900 text-white hover:bg-brand-ink-700',
+            ? 'bg-gradient-to-b from-brand-purple-400 to-brand-purple-600 text-white hover:from-brand-purple-300 hover:to-brand-purple-500 hover:-translate-y-px shadow-[0_4px_16px_rgba(168,85,247,0.30)]'
+            : 'bg-brand-ink-900 text-white hover:bg-brand-ink-700 hover:-translate-y-px',
         ].join(' ')}
       >
         {ctaLabel}
