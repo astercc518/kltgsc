@@ -10,8 +10,17 @@
 /* Font CDN @import is hoisted to index.css so the cascade obeys the
    "all @import statements first" rule. */
 
-html, body, #root {
+/* Use min-height: 100% so #root grows with content but still fills the
+   viewport on short pages. Setting `height: 100%` here broke sticky
+   positioning: it made #root only viewport-tall, so any descendant
+   `position: sticky` lost its containing block as soon as the user
+   scrolled out of #root (= immediately, since #root was viewport-bound).
+   The Header relies on sticky-top-0 to remain visible on scroll. */
+html, body {
   height: 100%;
+}
+#root {
+  min-height: 100%;
 }
 
 html {
