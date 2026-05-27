@@ -55,7 +55,7 @@ export default function HeroDual() {
           initial="hidden" animate="visible" variants={fadeUp} custom={STEP * 0}
           className="flex justify-center"
         >
-          <SectionLabel number="00" tone="dark">{t.hero.selfServe.tag} · {t.hero.aiAssistant.tag}</SectionLabel>
+          <SectionLabel number="00" tone="dark">TG1.AI <span className="text-white/30">/</span> Marketing OS</SectionLabel>
         </motion.div>
 
         {/* Headline — pure white, single-word gradient accent */}

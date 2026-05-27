@@ -37,7 +37,7 @@ export default function FinalCTA() {
           transition={{ duration: 0.7, ease: SNAP }}
           className="flex justify-center mb-7"
         >
-          <SectionLabel number="09" tone="dark">{t.hero.selfServe.tag} · {t.hero.aiAssistant.tag}</SectionLabel>
+          <SectionLabel number="09" tone="dark">Start <span className="text-white/30">/</span> 5 minutes to live</SectionLabel>
         </motion.div>
         <motion.h2
           initial={{ opacity: 0, y: 20 }}

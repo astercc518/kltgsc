@@ -43,17 +43,19 @@ export default function SectionLabel({
   return (
     <div
       className={[
-        'inline-flex items-center gap-3 font-mono uppercase',
+        // flex-wrap lets the text span drop to its own line on narrow
+        // viewports without leaving the rule orphaned on line 1.
+        'inline-flex items-center gap-x-3 gap-y-1.5 flex-wrap font-mono uppercase',
         'text-[0.6875rem] leading-none tracking-[0.16em]',
         className || '',
       ].join(' ')}
       style={{ fontVariantNumeric: 'tabular-nums slashed-zero' }}
     >
-      {rule && <span className={`h-px w-8 ${ruleColor}`} aria-hidden />}
+      {rule && <span className={`h-px w-8 shrink-0 ${ruleColor}`} aria-hidden />}
       {number && (
         <>
-          <span className={`${numberColor} font-medium`}>{number}</span>
-          <span className={`h-1 w-1 rounded-full ${dotColor}`} aria-hidden />
+          <span className={`shrink-0 ${numberColor} font-medium`}>{number}</span>
+          <span className={`h-1 w-1 rounded-full shrink-0 ${dotColor}`} aria-hidden />
         </>
       )}
       <span className={labelColor}>{children}</span>
