@@ -43,11 +43,25 @@ export default function Header() {
     { label: t.nav.docs,        href: LINKS.docs,      trackedId: null },
   ];
 
+  /** Track whether the user has scrolled past ~24px. Uses an
+      IntersectionObserver against a fixed sentinel at y=24 instead of
+      a scroll listener that fires every frame — observer fires only
+      when the threshold is actually crossed (typically twice per
+      session). */
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 24);
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    const sentinel = document.createElement('div');
+    sentinel.setAttribute('aria-hidden', 'true');
+    sentinel.style.cssText = 'position:absolute;top:24px;left:0;width:1px;height:1px;pointer-events:none;';
+    document.body.appendChild(sentinel);
+    const observer = new IntersectionObserver(
+      ([entry]) => setScrolled(!entry.isIntersecting),
+      { rootMargin: '0px' },
+    );
+    observer.observe(sentinel);
+    return () => {
+      observer.disconnect();
+      sentinel.remove();
+    };
   }, []);
 
   /** Track which tracked section is currently in view. Active = nearest

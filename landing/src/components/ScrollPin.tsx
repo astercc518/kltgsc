@@ -51,7 +51,9 @@ export default function ScrollPin({ steps, className, outerHeightVh, children }:
   );
 }
 
-/* Internal: subscribe to MotionValues so children re-render on change. */
+/* Internal: subscribe to MotionValues so children re-render on change.
+   Both step + progress merged into one state to avoid two React updates
+   per scroll frame. */
 import { useMotionValueEvent, type MotionValue } from 'framer-motion';
 import { useState } from 'react';
 function Frame({ step, progress, children }: {
@@ -59,13 +61,16 @@ function Frame({ step, progress, children }: {
   progress: MotionValue<number>;
   children: Render;
 }) {
-  const [s, setS] = useState(0);
-  const [p, setP] = useState(0);
-  useMotionValueEvent(step, 'change', (v) => setS(v as number));
-  useMotionValueEvent(progress, 'change', (v) => setP(v as number));
+  const [state, setState] = useState({ step: 0, progress: 0 });
+  useMotionValueEvent(step, 'change', (v) => {
+    setState((prev) => prev.step === v ? prev : { ...prev, step: v as number });
+  });
+  useMotionValueEvent(progress, 'change', (v) => {
+    setState((prev) => prev.progress === v ? prev : { ...prev, progress: v as number });
+  });
   return (
     <motion.div className="w-full">
-      {children({ step: s, progress: p })}
+      {children(state)}
     </motion.div>
   );
 }

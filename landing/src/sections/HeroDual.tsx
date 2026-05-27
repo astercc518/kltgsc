@@ -86,10 +86,10 @@ export default function HeroDual() {
 
         <motion.p
           initial="hidden" animate="visible" variants={fadeUp} custom={STEP * 3}
-          className="mt-6 text-center text-lg md:text-xl text-fg-secondary max-w-3xl mx-auto leading-relaxed text-balance"
+          className="mt-6 text-center text-base md:text-lg lg:text-xl text-fg-secondary max-w-3xl mx-auto leading-relaxed text-balance"
         >
           {t.hero.subtitle}
-          <span className="block mt-1.5 text-fg-muted text-[0.95rem]">{t.hero.subtitleQuiet}</span>
+          <span className="block mt-2 text-fg-muted text-[0.95rem]">{t.hero.subtitleQuiet}</span>
         </motion.p>
 
         {/* Three-tier CTA ladder */}
