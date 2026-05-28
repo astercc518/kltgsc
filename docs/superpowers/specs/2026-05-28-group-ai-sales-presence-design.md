@@ -275,10 +275,10 @@ CREATE INDEX idx_case_studies_emb ON case_studies USING hnsw (embedding vector_c
 CREATE INDEX idx_case_studies_customer ON case_studies(customer_id) WHERE active = true;
 ```
 
-#### `account_personas` —— 账号人设
+#### `worker_personas` —— 账号人设
 
 ```sql
-CREATE TABLE account_personas (
+CREATE TABLE worker_personas (
   id BIGSERIAL PRIMARY KEY,
   account_id INT NOT NULL UNIQUE REFERENCES accounts(id),
   customer_id INT NOT NULL REFERENCES customers(id),
@@ -406,7 +406,7 @@ CREATE TABLE ab_experiments (
 
 ### 5.3 配额检查
 
-所有日额从 `account_personas` 取值，按账号本地时间（active_hours 暗示账号所在时区，可后续支持显式时区字段）的"今日"计算：
+所有日额从 `worker_personas` 取值，按账号本地时间（active_hours 暗示账号所在时区，可后续支持显式时区字段）的"今日"计算：
 
 - `daily_reply_quota`：扫 `pending_replies` where responder_account_id=X AND status='sent' AND sent_at >= today
 - `per_chat_daily_quota`：同上 + AND chat_id=Y
@@ -487,7 +487,7 @@ Step E: 2 次仍失败 → status=suggested
 
 ### 6.3 兜底 Persona
 
-当 worker 账号尚未配置 `account_personas` 时使用以下保守默认（**注意：默认值与 §4.2 表 DDL 不同，是为了"未配置即降级"**）：
+当 worker 账号尚未配置 `worker_personas` 时使用以下保守默认（**注意：默认值与 §4.2 表 DDL 不同，是为了"未配置即降级"**）：
 
 ```python
 DEFAULT_PERSONA = {
@@ -700,7 +700,7 @@ def chitchat_scheduler_tick():
 - **里程碑**：回复质量从"能发"到"像销售"
 
 ### Phase 3 — 拟人化生命体（week 5-6）
-- `account_personas` + portal 人设编辑器
+- `worker_personas` + portal 人设编辑器
 - RiskController 升级：**观望窗口 + 真人接话检测**
 - `persona_rewriter` 实装（方言/口头禅/标点拟人化）
 - `chitchat_scheduler` + `chitchat_pool`
