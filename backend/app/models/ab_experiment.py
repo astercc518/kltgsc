@@ -23,7 +23,7 @@ class ABExperiment(SQLModel, table=True):
     name: str = Field(sa_column=Column(Text, unique=True, nullable=False))
     description: Optional[str] = Field(default=None, sa_column=Column(Text, nullable=True))
 
-    # scope: "global" | "customer" | "account"
+    # scope: "global" | "customer" | "monitor"
     scope: str = Field(sa_column=Column(Text, nullable=False))
     scope_value: Optional[int] = Field(default=None, sa_column=Column(Integer, nullable=True))
 

@@ -352,9 +352,8 @@ async def llm_generate(prompt: str) -> Optional[str]:
     """
     from sqlmodel import Session as _Session
     from app.core.db import engine
-    return await LLMService(_Session(engine)).generate(
-        prompt, source="ai_reply_with_group_ctx"
-    )
+    with _Session(engine) as s:
+        return await LLMService(s).generate(prompt, source="ai_reply_with_group_ctx")
 
 
 def _format_group_context_block(history: list) -> str:

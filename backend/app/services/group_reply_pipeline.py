@@ -53,9 +53,14 @@ async def entrypoint(msg, account, monitor) -> dict:
             return {"skipped": "customer_not_found"}
 
         # Phase 4a: A/B experiment variant assignment + threshold override
-        experiments = find_applicable_experiments(
-            session=session, customer_id=customer_id, monitor_id=monitor.id,
-        )
+        try:
+            experiments = find_applicable_experiments(
+                session=session, customer_id=customer_id, monitor_id=monitor.id,
+            )
+        except Exception:
+            logger.warning("AB experiment lookup failed; degrading to no experiment", exc_info=True)
+            experiments = []
+
         experiment_tag = None
         if experiments:
             # Take first applicable experiment (no multi-experiment overlap in Phase 4a)
@@ -64,10 +69,6 @@ async def entrypoint(msg, account, monitor) -> dict:
                 variant = assign_variant(
                     experiment_id=exp.id, variants=exp.variants, source_user_id=msg.sender_id,
                 )
-            except (ValueError, IndexError):
-                # variants malformed → skip experiment, no tag
-                variant = None
-            if variant is not None:
                 experiment_tag = f"{exp.name}:{variant['tag']}"
                 # Override thresholds in-memory (this request only) with variant params
                 threshold_overrides = variant.get("params", {})
@@ -75,6 +76,12 @@ async def entrypoint(msg, account, monitor) -> dict:
                     effective_thresholds = dict(customer.lead_detector_thresholds or {})
                     effective_thresholds.update(threshold_overrides)
                     customer.lead_detector_thresholds = effective_thresholds
+            except (ValueError, IndexError, KeyError, TypeError):
+                logger.warning(
+                    "assign_variant failed for exp %s; skipping experiment_tag",
+                    exp.id, exc_info=True,
+                )
+                experiment_tag = None
 
         result = await run_all_layers(
             session=session, customer=customer, monitor=monitor,

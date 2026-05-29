@@ -90,6 +90,7 @@ def edit_suggested(
 
 async def approve_suggested_reply(*, pr_id: int) -> dict:
     """approve = 切到 composing → dispatch_send → status=sent + billing。"""
+    # === Step 1: 在短 session 内做 status flip ===
     with Session(engine) as session:
         obj = session.get(PendingReply, pr_id)
         if obj is None:
@@ -99,13 +100,16 @@ async def approve_suggested_reply(*, pr_id: int) -> dict:
         if not obj.reply_text:
             raise HTTPException(400, "no reply_text")
         # flip to composing so dispatch_send sees a valid state
-        from app.services.group_dispatcher import dispatch_send
         obj.status = PendingReplyStatus.COMPOSING.value
         session.add(obj)
         session.commit()
         session.refresh(obj)
-        await dispatch_send(obj)
-        return {"ok": True, "pending_reply_id": pr_id}
+        session.expunge(obj)  # detach so we can use it after session closes
+    # === Step 2: Session 已关闭, 现在 dispatch (内含 30-120s sleep) ===
+    # dispatch_send 内部自己开 session 做 mark_status SENT + billing
+    from app.services.group_dispatcher import dispatch_send
+    await dispatch_send(obj)
+    return {"ok": True, "pending_reply_id": pr_id}
 
 
 @router.post("/suggested/{pr_id}/approve")
