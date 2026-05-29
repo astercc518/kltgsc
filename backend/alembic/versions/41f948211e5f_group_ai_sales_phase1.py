@@ -10,15 +10,17 @@ Phase 1 实际只用 pending_replies + monitor.keyword_filters；
 
 表名与现有迁移一致（单数）：customer, account, keywordmonitor, lead
 """
+from typing import Sequence, Union
+
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 import pgvector.sqlalchemy
 
-revision = "41f948211e5f"
-down_revision = "a4b5c6d7e8f9"
-branch_labels = None
-depends_on = None
+revision: str = "41f948211e5f"
+down_revision: Union[str, Sequence[str], None] = "a4b5c6d7e8f9"
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
@@ -32,7 +34,9 @@ def upgrade() -> None:
     op.add_column("customer", sa.Column(
         "lead_detector_thresholds", JSONB(),
         nullable=False,
-        server_default='{"layer2_sim":0.55,"layer3_score":60,"layer3_confidence":0.7}',
+        server_default=sa.text(
+            "'{\"layer2_sim\":0.55,\"layer3_score\":60,\"layer3_confidence\":0.7}'::jsonb"
+        ),
     ))
     op.add_column("customer", sa.Column(
         "param_version", sa.Text(), nullable=False, server_default="v1"
@@ -180,11 +184,11 @@ def downgrade() -> None:
     op.drop_table("chitchat_log")
     op.drop_table("chitchat_pool")
     op.drop_table("worker_personas")
-    op.execute("DROP INDEX IF EXISTS idx_case_studies_customer")
+    op.drop_index("idx_case_studies_customer", table_name="case_studies")
     op.execute("DROP INDEX IF EXISTS idx_case_studies_emb")
     op.drop_table("case_studies")
-    op.execute("DROP INDEX IF EXISTS idx_pending_replies_dedup")
-    op.execute("DROP INDEX IF EXISTS idx_pending_replies_scan")
+    op.drop_index("idx_pending_replies_dedup", table_name="pending_replies")
+    op.drop_index("idx_pending_replies_scan", table_name="pending_replies")
     op.drop_table("pending_replies")
     op.drop_column("keywordmonitor", "keyword_filters")
     op.drop_column("customer", "param_version")
