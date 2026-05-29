@@ -327,3 +327,30 @@ async def compose_reply_phase2a(
         )
 
     return None
+
+
+# ============================================================
+# Phase 3a: compose_reply_phase3 — phase2a + persona_rewrite
+# ============================================================
+
+from app.services.persona_rewriter import apply_persona  # noqa: E402
+
+
+async def compose_reply_phase3(
+    *, customer_id: int, source_text: str, solution_topic: str,
+    session, persona: Optional[dict] = None,
+) -> Optional[str]:
+    """
+    Phase 3a: 三段式 + 案例 + 数字反幻觉 (compose_reply_phase2a) +
+              纯字符串 persona 改写 (apply_persona)。
+    persona=None → 跳过改写, 返 phase2a 原文。
+    """
+    base = await compose_reply_phase2a(
+        customer_id=customer_id, source_text=source_text,
+        solution_topic=solution_topic, session=session,
+    )
+    if base is None:
+        return None
+    if persona is None:
+        return base
+    return apply_persona(base, persona)
