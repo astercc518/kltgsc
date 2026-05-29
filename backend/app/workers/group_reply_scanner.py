@@ -14,12 +14,14 @@ from sqlmodel import Session, select
 
 from app.core.celery_app import celery_app
 from app.core.db import engine
-from app.core.group_reply_config import DEFAULT_PERSONA, SCAN_INTERVAL_SECONDS
+from app.core.group_reply_config import SCAN_INTERVAL_SECONDS
 from app.models.account import Account
 from app.models.pending_reply import PendingReply, PendingReplyStatus
-from app.services.reply_composer import compose_reply_phase2a
-from app.services.risk_controller import decide_phase1
+from app.services.reply_composer import compose_reply_phase3
+from app.services.risk_controller import decide_phase3
 from app.services.group_dispatcher import dispatch_send
+from app.services.worker_persona_service import get_persona_for_account
+from app.services.human_reply_detector import has_human_or_other_account_replied
 
 logger = logging.getLogger(__name__)
 
@@ -42,48 +44,57 @@ async def scan_and_process_due_replies() -> int:
 
 async def _process_one(pr: PendingReply) -> None:
     try:
-        inputs = await _gather_risk_inputs(pr)
-        decision = decide_phase1(
+        # 1. Gather phase3 inputs
+        inputs = await _gather_risk_inputs_phase3(pr)
+
+        # 2. Decide phase3
+        decision = decide_phase3(
             pending=pr,
             candidate_accounts=inputs.get("candidate_accounts", []),
+            personas_by_account=inputs.get("personas_by_account", {}),
             same_lead_sent_within_48h=inputs.get("same_lead_sent_within_48h", []),
             account_daily_sent_count=inputs.get("account_daily_sent_count", {}),
             account_last_sent_in_chat=inputs.get("account_last_sent_in_chat", {}),
-            cooldown_minutes=DEFAULT_PERSONA["per_chat_cooldown_minutes"],
-            daily_quota=DEFAULT_PERSONA["daily_reply_quota"],
+            human_reply_signal=inputs.get("human_reply_signal", {"detected": False}),
         )
 
-        if decision.action == "skip":
-            await _mark_status(pr, decision.skip_reason)
+        # 3. Handle action
+        if decision.action == "postpone":
+            await _postpone_pending_reply(pr, decision.postpone_to)
             return
 
-        # compose 路径
+        if decision.action == "skip":
+            await _mark_status(pr, decision.skip_reason or "skipped_unknown")
+            return
+
+        # action == "compose"
         pr.responder_account_id = decision.responder_account_id
-        topic = pr.layer3_solution_topic or pr.source_text  # Phase 2a: 用 layer3 主题, 兜底 source_text
+        persona = inputs["personas_by_account"].get(decision.responder_account_id)
+
+        topic = pr.layer3_solution_topic or pr.source_text
         with Session(engine) as session:
-            reply = await compose_reply_phase2a(
+            reply = await compose_reply_phase3(
                 customer_id=pr.customer_id,
                 source_text=pr.source_text,
                 solution_topic=topic,
                 session=session,
+                persona=persona,
             )
         if reply is None:
-            # Phase 2a: 失败 → status=failed
             await _mark_status(pr, PendingReplyStatus.FAILED.value, skip_reason="compose_failed")
             return
 
         pr.reply_text = reply
         await dispatch_send(pr)
     except Exception as e:
-        logger.exception("scanner._process_one crashed for pending_reply id=%s", pr.id)
-        # Mark failed to remove from queue (prevent infinite retry of broken rows)
+        logger.exception("scanner._process_one crashed for pr.id=%s", pr.id)
         try:
             await _mark_status(
                 pr, PendingReplyStatus.FAILED.value,
                 skip_reason=f"exception: {type(e).__name__}",
             )
         except Exception:
-            logger.exception("also failed to mark status; row may stay stuck")
+            logger.exception("also failed to mark status; pr may stay stuck")
 
 
 async def _fetch_due_pending_replies() -> list:
@@ -186,6 +197,42 @@ async def _gather_risk_inputs(pr) -> dict:
         "account_daily_sent_count": daily_count,
         "account_last_sent_in_chat": last_sent_in_chat,
     }
+
+
+async def _gather_risk_inputs_phase3(pr) -> dict:
+    """Phase 3a 升级: 加 personas + human_reply_signal"""
+    base = await _gather_risk_inputs(pr)
+    candidate_accounts = base.get("candidate_accounts", [])
+
+    with Session(engine) as session:
+        personas_by_account = {
+            acc.id: get_persona_for_account(session=session, account_id=acc.id)
+            for acc in candidate_accounts
+        }
+        human_reply = has_human_or_other_account_replied(
+            session=session,
+            customer_id=pr.customer_id, chat_id=pr.chat_id,
+            source_message_id=pr.message_id, source_user_id=pr.source_user_id,
+            solution_topic=pr.layer3_solution_topic,
+            since=pr.created_at, window_minutes=5,
+        )
+
+    base["personas_by_account"] = personas_by_account
+    base["human_reply_signal"] = human_reply
+    return base
+
+
+async def _postpone_pending_reply(pr, fire_at) -> None:
+    """更新 pr.fire_at, 维持 status=observing 让下一 tick 再扫"""
+    with Session(engine) as session:
+        obj = session.get(PendingReply, pr.id)
+        if obj is None:
+            logger.warning("postpone: pr %s not found", pr.id)
+            return
+        obj.fire_at = fire_at
+        obj.status = PendingReplyStatus.OBSERVING.value
+        session.add(obj)
+        session.commit()
 
 
 async def _mark_status(pr, status_value: str, skip_reason: str | None = None) -> None:
