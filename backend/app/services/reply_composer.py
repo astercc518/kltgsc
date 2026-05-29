@@ -7,6 +7,7 @@ Phase 4 升级: 失败转副驾驶 Inbox
 参考: spec §6
 """
 import logging
+import re
 from typing import Optional
 
 from sqlmodel import Session
@@ -138,6 +139,180 @@ async def compose_reply_phase1(
         logger.info(
             "reply_composer attempt %d/%d failed filter for customer %s",
             attempt + 1, MAX_RETRIES + 1, customer_id,
+        )
+
+    return None
+
+
+# ============================================================
+# Phase 2a: case_studies + 数字一致性反幻觉
+# ============================================================
+
+from app.services.case_study_service import find_top_k_for_topic  # noqa: E402
+
+# 数字 + 量级单位 的提取正则，分两组：
+#   _COMPOUND_PATTERNS_NO_SPACE: 无空格的复合 token (100k, 30万 glued)
+#   _COMPOUND_PATTERNS_WITH_SPACE: 允许中间有空格 (30 万)
+#   _SPECIAL_PATTERNS: T+0, 50%
+#   _BARE_FALLBACK: 纯数字 (最后兜底)
+#
+# 规则: bare N 只在没有 "紧贴" 的 compound 时保留。
+#   "100k"  → compound(no-space): keep "100k", drop bare "100"
+#   "30 万" → compound(with-space): keep "30万" AND keep bare "30" (space→independent)
+_COMPOUND_NO_SPACE = re.compile(r"\d+(?:\.\d+)?[kKmMbB万亿百千]")
+_COMPOUND_WITH_SPACE = re.compile(r"\d+(?:\.\d+)?\s+[万亿]")
+_SPECIAL = re.compile(r"T\+\d+|\d+(?:\.\d+)?%")
+_BARE = re.compile(r"\d+(?:\.\d+)?")
+
+
+def _normalise(token: str) -> str:
+    token = re.sub(r'\s+', '', token)
+    return token.replace("K", "k").replace("M", "m").replace("B", "b")
+
+
+def _extract_numbers(text: str) -> set[str]:
+    """
+    Extract numbers + magnitude tokens from text, returning a normalised set.
+
+    Key semantics:
+    - "100k"  → {"100k"}          (bare "100" suppressed: glued compound)
+    - "30 万" → {"30万", "30"}    (bare "30" kept: space-separated compound)
+    - "3"     → {"3"}             (bare number, no unit)
+    - "T+0"   → {"T+0"}
+    - "50%"   → {"50%"}
+    """
+    if not text:
+        return set()
+
+    found: set[str] = set()
+    # Spans covered by no-space compound matches (bare numbers at these positions dropped)
+    compound_nospace_spans: list[tuple[int, int]] = []
+
+    for m in _COMPOUND_NO_SPACE.finditer(text):
+        found.add(_normalise(m.group(0)))
+        compound_nospace_spans.append((m.start(), m.end()))
+
+    for m in _COMPOUND_WITH_SPACE.finditer(text):
+        found.add(_normalise(m.group(0)))
+        # Do NOT record span — bare digit at same position stays
+
+    for m in _SPECIAL.finditer(text):
+        found.add(_normalise(m.group(0)))
+
+    # Bare fallback: only add if start position not inside a no-space compound span
+    for m in _BARE.finditer(text):
+        inside = any(s <= m.start() < e for s, e in compound_nospace_spans)
+        if not inside:
+            found.add(_normalise(m.group(0)))
+
+    return found
+
+
+def _numeric_consistency_ok(reply_text: str, sources: list[str]) -> bool:
+    """回复里的所有数字都必须能在 sources 任一条里找到 (大小写归一)。"""
+    reply_nums = _extract_numbers(reply_text)
+    if not reply_nums:
+        return True
+    source_nums: set[str] = set()
+    for s in sources:
+        source_nums.update(_extract_numbers(s))
+    hallucinated = reply_nums - source_nums
+    return len(hallucinated) == 0
+
+
+def find_case_top_k(*, session, customer_id, topic, k=2) -> list:
+    """薄包装方便 mock"""
+    return find_top_k_for_topic(
+        session=session, customer_id=customer_id, topic=topic, k=k,
+    )
+
+
+def _build_prompt_phase2a(
+    source_text: str, solution_topic: str,
+    kb_hits: list[dict], case_top1,
+) -> str:
+    kb_block = "\n".join(f"- {h['text']}" for h in kb_hits) if kb_hits else "(无)"
+    if case_top1 is not None:
+        case_block = (
+            f"问题: {case_top1.problem}\n"
+            f"方案: {case_top1.solution}\n"
+            f"效果: {case_top1.outcome}\n"
+            f"金额/规模: {case_top1.deal_size or '未填'}"
+        )
+    else:
+        case_block = "(无匹配案例, 仅用 KB 概述)"
+
+    return f"""你扮演 TG 群里的真人销售。看到陌生人发: 「{source_text}」
+
+你建议的方案主题: {solution_topic}
+
+业务知识 (KB top 3):
+{kb_block}
+
+你最近的真实成交案例 (必须使用其中的具体数字, 不要编):
+{case_block}
+
+请回复 3 句话, 不超 {MAX_REPLY_LENGTH} 中文字:
+1. 一句话方案: 针对对方需求点提出做法
+2. 一句话案例: 引用上面真实案例 + 具体数字 (没案例时用一句话效果泛述)
+3. 一句话引导: 自然提议私聊深聊
+
+禁止:
+- "作为 AI" / "我是助手" / "作为大模型"
+- "+V" / "加我 V" / "扫码" / "微信"
+- 编造任何未在案例 / KB 出现的数字
+- 超过 {MAX_REPLY_LENGTH} 字
+- 模板化套话
+- 超过 1 个 emoji
+"""
+
+
+async def compose_reply_phase2a(
+    *, customer_id: int, source_text: str, solution_topic: str, session,
+) -> Optional[str]:
+    """
+    Phase 2a 三段式: KB + 案例 + 数字一致性反幻觉。
+
+    Args:
+        session: SQLModel Session (用于 case_studies + KB 查询)
+
+    Returns:
+        str: 最终回复
+        None: 失败 (status=failed 由调用方写; Phase 4 改 suggested)
+    """
+    kb_hits = await kb_retrieve_top_k(customer_id, solution_topic, k=3)
+    cases = find_case_top_k(
+        session=session, customer_id=customer_id, topic=solution_topic, k=2,
+    )
+    case_top1 = cases[0] if cases else None
+
+    prompt = _build_prompt_phase2a(source_text, solution_topic, kb_hits, case_top1)
+
+    # 构造 sources 列表供数字一致性检查
+    sources = [h.get("text", "") for h in kb_hits]
+    if case_top1:
+        sources.extend([
+            case_top1.problem or "", case_top1.solution or "",
+            case_top1.outcome or "", case_top1.deal_size or "",
+        ])
+
+    for attempt in range(MAX_RETRIES + 1):
+        raw = await llm_generate_reply(prompt)
+        filtered = _anti_hallucination_filter(raw)
+        if filtered and _passes_filter(filtered) and _numeric_consistency_ok(filtered, sources):
+            # 更新 case.last_used_at (best effort, 不阻塞)
+            if case_top1:
+                try:
+                    from datetime import datetime, timezone
+                    case_top1.last_used_at = datetime.now(timezone.utc)
+                    session.add(case_top1)
+                    session.commit()
+                except Exception:
+                    logger.warning("failed to update case.last_used_at, ignoring")
+            return filtered
+        logger.info(
+            "phase2a compose attempt %d/%d failed (exposure/length/numeric)",
+            attempt + 1, MAX_RETRIES + 1,
         )
 
     return None
