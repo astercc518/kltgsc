@@ -17,6 +17,7 @@ from app.core.db import engine
 from app.core.group_reply_config import DEFAULT_PERSONA, GROUP_AI_REPLY_ENABLED
 from app.models.customer import Customer
 from app.models.pending_reply import PendingReply, PendingReplyStatus
+from app.services.ab_assignment_service import find_applicable_experiments, assign_variant
 from app.services.lead_detector import run_all_layers
 
 logger = logging.getLogger(__name__)
@@ -51,6 +52,30 @@ async def entrypoint(msg, account, monitor) -> dict:
         if customer is None:
             return {"skipped": "customer_not_found"}
 
+        # Phase 4a: A/B experiment variant assignment + threshold override
+        experiments = find_applicable_experiments(
+            session=session, customer_id=customer_id, monitor_id=monitor.id,
+        )
+        experiment_tag = None
+        if experiments:
+            # Take first applicable experiment (no multi-experiment overlap in Phase 4a)
+            exp = experiments[0]
+            try:
+                variant = assign_variant(
+                    experiment_id=exp.id, variants=exp.variants, source_user_id=msg.sender_id,
+                )
+            except (ValueError, IndexError):
+                # variants malformed → skip experiment, no tag
+                variant = None
+            if variant is not None:
+                experiment_tag = f"{exp.name}:{variant['tag']}"
+                # Override thresholds in-memory (this request only) with variant params
+                threshold_overrides = variant.get("params", {})
+                if threshold_overrides:
+                    effective_thresholds = dict(customer.lead_detector_thresholds or {})
+                    effective_thresholds.update(threshold_overrides)
+                    customer.lead_detector_thresholds = effective_thresholds
+
         result = await run_all_layers(
             session=session, customer=customer, monitor=monitor,
             text=text, chat_id=msg.chat_id,
@@ -67,6 +92,7 @@ async def entrypoint(msg, account, monitor) -> dict:
                     layer2_similarity=result["layer2_similarity"],
                     layer3=result.get("layer3"),
                     skip_reason=result["skip_reason"],
+                    experiment_tag=experiment_tag,
                 )
                 return {"skipped": "borderline", "pending_reply_id": pr.id}
             return {"skipped": result["skip_reason"]}
@@ -83,6 +109,7 @@ async def entrypoint(msg, account, monitor) -> dict:
             layer2_similarity=result["layer2_similarity"],
             layer3=result["layer3"],
             observation_window_seconds=obs_seconds,
+            experiment_tag=experiment_tag,
         )
         logger.info(
             "pipeline: pending_reply id=%s queued (window=%ss, score=%s)",
@@ -94,6 +121,7 @@ async def entrypoint(msg, account, monitor) -> dict:
 def _insert_observing(
     *, session, customer_id, monitor_id, chat_id, message_id, source_user_id,
     source_text, layer1_matched, layer2_similarity, layer3, observation_window_seconds,
+    experiment_tag=None,
 ) -> PendingReply:
     now = datetime.now(timezone.utc)
     pr = PendingReply(
@@ -109,6 +137,7 @@ def _insert_observing(
         status=PendingReplyStatus.OBSERVING.value,
         fire_at=now + timedelta(seconds=observation_window_seconds),
         created_at=now,
+        experiment_tag=experiment_tag,
     )
     session.add(pr)
     session.commit()
@@ -119,6 +148,7 @@ def _insert_observing(
 def _insert_borderline(
     *, session, customer_id, monitor_id, chat_id, message_id, source_user_id,
     source_text, layer1_matched, layer2_similarity, layer3, skip_reason,
+    experiment_tag=None,
 ) -> PendingReply:
     """borderline 写库供后续训练阈值, 不走 observing 流程。"""
     now = datetime.now(timezone.utc)
@@ -136,6 +166,7 @@ def _insert_borderline(
         skip_reason=skip_reason,
         created_at=now,
         decided_at=now,
+        experiment_tag=experiment_tag,
     )
     session.add(pr)
     session.commit()
