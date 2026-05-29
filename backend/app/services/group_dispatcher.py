@@ -45,7 +45,12 @@ async def dispatch_send(pending_reply) -> None:
 
     if not sent_ok:
         logger.warning("dispatch send failed pending_reply id=%s", pending_reply.id)
-        await _mark_status(pending_reply, PendingReplyStatus.FAILED, skip_reason="send_failed")
+        # Pass responder_account_id so analytics can see which account attempted the send
+        await _mark_status(
+            pending_reply, PendingReplyStatus.FAILED,
+            skip_reason="send_failed",
+            responder_account_id=pending_reply.responder_account_id,
+        )
         return
 
     charged = await _charge_customer(pending_reply=pending_reply, amount_usd=BILLING_PER_REPLY_USD)
@@ -54,7 +59,15 @@ async def dispatch_send(pending_reply) -> None:
             "billing charge failed pending_reply id=%s (kept as sent)", pending_reply.id
         )
 
-    await _mark_status(pending_reply, PendingReplyStatus.SENT, sent_at=datetime.now(timezone.utc))
+    # reply_text and responder_account_id are set on the in-memory object by the scanner
+    # but _mark_status re-fetches the DB row via session.get(), so they must be passed
+    # explicitly as **fields — otherwise every SENT row ends up with NULL for both columns.
+    await _mark_status(
+        pending_reply, PendingReplyStatus.SENT,
+        sent_at=datetime.now(timezone.utc),
+        reply_text=pending_reply.reply_text,
+        responder_account_id=pending_reply.responder_account_id,
+    )
 
 
 def _pick_typing_delay() -> int:

@@ -41,42 +41,60 @@ async def scan_and_process_due_replies() -> int:
 
 
 async def _process_one(pr: PendingReply) -> None:
-    inputs = await _gather_risk_inputs(pr)
-    decision = decide_phase1(
-        pending=pr,
-        candidate_accounts=inputs.get("candidate_accounts", []),
-        same_lead_sent_within_48h=inputs.get("same_lead_sent_within_48h", []),
-        account_daily_sent_count=inputs.get("account_daily_sent_count", {}),
-        account_last_sent_in_chat=inputs.get("account_last_sent_in_chat", {}),
-        cooldown_minutes=DEFAULT_PERSONA["per_chat_cooldown_minutes"],
-        daily_quota=DEFAULT_PERSONA["daily_reply_quota"],
-    )
+    try:
+        inputs = await _gather_risk_inputs(pr)
+        decision = decide_phase1(
+            pending=pr,
+            candidate_accounts=inputs.get("candidate_accounts", []),
+            same_lead_sent_within_48h=inputs.get("same_lead_sent_within_48h", []),
+            account_daily_sent_count=inputs.get("account_daily_sent_count", {}),
+            account_last_sent_in_chat=inputs.get("account_last_sent_in_chat", {}),
+            cooldown_minutes=DEFAULT_PERSONA["per_chat_cooldown_minutes"],
+            daily_quota=DEFAULT_PERSONA["daily_reply_quota"],
+        )
 
-    if decision.action == "skip":
-        await _mark_status(pr, decision.skip_reason)
-        return
+        if decision.action == "skip":
+            await _mark_status(pr, decision.skip_reason)
+            return
 
-    # compose 路径
-    pr.responder_account_id = decision.responder_account_id
-    reply = await compose_reply_phase1(
-        customer_id=pr.customer_id,
-        source_text=pr.source_text,
-        solution_topic=pr.source_text,  # Phase 1 无 Layer 3, 用 source_text 兜底
-    )
-    if reply is None:
-        # Phase 1: 失败 → status=failed (Phase 4 改 suggested)
-        await _mark_status(pr, PendingReplyStatus.FAILED.value, skip_reason="compose_failed")
-        return
+        # compose 路径
+        pr.responder_account_id = decision.responder_account_id
+        reply = await compose_reply_phase1(
+            customer_id=pr.customer_id,
+            source_text=pr.source_text,
+            solution_topic=pr.source_text,  # Phase 1 无 Layer 3, 用 source_text 兜底
+        )
+        if reply is None:
+            # Phase 1: 失败 → status=failed (Phase 4 改 suggested)
+            await _mark_status(pr, PendingReplyStatus.FAILED.value, skip_reason="compose_failed")
+            return
 
-    pr.reply_text = reply
-    await dispatch_send(pr)
+        pr.reply_text = reply
+        await dispatch_send(pr)
+    except Exception as e:
+        logger.exception("scanner._process_one crashed for pending_reply id=%s", pr.id)
+        # Mark failed to remove from queue (prevent infinite retry of broken rows)
+        try:
+            await _mark_status(
+                pr, PendingReplyStatus.FAILED.value,
+                skip_reason=f"exception: {type(e).__name__}",
+            )
+        except Exception:
+            logger.exception("also failed to mark status; row may stay stuck")
 
 
 async def _fetch_due_pending_replies() -> list:
-    """同步 Session(engine) 包装在 async 函数中，保持接口可 mock。"""
+    """Atomically claim due rows by flipping status observing → risk_check.
+
+    Uses SELECT … FOR UPDATE SKIP LOCKED so concurrent beat ticks don't
+    block each other and never pick the same row twice.  The status flip
+    happens inside the same transaction as the lock acquisition, so by the
+    time the lock is released the row is no longer visible to other ticks
+    (which filter on status == 'observing').
+    """
     now = datetime.now(timezone.utc)
     with Session(engine) as session:
-        result = session.exec(
+        stmt = (
             select(PendingReply)
             .where(
                 PendingReply.status == PendingReplyStatus.OBSERVING.value,
@@ -84,8 +102,20 @@ async def _fetch_due_pending_replies() -> list:
             )
             .order_by(PendingReply.fire_at)
             .limit(50)
+            .with_for_update(skip_locked=True)
         )
-        return list(result.all())
+        rows = list(session.exec(stmt).all())
+        # Atomically flip status before releasing lock so other ticks skip these rows
+        for pr in rows:
+            pr.status = PendingReplyStatus.RISK_CHECK.value
+            session.add(pr)
+        session.commit()
+        # Refresh + detach so callers can use objects outside the session
+        for pr in rows:
+            session.refresh(pr)
+        for pr in rows:
+            session.expunge(pr)
+        return rows
 
 
 async def _gather_risk_inputs(pr) -> dict:
