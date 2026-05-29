@@ -15,7 +15,7 @@ from app.services.embedding_service import embed_text
 logger = logging.getLogger(__name__)
 
 
-def set_customer_icp_text_and_embed(
+async def set_customer_icp_text_and_embed(
     *, session, customer_id: int, new_text: Optional[str],
 ) -> bool:
     """
@@ -40,7 +40,7 @@ def set_customer_icp_text_and_embed(
         customer.icp_profile_embedding = None
     else:
         customer.icp_profile_text = cleaned
-        vec = embed_text(session=session, text=cleaned)
+        vec = await embed_text(session=session, text=cleaned)
         # 失败时 embedding 留 None, Layer 2 会自动降级跳过
         customer.icp_profile_embedding = vec
         if vec is None:

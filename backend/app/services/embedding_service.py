@@ -344,8 +344,11 @@ def _embed_text_raw(session, text: str, timeout: float = 15.0) -> Optional[List[
     return _kb_embed(session, text, timeout=timeout)
 
 
-def embed_text(*, session, text: Optional[str], timeout: float = 15.0) -> Optional[List[float]]:
+async def embed_text(*, session, text: Optional[str], timeout: float = 15.0) -> Optional[List[float]]:
     """
+    Async-safe wrapper. Bridges sync _embed_text_raw via asyncio.to_thread
+    so caller event loop is not blocked.
+
     返回 768 维 float list, 失败/空文本返回 None。
 
     Args:
@@ -356,7 +359,7 @@ def embed_text(*, session, text: Optional[str], timeout: float = 15.0) -> Option
     if not text or not text.strip():
         return None
     try:
-        return _embed_text_raw(session, text, timeout=timeout)
+        return await asyncio.to_thread(_embed_text_raw, session, text, timeout)
     except Exception:
         logger.exception("embed_text failed for text len=%d", len(text))
         return None

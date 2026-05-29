@@ -209,7 +209,11 @@ def _extract_numbers(text: str) -> set[str]:
 
 
 def _numeric_consistency_ok(reply_text: str, sources: list[str]) -> bool:
-    """回复里的所有数字都必须能在 sources 任一条里找到 (大小写归一)。"""
+    """回复里的所有数字都必须能在 sources 任一条里找到 (大小写归一)。
+
+    特殊情况: 允许 bare digit 作为 compound number 的数字前缀出现在源中
+    (处理 LLM 排版变体: 回复 "30 万" → {30万, 30}; source 只有 "30万")
+    """
     reply_nums = _extract_numbers(reply_text)
     if not reply_nums:
         return True
@@ -217,12 +221,19 @@ def _numeric_consistency_ok(reply_text: str, sources: list[str]) -> bool:
     for s in sources:
         source_nums.update(_extract_numbers(s))
     hallucinated = reply_nums - source_nums
+    if not hallucinated:
+        return True
+    # Allow bare digits that prefix a compound number in source
+    # (handles LLM spacing variation: reply "30 万" → {30万, 30}; source has only "30万")
+    for h in list(hallucinated):
+        if h.isdigit() and any(s.startswith(h) and s != h for s in source_nums):
+            hallucinated.discard(h)
     return len(hallucinated) == 0
 
 
-def find_case_top_k(*, session, customer_id, topic, k=2) -> list:
+async def find_case_top_k(*, session, customer_id, topic, k=2) -> list:
     """薄包装方便 mock"""
-    return find_top_k_for_topic(
+    return await find_top_k_for_topic(
         session=session, customer_id=customer_id, topic=topic, k=k,
     )
 
@@ -281,7 +292,7 @@ async def compose_reply_phase2a(
         None: 失败 (status=failed 由调用方写; Phase 4 改 suggested)
     """
     kb_hits = await kb_retrieve_top_k(customer_id, solution_topic, k=3)
-    cases = find_case_top_k(
+    cases = await find_case_top_k(
         session=session, customer_id=customer_id, topic=solution_topic, k=2,
     )
     case_top1 = cases[0] if cases else None

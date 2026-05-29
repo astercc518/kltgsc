@@ -27,7 +27,7 @@ def _build_embed_payload(problem: str, solution: str, outcome: str) -> str:
     return " | ".join(parts)
 
 
-def create_case_study(
+async def create_case_study(
     *, session, customer_id: int, industry: Optional[str],
     deal_size: Optional[str], period: Optional[str],
     problem: str, solution: str, outcome: str,
@@ -40,7 +40,7 @@ def create_case_study(
         CaseStudy instance (已 commit + refresh)
     """
     payload = _build_embed_payload(problem, solution, outcome)
-    vec = embed_text(session=session, text=payload)
+    vec = await embed_text(session=session, text=payload)
     if vec is None:
         logger.warning(
             "create_case_study: embedding failed for customer %d, case saved without embedding",
@@ -67,7 +67,7 @@ def create_case_study(
     return case
 
 
-def update_case_study(
+async def update_case_study(
     *, session, case_id: int, customer_id: int,
     industry: Optional[str] = None, deal_size: Optional[str] = None,
     period: Optional[str] = None,
@@ -98,7 +98,7 @@ def update_case_study(
 
     if content_changed:
         payload = _build_embed_payload(case.problem or "", case.solution or "", case.outcome or "")
-        case.embedding = embed_text(session=session, text=payload)
+        case.embedding = await embed_text(session=session, text=payload)
 
     session.add(case)
     session.commit()
@@ -136,15 +136,18 @@ def list_case_studies(
 
 # pgvector cosine threshold: 候选案例与 topic 的最小相似度
 MIN_CASE_MATCH_SIMILARITY = 0.4
+# pgvector cosine distance = 1 - similarity; threshold <= this value means similarity >= 0.4
+MAX_COSINE_DISTANCE = 1.0 - MIN_CASE_MATCH_SIMILARITY
 
 
-def find_top_k_for_topic(
+async def find_top_k_for_topic(
     *, session, customer_id: int, topic: str, k: int = 2,
 ) -> list:
     """
     按 layer3.suggested_solution_topic 找 top-k 相关案例。
 
     使用 pgvector 余弦距离 (embedding <=> :vec) raw SQL。
+    仅返回 cosine distance <= MAX_COSINE_DISTANCE (即 similarity >= 0.4) 的案例。
     embedding 失败时降级到按 last_used_at desc 取 k 条。
 
     NOTE: CaseStudy.embedding.cosine_distance() ORM 方法不可用（pgvector
@@ -153,7 +156,7 @@ def find_top_k_for_topic(
     if not topic or not topic.strip():
         return []
 
-    topic_vec = embed_text(session=session, text=topic)
+    topic_vec = await embed_text(session=session, text=topic)
     if topic_vec is None:
         logger.warning(
             "find_top_k_for_topic: embedding failed, falling back to recency order"
@@ -175,17 +178,24 @@ def find_top_k_for_topic(
 
     # pgvector cosine: 距离 (1 - similarity), 越小越相似
     # 与 kb_retrieval.py 使用相同的 raw SQL 模式
+    # 同时过滤 distance <= MAX_COSINE_DISTANCE (= 1 - MIN_CASE_MATCH_SIMILARITY)
+    # 防止不相关案例注入回复
     stmt = (
         select(CaseStudy)
         .where(
             CaseStudy.customer_id == customer_id,
             CaseStudy.active == True,  # noqa: E712
             CaseStudy.embedding.isnot(None),
+            sa.text("embedding <=> CAST(:topic_vec AS vector) <= :max_dist"),
         )
         .order_by(
             sa.text("embedding <=> CAST(:topic_vec AS vector)")
         )
         .limit(k)
     )
-    rows = list(session.exec(stmt.params(topic_vec=str(topic_vec))).all())
+    rows = list(
+        session.exec(
+            stmt.params(topic_vec=str(topic_vec), max_dist=MAX_COSINE_DISTANCE)
+        ).all()
+    )
     return rows

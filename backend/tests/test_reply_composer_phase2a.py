@@ -58,7 +58,7 @@ async def test_compose_phase2a_uses_case_top1_in_prompt():
         new=AsyncMock(return_value=[{"text": "USDT T+0", "score": 0.9}]),
     ), patch(
         "app.services.reply_composer.find_case_top_k",
-        return_value=[fake_case],
+        new=AsyncMock(return_value=[fake_case]),
     ), patch(
         "app.services.reply_composer.llm_generate_reply",
         new=AsyncMock(side_effect=fake_llm_generate),
@@ -95,7 +95,7 @@ async def test_compose_phase2a_numeric_filter_rejects_hallucinated_reply():
         new=AsyncMock(return_value=[]),
     ), patch(
         "app.services.reply_composer.find_case_top_k",
-        return_value=[fake_case],
+        new=AsyncMock(return_value=[fake_case]),
     ), patch(
         "app.services.reply_composer.llm_generate_reply",
         new=AsyncMock(side_effect=fake_llm),
@@ -115,7 +115,8 @@ async def test_compose_phase2a_no_case_fallback_to_kb_only():
         "app.services.reply_composer.kb_retrieve_top_k",
         new=AsyncMock(return_value=[{"text": "USDT T+0", "score": 0.9}]),
     ), patch(
-        "app.services.reply_composer.find_case_top_k", return_value=[],
+        "app.services.reply_composer.find_case_top_k",
+        new=AsyncMock(return_value=[]),
     ), patch(
         "app.services.reply_composer.llm_generate_reply",
         new=AsyncMock(return_value="USDT T+0 直接到账 私聊"),
@@ -125,3 +126,9 @@ async def test_compose_phase2a_no_case_fallback_to_kb_only():
             session=MagicMock(),
         )
     assert result is not None
+
+
+def test_numeric_consistency_accepts_spaced_compound_when_source_glued():
+    """LLM outputs '30 万' (spaced), case has '30万' (glued) — must accept."""
+    from app.services.reply_composer import _numeric_consistency_ok
+    assert _numeric_consistency_ok(reply_text="一周帮 30 万客户", sources=["30万 USDT 案例"]) is True

@@ -85,7 +85,7 @@ def _cosine_similarity(a: list, b: list) -> float:
 BORDERLINE_BAND = 0.05  # 阈值下 0.05 内算 borderline
 
 
-def layer2_icp_similarity(
+async def layer2_icp_similarity(
     *, session, text: str, icp_embedding: Optional[list], threshold: float,
 ) -> dict:
     """
@@ -103,7 +103,7 @@ def layer2_icp_similarity(
     if icp_embedding is None:
         return {"pass": True, "similarity": None, "degraded": True, "borderline": False}
 
-    msg_vec = embed_text(session=session, text=text)
+    msg_vec = await embed_text(session=session, text=text)
     if msg_vec is None:
         return {"pass": True, "similarity": None, "degraded": True, "borderline": False}
 
@@ -213,7 +213,7 @@ async def run_all_layers(
     # ------------------------------------------------------------------
     # Layer 2: ICP embedding similarity
     # ------------------------------------------------------------------
-    l2 = layer2_icp_similarity(
+    l2 = await layer2_icp_similarity(
         session=session,
         text=text,
         icp_embedding=customer.icp_profile_embedding,
