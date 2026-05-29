@@ -26,6 +26,7 @@ from unittest.mock import AsyncMock, patch
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from app.models.pending_reply import PendingReply, PendingReplyStatus
+from app.models.ab_experiment import ABExperiment
 
 
 # ---------------------------------------------------------------------------
@@ -128,11 +129,25 @@ def e2e_fixtures():
         session.commit()
         session.refresh(persona)
 
+        # --- Phase 4a: ABExperiment (scope=customer, single variant weight=1.0) ---
+        ab_exp = ABExperiment(
+            name="e2e_test",
+            scope="customer",
+            scope_value=customer.id,
+            variants=[{"tag": "v1", "weight": 1.0, "params": {}}],
+            status="running",
+            started_at=datetime.now(timezone.utc),
+        )
+        session.add(ab_exp)
+        session.commit()
+        session.refresh(ab_exp)
+
     # Capture IDs for later lookup/cleanup (avoid detached-instance issues).
     customer_id = customer.id
     account_id = account.id
     monitor_id = monitor.id
     persona_id = persona.id
+    ab_experiment_id = ab_exp.id
 
     # Patch app.core.db.engine so pipeline/scanner use the same test engine.
     _orig_engine = _db.engine
@@ -158,6 +173,10 @@ def e2e_fixtures():
             acc = s.get(Account, account_id)
             if acc:
                 s.delete(acc)
+            # Phase 4a: delete ABExperiment before Customer (scope_value → customer.id)
+            ab = s.get(ABExperiment, ab_experiment_id)
+            if ab:
+                s.delete(ab)
             cust = s.get(Customer, customer_id)
             if cust:
                 s.delete(cust)
@@ -258,6 +277,10 @@ async def test_e2e_happy_path(e2e_fixtures):
         assert pr.layer3_solution_topic == "USDT 大额场外", (
             f"unexpected layer3_solution_topic: {pr.layer3_solution_topic}"
         )
+        # Phase 4a: experiment_tag should be written (single-variant weight=1.0 → always v1)
+        assert pr.experiment_tag == "e2e_test:v1", (
+            f"expected experiment_tag='e2e_test:v1', got {pr.experiment_tag!r}"
+        )
 
     # ── Fast-forward fire_at ────────────────────────────────────────────────
     with Session(test_engine) as s:
@@ -326,4 +349,113 @@ async def test_e2e_happy_path(e2e_fixtures):
         )
         assert pr_final.layer3_solution_topic == "USDT 大额场外", (
             f"layer3_solution_topic should survive, got {pr_final.layer3_solution_topic}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Phase 4a: suggested path (compose_reply_phase3 → None → save_suggested_reply)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_e2e_compose_failure_routes_to_suggested(e2e_fixtures):
+    """Phase 4a: when compose_reply_phase3 returns None the scanner saves a
+    suggested draft (status='suggested', reply_text contains placeholder).
+
+    Complements unit tests:
+      - test_copilot_suggestion_service (save_suggested_reply persists correctly)
+      - test_scanner_compose_failure_routes_to_copilot (calls save_suggested_reply)
+    This test verifies the full DB round-trip in a real Postgres session.
+    """
+    customer_id, account_id, monitor_id, test_engine = e2e_fixtures
+
+    from app.models.account import Account
+    from app.models.keyword_monitor import KeywordMonitor
+
+    with Session(test_engine) as s:
+        account = s.get(Account, account_id)
+        monitor = s.get(KeywordMonitor, monitor_id)
+
+    fake_msg = FakeMsg(
+        text="求 USDT 200k 紧急",
+        chat_id=-100999777,
+        message_id=88888,
+        sender_id=7777777,
+    )
+
+    fake_score = {
+        "score": 80, "intent_type": "buy",
+        "extracted_needs": ["200k USDT"],
+        "suggested_solution_topic": "USDT 大额场外",
+        "confidence": 0.9, "reason": "x",
+    }
+
+    # ── Act 1: pipeline entrypoint (all three layers mocked) ────────────────
+    from app.services import group_reply_pipeline
+    with patch("app.services.group_reply_pipeline.GROUP_AI_REPLY_ENABLED", True), \
+         patch(
+             "app.services.lead_detector.embed_text",
+             return_value=[0.5] * 768,
+         ), patch(
+             "app.services.lead_detector._score_lead",
+             new=AsyncMock(return_value=fake_score),
+         ), patch(
+             "app.services.lead_detector._fetch_kb_top3",
+             new=AsyncMock(return_value=[]),
+         ), patch(
+             "app.services.lead_detector._fetch_recent_context",
+             new=AsyncMock(return_value=[]),
+         ):
+        result = await group_reply_pipeline.entrypoint(fake_msg, account, monitor)
+
+    assert "pending_reply_id" in result, (
+        f"expected pending_reply_id in result, got {result}"
+    )
+    pr_id = result["pending_reply_id"]
+
+    # Phase 4a: experiment_tag should be written for this row too
+    with Session(test_engine) as s:
+        pr_check = s.get(PendingReply, pr_id)
+        assert pr_check is not None
+        assert pr_check.experiment_tag == "e2e_test:v1", (
+            f"expected experiment_tag='e2e_test:v1', got {pr_check.experiment_tag!r}"
+        )
+
+    # ── Fast-forward fire_at ────────────────────────────────────────────────
+    with Session(test_engine) as s:
+        pr_db = s.get(PendingReply, pr_id)
+        pr_db.fire_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+        s.add(pr_db)
+        s.commit()
+
+    # ── Act 2: scanner with compose_reply_phase3 returning None ────────────
+    from app.workers.group_reply_scanner import scan_and_process_due_replies
+
+    with patch(
+        "app.workers.group_reply_scanner.has_human_or_other_account_replied",
+        return_value={"detected": False, "reason": None, "matched_message_id": None},
+    ), patch(
+        # compose returns None → triggers save_suggested_reply path
+        "app.workers.group_reply_scanner.compose_reply_phase3",
+        new=AsyncMock(return_value=None),
+    ), patch(
+        # avoid real WebSocket broadcast
+        "app.services.copilot_suggestion_service._broadcast_ws",
+        new=AsyncMock(return_value=None),
+    ):
+        n = await scan_and_process_due_replies()
+
+    assert n == 1, f"scanner should process 1 row, got {n}"
+
+    # ── Assert: status=suggested, reply_text contains fallback placeholder ──
+    with Session(test_engine) as s:
+        pr_final = s.get(PendingReply, pr_id)
+        assert pr_final is not None
+        assert pr_final.status == PendingReplyStatus.SUGGESTED.value, (
+            f"expected suggested, got {pr_final.status}"
+        )
+        assert pr_final.reply_text is not None, (
+            "reply_text should not be None after suggested save"
+        )
+        assert "AI 草稿生成失败" in pr_final.reply_text, (
+            f"fallback placeholder missing from reply_text: {pr_final.reply_text!r}"
         )
