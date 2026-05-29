@@ -53,5 +53,7 @@ class ChitchatLog(SQLModel, table=True):
 
     sent_at: Optional[datetime] = Field(
         default=None,
-        sa_column=Column(DateTime(timezone=True), nullable=False),
+        # timezone=False → TIMESTAMP WITHOUT TIME ZONE, matching the Phase 1 migration.
+        # Required for the IMMUTABLE expression index: (sent_at::date).
+        sa_column=Column(DateTime(timezone=False), nullable=False),
     )

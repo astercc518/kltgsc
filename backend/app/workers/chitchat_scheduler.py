@@ -99,12 +99,15 @@ def _list_joined_chats_for_account(account) -> list[tuple[int, list[str]]]:
 def _chitchat_log_count_today(*, account_id: int, chat_id: int) -> int:
     today = datetime.now(timezone.utc).date()
     with Session(engine) as session:
-        from sqlalchemy import func, cast, Date
+        from sqlalchemy import func
         cnt = session.exec(
             select(func.count(ChitchatLog.id)).where(
                 ChitchatLog.account_id == account_id,
                 ChitchatLog.chat_id == chat_id,
-                cast(ChitchatLog.sent_at, Date) == today,
+                # func.timezone enforces UTC interpretation regardless of PG session tz
+                # sent_at is TIMESTAMP WITHOUT TIME ZONE (UTC-naive writes), so this is
+                # a no-op semantically but guards against non-UTC session_timezone configs
+                func.date(func.timezone("UTC", ChitchatLog.sent_at)) == today,
             )
         ).first()
         return int(cnt or 0)
@@ -175,6 +178,7 @@ async def chitchat_scheduler_tick() -> int:
     """主 tick: 处理条数 (实际入队)。"""
     accounts = _list_active_worker_accounts()
     processed = 0
+    pending_dispatches = []  # 收集待 await 的 dispatch 协程
     for account in accounts:
         chats = _list_joined_chats_for_account(account)
         if not chats:
@@ -217,11 +221,16 @@ async def chitchat_scheduler_tick() -> int:
 
             # 随机时延
             typing_delay = random.randint(*persona["typing_delay_seconds_range"])
-            asyncio.create_task(dispatch_chitchat(
+            # 收集协程, 稍后统一 gather (避免 asyncio.run() 提前取消 pending tasks)
+            pending_dispatches.append(dispatch_chitchat(
                 account_id=account.id, chat_id=chat_id, topic_id=topic.id,
                 text=text, typing_delay=typing_delay,
             ))
             processed += 1
+
+    # 在 return 前 await 所有 dispatch (typing_delay 期间不阻塞其他账号决策)
+    if pending_dispatches:
+        await asyncio.gather(*pending_dispatches, return_exceptions=True)
     return processed
 
 

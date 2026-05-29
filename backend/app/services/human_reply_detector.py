@@ -9,7 +9,7 @@ human_reply_detector — 判断 source_message 之后 N 分钟内
 source_user_id 自己的发言不算 (排除自言自语)。
 """
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from sqlmodel import select
@@ -40,15 +40,21 @@ def has_human_or_other_account_replied(
       {"detected": bool, "reason": "reply_chain" | "keyword_cooccur" | None,
        "matched_message_id": int | None}
     """
-    until = since + timedelta(minutes=window_minutes)
+    # Use rolling window for postponed PRs: a PR created 8h ago should still see
+    # human replies that arrived 2min ago (not be stuck at "since+5min" = 7h55m ago).
+    now = datetime.now(timezone.utc)
+    effective_since = max(since, now - timedelta(minutes=window_minutes))
+    until = effective_since + timedelta(minutes=window_minutes)
     stmt = (
         select(GroupMessage)
         .where(
             GroupMessage.chat_id == chat_id,
             GroupMessage.customer_id == customer_id,
-            GroupMessage.message_date >= since,
+            GroupMessage.message_date >= effective_since,
             GroupMessage.message_date <= until,
-            GroupMessage.message_id != source_message_id,
+            # Use > (not !=) per spec §7: avoids false-positive from a prior message
+            # at the same timestamp that happens to mention a solution topic token.
+            GroupMessage.message_id > source_message_id,
         )
         .order_by(GroupMessage.message_date.asc())
         .limit(200)

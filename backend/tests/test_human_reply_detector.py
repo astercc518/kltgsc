@@ -74,6 +74,25 @@ def test_ignores_source_user_self_replies():
     assert result["detected"] is False
 
 
+def test_postponed_pr_sees_recent_human_reply_outside_original_window():
+    """PR created 8h ago, human replied 2min ago → detected (rolling window fix)"""
+    pr_created = datetime.now(timezone.utc) - timedelta(hours=8)
+    recent_reply_time = datetime.now(timezone.utc) - timedelta(minutes=2)
+    # message_id > source_message_id (Bug 3 fix: use > not !=)
+    fake_msg = MagicMock(
+        sender_id=8888, reply_to_msg_id=42, content="USDT 渠道",
+        message_date=recent_reply_time, message_id=100,
+    )
+    fake_session = MagicMock()
+    fake_session.exec.return_value.all.return_value = [fake_msg]
+    result = has_human_or_other_account_replied(
+        session=fake_session, customer_id=1, chat_id=-100,
+        source_message_id=42, source_user_id=999,
+        solution_topic="USDT", since=pr_created, window_minutes=5,
+    )
+    assert result["detected"] is True
+
+
 def test_topic_must_split_into_real_tokens():
     """solution_topic 拆词, 短词 (< 2 字) 不算; 全停用词 → 不触发关键词共现"""
     later = datetime.now(timezone.utc) + timedelta(minutes=1)
