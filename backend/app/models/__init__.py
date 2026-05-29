@@ -72,3 +72,4 @@ from .sales_wallet import (
     SalesWalletRead, SalesWalletTopupRequest, SalesWalletTransactionRead,
     OWNER_CUSTOMER_SALES, OWNER_PLATFORM_SALES, SALES_OWNER_TYPES,
 )
+from .pending_reply import PendingReply, PendingReplyStatus  # noqa: F401
