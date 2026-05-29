@@ -2,12 +2,14 @@
 
 完整路径:
   1. 创建 Customer (含 icp_profile_text + icp_profile_embedding + 低阈值)
-     / Account / KeywordMonitor 测试数据
+     / Account / KeywordMonitor / WorkerPersona 测试数据
   2. 调 group_reply_pipeline.entrypoint → run_all_layers (Layer 1+2+3 全 mock)
      → 写 pending_replies (status=observing, layer3 字段已写入)
   3. fast-forward fire_at 到过期
-  4. 调 scan_and_process_due_replies() (mock LLM reply + Telethon + billing)
-  5. 断言 status='sent', reply_text 含 USDT, layer3_score/layer3_solution_topic 已写
+  4. 调 scan_and_process_due_replies() (mock LLM reply + Telethon + billing +
+     human_reply_detector + persona_rewriter)
+  5. 断言 status='sent', reply_text 含 USDT + 结尾是 "咯" (persona 已应用),
+     layer3_score/layer3_solution_topic 已写
 
 架构说明:
   pipeline / scanner 内部均使用 Session(app.core.db.engine)，不经过 pytest
@@ -43,7 +45,8 @@ def _require_postgres():
 @pytest.fixture
 def e2e_fixtures():
     """
-    Creates a fresh Postgres session + Customer / Account / KeywordMonitor.
+    Creates a fresh Postgres session + Customer / Account / KeywordMonitor /
+    WorkerPersona (Phase 3a: 24/7 active_hours, daily_chitchat_quota=0).
     Customer includes icp_profile_text + icp_profile_embedding + lowered
     lead_detector_thresholds so mock data passes all three layers.
     Patches app.core.db.engine to use the same Postgres engine so that
@@ -55,6 +58,7 @@ def e2e_fixtures():
     from app.models.customer import Customer
     from app.models.account import Account
     from app.models.keyword_monitor import KeywordMonitor
+    from app.models.worker_persona import WorkerPersona
     import app.core.db as _db
     import app.models  # noqa — ensure all tables are registered
 
@@ -104,10 +108,31 @@ def e2e_fixtures():
         session.commit()
         session.refresh(monitor)
 
+        # --- Phase 3a: WorkerPersona (24/7 active window, no chitchat quota) ---
+        persona = WorkerPersona(
+            account_id=account.id,
+            customer_id=customer.id,
+            display_name="e2e",
+            speaking_style="casual",
+            catchphrases=[],
+            active_hours={
+                "mon": [[0, 24]], "tue": [[0, 24]], "wed": [[0, 24]],
+                "thu": [[0, 24]], "fri": [[0, 24]], "sat": [[0, 24]], "sun": [[0, 24]],
+            },
+            daily_reply_quota=5,
+            per_chat_daily_quota=2,
+            per_chat_cooldown_minutes=0,   # no cooldown for test
+            daily_chitchat_quota=0,        # don't trigger chitchat in e2e
+        )
+        session.add(persona)
+        session.commit()
+        session.refresh(persona)
+
     # Capture IDs for later lookup/cleanup (avoid detached-instance issues).
     customer_id = customer.id
     account_id = account.id
     monitor_id = monitor.id
+    persona_id = persona.id
 
     # Patch app.core.db.engine so pipeline/scanner use the same test engine.
     _orig_engine = _db.engine
@@ -124,6 +149,9 @@ def e2e_fixtures():
                 select(PendingReply).where(PendingReply.customer_id == customer_id)
             ).all():
                 s.delete(pr)
+            wp = s.get(WorkerPersona, persona_id)
+            if wp:
+                s.delete(wp)
             mon = s.get(KeywordMonitor, monitor_id)
             if mon:
                 s.delete(mon)
@@ -156,16 +184,17 @@ class FakeMsg:
 
 @pytest.mark.asyncio
 async def test_e2e_happy_path(e2e_fixtures):
-    """Full Phase 2a pipeline: msg hit → 3-layer detection → observing → scanner → sent.
+    """Full Phase 3a pipeline: msg hit → 3-layer detection → observing → scanner → sent.
 
     Covers:
     - Layer 1 keyword match (USDT hit)
     - Layer 2 ICP embedding similarity (embed_text mocked)
     - Layer 3 LLM score (_score_lead mocked, returns score=80)
     - PendingReply written with layer3_score + layer3_solution_topic
-    - Scanner composes reply via kb + case_studies (both mocked)
+    - Scanner: human_reply_detector returns detected=False (no human takeover)
+    - Scanner: compose_reply_phase2a mocked, apply_persona appends "咯"
     - Dispatcher sends + charges (both mocked)
-    - Final status=sent, reply_text contains USDT
+    - Final status=sent, reply_text contains USDT + ends with "咯" (persona applied)
     """
     customer_id, account_id, monitor_id, test_engine = e2e_fixtures
 
@@ -237,7 +266,7 @@ async def test_e2e_happy_path(e2e_fixtures):
         s.add(pr_db)
         s.commit()
 
-    # ── Act 2: scanner (reply composer + dispatcher mocked) ─────────────────
+    # ── Act 2: scanner (reply composer + dispatcher + Phase 3 mocked) ────────
     from app.workers.group_reply_scanner import scan_and_process_due_replies
 
     with patch(
@@ -249,6 +278,18 @@ async def test_e2e_happy_path(e2e_fixtures):
     ), patch(
         "app.services.reply_composer.llm_generate_reply",
         new=AsyncMock(return_value="USDT 大额 T+0 直达 私聊"),
+    ), patch(
+        # Phase 3a: human-reply check — no takeover detected
+        "app.workers.group_reply_scanner.has_human_or_other_account_replied",
+        return_value={"detected": False, "reason": None, "matched_message_id": None},
+    ), patch(
+        # Phase 3a: phase3 calls phase2a internally — mock at call-site module
+        "app.services.reply_composer.compose_reply_phase2a",
+        new=AsyncMock(return_value="USDT 大额 T+0 100k 直达 私聊"),
+    ), patch(
+        # Phase 3a: apply_persona imported into reply_composer — mock local reference
+        "app.services.reply_composer.apply_persona",
+        side_effect=lambda text, persona, seed=None: text + "咯",
     ), patch(
         "app.services.group_dispatcher._telethon_send_to_group",
         new=AsyncMock(return_value=True),
@@ -274,6 +315,10 @@ async def test_e2e_happy_path(e2e_fixtures):
         )
         assert "USDT" in pr_final.reply_text, (
             f"reply_text should contain USDT, got: {pr_final.reply_text}"
+        )
+        # Phase 3a: persona was applied (apply_persona appended "咯" in mock)
+        assert pr_final.reply_text.endswith("咯"), (
+            f"reply_text should end with '咯' (persona applied), got: {pr_final.reply_text}"
         )
         # Phase 2a: layer3 fields survive the scanner round-trip
         assert pr_final.layer3_score == 80, (
