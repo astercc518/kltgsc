@@ -92,3 +92,6 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 
 from app.routers import admin_group_ai  # noqa: E402
 app.include_router(admin_group_ai.router)
+
+from app.routers import inbox_group_ai  # noqa: E402
+app.include_router(inbox_group_ai.router)
