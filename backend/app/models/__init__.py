@@ -73,3 +73,7 @@ from .sales_wallet import (
     OWNER_CUSTOMER_SALES, OWNER_PLATFORM_SALES, SALES_OWNER_TYPES,
 )
 from .pending_reply import PendingReply, PendingReplyStatus  # noqa: F401
+from .case_study import CaseStudy  # noqa: F401
+from .worker_persona import WorkerPersona  # noqa: F401
+from .chitchat import ChitchatPool, ChitchatLog  # noqa: F401
+from .ab_experiment import ABExperiment  # noqa: F401
