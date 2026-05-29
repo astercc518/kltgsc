@@ -87,23 +87,26 @@ async def test_scanner_skip_path_marks_status():
 
 
 @pytest.mark.asyncio
-async def test_scanner_compose_failure_marks_failed():
-    pr = MagicMock(id=1, customer_id=1, chat_id=-100, source_user_id=999, source_text="x",
-                   layer3_solution_topic=None)
-    decision = MagicMock(action="compose", responder_account_id=10, skip_reason=None)
+async def test_scanner_compose_failure_routes_to_copilot():
+    """compose 失败 → save_suggested_reply 被调"""
+    pr = MagicMock(
+        id=1, customer_id=1, chat_id=-100, source_user_id=999,
+        source_text="x", message_id=42,
+        layer3_solution_topic="USDT", created_at=datetime.now(timezone.utc),
+    )
+    decision = MagicMock(action="compose", responder_account_id=10, skip_reason=None, postpone_to=None)
+
     with patch(
         "app.workers.group_reply_scanner._fetch_due_pending_replies",
         new=AsyncMock(return_value=[pr]),
     ), patch(
         "app.workers.group_reply_scanner._gather_risk_inputs_phase3",
-        new=AsyncMock(return_value={
-            "candidate_accounts": [],
-            "personas_by_account": {10: None},
-            "same_lead_sent_within_48h": [],
-            "account_daily_sent_count": {},
-            "account_last_sent_in_chat": {},
-            "human_reply_signal": {"detected": False},
-        }),
+        new=AsyncMock(return_value={"candidate_accounts": [],
+                                     "personas_by_account": {10: {"speaking_style": "casual"}},
+                                     "same_lead_sent_within_48h": [],
+                                     "account_daily_sent_count": {},
+                                     "account_last_sent_in_chat": {},
+                                     "human_reply_signal": {"detected": False}}),
     ), patch(
         "app.workers.group_reply_scanner.decide_phase3", return_value=decision,
     ), patch(
@@ -113,12 +116,14 @@ async def test_scanner_compose_failure_marks_failed():
         "app.workers.group_reply_scanner.compose_reply_phase3",
         new=AsyncMock(return_value=None),  # 失败
     ), patch(
-        "app.workers.group_reply_scanner._mark_status", new=AsyncMock()
-    ) as mark:
-        processed = await scan_and_process_due_replies()
-    assert processed == 1
-    # Phase 3a 失败 → status=failed
-    assert mark.call_args.args[1] == "failed"
+        "app.workers.group_reply_scanner.save_suggested_reply", new=AsyncMock(),
+    ) as save_mock:
+        n = await scan_and_process_due_replies()
+    save_mock.assert_awaited_once()
+    # 确认 suggested text 含原始消息
+    call_kwargs = save_mock.call_args.kwargs
+    assert "x" in call_kwargs["suggested_text"]
+    assert "USDT" in call_kwargs["suggested_text"]
 
 
 @pytest.mark.asyncio

@@ -20,6 +20,7 @@ from app.models.pending_reply import PendingReply, PendingReplyStatus
 from app.services.reply_composer import compose_reply_phase3
 from app.services.risk_controller import decide_phase3
 from app.services.group_dispatcher import dispatch_send
+from app.services.copilot_suggestion_service import save_suggested_reply
 from app.services.worker_persona_service import get_persona_for_account
 from app.services.human_reply_detector import has_human_or_other_account_replied
 
@@ -40,6 +41,15 @@ async def scan_and_process_due_replies() -> int:
         except Exception:
             logger.exception("scanner failed to process pending_reply id=%s", pr.id)
     return processed
+
+
+def _generate_fallback_suggestion(pr) -> str:
+    """没生成可发回复时, 给销售一个 placeholder 引导文。"""
+    topic = pr.layer3_solution_topic or "业务"
+    return (
+        f"[AI 草稿生成失败] 客户在群里发: 「{pr.source_text}」. "
+        f"主题: {topic}. 请人工写回复或忽略。"
+    )
 
 
 async def _process_one(pr: PendingReply) -> None:
@@ -81,7 +91,9 @@ async def _process_one(pr: PendingReply) -> None:
                 persona=persona,
             )
         if reply is None:
-            await _mark_status(pr, PendingReplyStatus.FAILED.value, skip_reason="compose_failed")
+            # Phase 4a: compose 2 次反幻觉失败 → 走副驾驶兜底, 让销售改写
+            suggested = _generate_fallback_suggestion(pr)
+            await save_suggested_reply(pending_reply=pr, suggested_text=suggested)
             return
 
         pr.reply_text = reply
