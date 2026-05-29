@@ -2,6 +2,7 @@
 admin Group AI Sales endpoints — Phase 2a 仅有 admin 视角。
 客户视角的 endpoint (Portal UI) 由 Phase 2b 接。
 """
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -10,6 +11,7 @@ from sqlmodel import Session, select
 
 from app.api.deps import get_current_admin
 from app.core.db import get_session
+from app.models.ab_experiment import ABExperiment
 from app.models.user import User
 from app.services.case_study_service import (
     create_case_study, delete_case_study,
@@ -348,3 +350,93 @@ async def delete_chitchat_topic(
     row.active = False
     session.commit()
     return {"ok": True}
+
+
+# === AB Experiment CRUD ===
+
+class ABExperimentCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    scope: str  # 'global' | 'customer' | 'monitor'
+    scope_value: Optional[int] = None
+    variants: list[dict]  # [{"tag", "weight", "params"}]
+    primary_metric: Optional[str] = None
+
+
+@router.post("/ab/experiments")
+async def create_ab_experiment(
+    body: ABExperimentCreate,
+    session: Session = Depends(get_session),
+    _admin: User = Depends(get_current_admin),
+):
+    """Create a draft AB experiment."""
+    if body.scope not in ("global", "customer", "monitor"):
+        raise HTTPException(400, "scope must be global|customer|monitor")
+    if body.scope in ("customer", "monitor") and body.scope_value is None:
+        raise HTTPException(400, "scope_value required for customer/monitor scope")
+    if not body.variants:
+        raise HTTPException(400, "variants must be non-empty")
+    exp = ABExperiment(
+        name=body.name, description=body.description,
+        scope=body.scope, scope_value=body.scope_value,
+        variants=body.variants, status="draft",
+        primary_metric=body.primary_metric,
+    )
+    session.add(exp)
+    session.commit()
+    session.refresh(exp)
+    return {"id": exp.id}
+
+
+@router.put("/ab/experiments/{exp_id}/start")
+async def start_ab_experiment(
+    exp_id: int,
+    session: Session = Depends(get_session),
+    _admin: User = Depends(get_current_admin),
+):
+    """Flip a draft experiment to running."""
+    exp = session.get(ABExperiment, exp_id)
+    if exp is None:
+        raise HTTPException(404, "experiment not found")
+    if exp.status != "draft":
+        raise HTTPException(409, f"cannot start in state {exp.status}")
+    exp.status = "running"
+    exp.started_at = datetime.now(timezone.utc)
+    session.commit()
+    return {"ok": True, "started_at": exp.started_at}
+
+
+@router.put("/ab/experiments/{exp_id}/stop")
+async def stop_ab_experiment(
+    exp_id: int,
+    session: Session = Depends(get_session),
+    _admin: User = Depends(get_current_admin),
+):
+    """Flip a running experiment to finished."""
+    exp = session.get(ABExperiment, exp_id)
+    if exp is None:
+        raise HTTPException(404, "experiment not found")
+    if exp.status != "running":
+        raise HTTPException(409, f"cannot stop in state {exp.status}")
+    exp.status = "finished"
+    exp.ended_at = datetime.now(timezone.utc)
+    session.commit()
+    return {"ok": True, "ended_at": exp.ended_at}
+
+
+@router.get("/ab/experiments")
+async def list_ab_experiments(
+    session: Session = Depends(get_session),
+    _admin: User = Depends(get_current_admin),
+):
+    """List all AB experiments, newest first."""
+    rows = session.exec(select(ABExperiment).order_by(ABExperiment.id.desc())).all()
+    return [
+        {
+            "id": e.id, "name": e.name, "scope": e.scope,
+            "scope_value": e.scope_value, "status": e.status,
+            "variants": e.variants, "primary_metric": e.primary_metric,
+            "started_at": e.started_at, "ended_at": e.ended_at,
+        }
+        for e in rows
+    ]
