@@ -3,13 +3,17 @@ LeadDetector — 群消息业务线索三层过滤。
 
 Phase 1: 仅实现 Layer 1 (keyword_filters)
 Phase 2: 加 Layer 2 (ICP embedding) + Layer 3 (LLM scoring)
+Phase 2a Task 5: run_all_layers orchestrator — Layer 1 → 2 → 3, 早返 + borderline 标记
 
 参考: spec §3
 """
+import logging
 import math
 from typing import Optional
 
 from app.services.embedding_service import embed_text
+
+logger = logging.getLogger(__name__)
 
 
 def layer1_keyword_match(
@@ -109,4 +113,168 @@ def layer2_icp_similarity(
     return {
         "pass": passed, "similarity": sim,
         "degraded": False, "borderline": borderline,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Layer 3 helpers: thin wrappers around LLMService + KB retrieval
+# (kept as top-level async functions so tests can patch them easily)
+# ---------------------------------------------------------------------------
+
+async def _score_lead(*, session, text: str, icp_text, kb_top3: list, recent_context: list) -> dict:
+    """薄包装 LLMService.score_lead_message, 方便 mock。"""
+    from app.services.llm import LLMService  # local import avoids circular import
+    svc = LLMService(session)
+    return await svc.score_lead_message(
+        text=text, icp_text=icp_text, kb_top3=kb_top3, recent_context=recent_context,
+    )
+
+
+async def _fetch_kb_top3(*, session, customer_id, query: str) -> list:
+    """从 KB 取 top 3, 返回 [{"text": str, "score": float}, ...]。
+
+    retrieve_relevant_kb 签名 (验证后):
+        async def retrieve_relevant_kb(session, query, top_k=5, customer_id_filter=_UNSCOPED, ...) -> List[KnowledgeBase]
+    返回的 KnowledgeBase 对象有 .content 字段。
+    """
+    if not query:
+        return []
+    try:
+        from app.services.kb_retrieval import retrieve_relevant_kb  # local import
+        rows = await retrieve_relevant_kb(
+            session, query, top_k=3, customer_id_filter=customer_id,
+        )
+        return [{"text": r.content, "score": 1.0} for r in (rows or [])]
+    except Exception:
+        logger.exception("_fetch_kb_top3: KB retrieval failed")
+        return []
+
+
+async def _fetch_recent_context(*, session, chat_id: int, before_message_id=None) -> list:
+    """从 group_message 取最近群上下文。
+
+    Phase 2a: 简化为空返回, Phase 3 再接入 group_message 查询。
+    """
+    return []
+
+
+# ---------------------------------------------------------------------------
+# Orchestrator: run_all_layers
+# ---------------------------------------------------------------------------
+
+async def run_all_layers(
+    *, session, customer, monitor, text: str, chat_id: int,
+) -> dict:
+    """
+    跑 Layer 1 → 2 → 3，早返 + borderline 标记。
+
+    Args:
+        session:  DB session
+        customer: Customer ORM 对象 (需有 icp_profile_embedding, icp_profile_text,
+                  lead_detector_thresholds, id)
+        monitor:  GroupMonitor ORM 对象 (需有 keyword_filters, keyword)
+        text:     群消息原文
+        chat_id:  Telegram chat_id (用于上下文查询)
+
+    Returns:
+        pass=True 时:
+            {"pass": True, "layer1_matched": [...],
+             "layer2_similarity": float | None, "layer3": {...}, "borderline": False}
+
+        pass=False 时:
+            {"pass": False, "skip_reason": "layer1_miss"|"layer2_miss"|"layer3_miss",
+             "layer1_matched": [...], "layer2_similarity": float | None,
+             "layer3": dict | None, "borderline": bool}
+    """
+    thresholds = customer.lead_detector_thresholds or {
+        "layer2_sim": 0.55,
+        "layer3_score": 60,
+        "layer3_confidence": 0.7,
+    }
+
+    # ------------------------------------------------------------------
+    # Layer 1: keyword match
+    # ------------------------------------------------------------------
+    l1 = layer1_keyword_match(
+        text,
+        filters=getattr(monitor, "keyword_filters", None),
+        legacy_keyword=getattr(monitor, "keyword", None),
+    )
+    if not l1["pass"]:
+        return {
+            "pass": False,
+            "skip_reason": "layer1_miss",
+            "layer1_matched": [],
+            "layer2_similarity": None,
+            "layer3": None,
+            "borderline": False,
+        }
+
+    # ------------------------------------------------------------------
+    # Layer 2: ICP embedding similarity
+    # ------------------------------------------------------------------
+    l2 = layer2_icp_similarity(
+        session=session,
+        text=text,
+        icp_embedding=customer.icp_profile_embedding,
+        threshold=thresholds.get("layer2_sim", 0.55),
+    )
+    if not l2["pass"]:
+        # degraded=True means pass=True, so here pass=False means genuine miss
+        return {
+            "pass": False,
+            "skip_reason": "layer2_miss",
+            "layer1_matched": l1["matched"],
+            "layer2_similarity": l2["similarity"],
+            "layer3": None,
+            "borderline": l2.get("borderline", False),
+        }
+
+    # ------------------------------------------------------------------
+    # Layer 3: LLM scoring
+    # ------------------------------------------------------------------
+    kb_top3 = await _fetch_kb_top3(
+        session=session, customer_id=customer.id, query=text,
+    )
+    recent_ctx = await _fetch_recent_context(session=session, chat_id=chat_id)
+
+    l3 = await _score_lead(
+        session=session,
+        text=text,
+        icp_text=getattr(customer, "icp_profile_text", None),
+        kb_top3=kb_top3,
+        recent_context=recent_ctx,
+    )
+
+    score_thr = thresholds.get("layer3_score", 60)
+    conf_thr = thresholds.get("layer3_confidence", 0.7)
+    score = l3["score"]
+    conf = l3["confidence"]
+
+    passed = score >= score_thr and conf >= conf_thr
+
+    borderline = False
+    if not passed:
+        # borderline: score 落在 [score_thr-5, score_thr) 或 confidence 落在 [conf_thr-0.1, conf_thr)
+        borderline = (
+            (score_thr - 5 <= score < score_thr)
+            or (conf_thr - 0.1 <= conf < conf_thr)
+        )
+
+    if not passed:
+        return {
+            "pass": False,
+            "skip_reason": "layer3_miss",
+            "layer1_matched": l1["matched"],
+            "layer2_similarity": l2["similarity"],
+            "layer3": l3,
+            "borderline": borderline,
+        }
+
+    return {
+        "pass": True,
+        "layer1_matched": l1["matched"],
+        "layer2_similarity": l2["similarity"],
+        "layer3": l3,
+        "borderline": False,
     }
