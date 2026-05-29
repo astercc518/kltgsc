@@ -17,7 +17,7 @@ from app.core.db import engine
 from app.core.group_reply_config import DEFAULT_PERSONA, SCAN_INTERVAL_SECONDS
 from app.models.account import Account
 from app.models.pending_reply import PendingReply, PendingReplyStatus
-from app.services.reply_composer import compose_reply_phase1
+from app.services.reply_composer import compose_reply_phase2a
 from app.services.risk_controller import decide_phase1
 from app.services.group_dispatcher import dispatch_send
 
@@ -59,13 +59,16 @@ async def _process_one(pr: PendingReply) -> None:
 
         # compose 路径
         pr.responder_account_id = decision.responder_account_id
-        reply = await compose_reply_phase1(
-            customer_id=pr.customer_id,
-            source_text=pr.source_text,
-            solution_topic=pr.source_text,  # Phase 1 无 Layer 3, 用 source_text 兜底
-        )
+        topic = pr.layer3_solution_topic or pr.source_text  # Phase 2a: 用 layer3 主题, 兜底 source_text
+        with Session(engine) as session:
+            reply = await compose_reply_phase2a(
+                customer_id=pr.customer_id,
+                source_text=pr.source_text,
+                solution_topic=topic,
+                session=session,
+            )
         if reply is None:
-            # Phase 1: 失败 → status=failed (Phase 4 改 suggested)
+            # Phase 2a: 失败 → status=failed
             await _mark_status(pr, PendingReplyStatus.FAILED.value, skip_reason="compose_failed")
             return
 

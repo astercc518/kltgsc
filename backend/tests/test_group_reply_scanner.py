@@ -21,6 +21,7 @@ async def test_scanner_processes_one_compose_path():
     pr = MagicMock(
         id=1, customer_id=1, chat_id=-100, source_user_id=999,
         source_text="求 USDT", responder_account_id=None,
+        layer3_solution_topic=None,
     )
     decision = MagicMock(action="compose", responder_account_id=10, skip_reason=None)
 
@@ -33,7 +34,10 @@ async def test_scanner_processes_one_compose_path():
     ), patch(
         "app.workers.group_reply_scanner.decide_phase1", return_value=decision,
     ), patch(
-        "app.workers.group_reply_scanner.compose_reply_phase1",
+        "app.workers.group_reply_scanner.Session",
+        return_value=MagicMock(__enter__=MagicMock(return_value=MagicMock()), __exit__=MagicMock(return_value=False)),
+    ), patch(
+        "app.workers.group_reply_scanner.compose_reply_phase2a",
         new=AsyncMock(return_value="测试回复"),
     ), patch(
         "app.workers.group_reply_scanner.dispatch_send", new=AsyncMock()
@@ -70,7 +74,8 @@ async def test_scanner_skip_path_marks_status():
 
 @pytest.mark.asyncio
 async def test_scanner_compose_failure_marks_failed():
-    pr = MagicMock(id=1, customer_id=1, chat_id=-100, source_user_id=999, source_text="x")
+    pr = MagicMock(id=1, customer_id=1, chat_id=-100, source_user_id=999, source_text="x",
+                   layer3_solution_topic=None)
     decision = MagicMock(action="compose", responder_account_id=10, skip_reason=None)
     with patch(
         "app.workers.group_reply_scanner._fetch_due_pending_replies",
@@ -81,12 +86,15 @@ async def test_scanner_compose_failure_marks_failed():
     ), patch(
         "app.workers.group_reply_scanner.decide_phase1", return_value=decision,
     ), patch(
-        "app.workers.group_reply_scanner.compose_reply_phase1",
+        "app.workers.group_reply_scanner.Session",
+        return_value=MagicMock(__enter__=MagicMock(return_value=MagicMock()), __exit__=MagicMock(return_value=False)),
+    ), patch(
+        "app.workers.group_reply_scanner.compose_reply_phase2a",
         new=AsyncMock(return_value=None),  # 失败
     ), patch(
         "app.workers.group_reply_scanner._mark_status", new=AsyncMock()
     ) as mark:
         processed = await scan_and_process_due_replies()
     assert processed == 1
-    # Phase 1 失败 → status=failed (Phase 4 改 suggested)
+    # Phase 2a 失败 → status=failed
     assert mark.call_args.args[1] == "failed"
