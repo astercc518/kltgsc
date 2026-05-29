@@ -1,127 +1,143 @@
 """
-group_reply_pipeline — 群内 AI 销售员管线入口。
+group_reply_pipeline — 群内 AI 销售员管线入口 (Phase 2a 三层版)。
 
-每条群消息从 listener_service._handle_message 调一次本入口。
-本模块只做编排：早返 → Layer 1 → 入 pending_replies。Layer 2/3 在 Phase 2 加。
+Phase 1: msg → Layer 1 only → insert observing
+Phase 2a: msg → Layer 1+2+3 → insert observing OR insert borderline
 
-Phase 1 流程:
-  msg → entrypoint(msg, account, monitor) →
-    (skip collector / no_customer / feature_off / monitor_no_customer / empty_text) →
-    layer1_keyword_match → (skip if miss) →
-    INSERT pending_replies(status='observing', fire_at=now+random(60..900))
-
-参考: spec §2.1, §3.1
+参考: spec §2.1
 """
 import logging
 import random
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from app.core.group_reply_config import (
-    DEFAULT_PERSONA, GROUP_AI_REPLY_ENABLED,
-)
+from sqlmodel import Session
+
+from app.core.db import engine
+from app.core.group_reply_config import DEFAULT_PERSONA, GROUP_AI_REPLY_ENABLED
+from app.models.customer import Customer
 from app.models.pending_reply import PendingReply, PendingReplyStatus
-from app.services.lead_detector import layer1_keyword_match
+from app.services.lead_detector import run_all_layers
 
 logger = logging.getLogger(__name__)
 
 
 async def entrypoint(msg, account, monitor) -> dict:
     """
-    Args:
-        msg: Telethon Message object (须含 text, chat_id, id, sender_id)
-        account: app.models.account.Account (含 customer_id, role)
-        monitor: KeywordMonitor (含 keyword_filters, keyword)
-
     Returns:
-        {"skipped": <reason>} 或 {"pending_reply_id": <id>}
+        {"skipped": <reason>} — Layer pass fail (non-borderline)
+        {"skipped": "borderline", "pending_reply_id": <id>} — borderline (also written)
+        {"pending_reply_id": <id>} — all layers pass, queued observing
     """
-    # Guard: feature flag
     if not GROUP_AI_REPLY_ENABLED:
         return {"skipped": "feature_off"}
 
-    # Guard: collector accounts are observers only — never reply
     if getattr(account, "role", None) == "collector":
         return {"skipped": "collector_role"}
 
-    # Guard: account must be associated with a customer
     customer_id = getattr(account, "customer_id", None)
     if customer_id is None:
         return {"skipped": "no_customer"}
 
-    # Guard: monitor must have a customer
     if getattr(monitor, "customer_id", None) is None:
         return {"skipped": "monitor_no_customer"}
 
-    # Guard: message must have text
     text = getattr(msg, "text", None) or ""
     if not text:
         return {"skipped": "empty_text"}
 
-    # Layer 1: keyword filter
-    layer1 = layer1_keyword_match(
-        text,
-        filters=getattr(monitor, "keyword_filters", None),
-        legacy_keyword=getattr(monitor, "keyword", None),
-    )
-    if not layer1["pass"]:
-        return {"skipped": "layer1_miss"}
+    with Session(engine) as session:
+        customer = session.get(Customer, customer_id)
+        if customer is None:
+            return {"skipped": "customer_not_found"}
 
-    # Pick a random observation window in [obs_min, obs_max]
-    obs_min, obs_max = DEFAULT_PERSONA["observation_window_seconds_range"]
-    obs_seconds = random.randint(obs_min, obs_max)
+        result = await run_all_layers(
+            session=session, customer=customer, monitor=monitor,
+            text=text, chat_id=msg.chat_id,
+        )
 
-    pr = _insert_pending_reply(
-        customer_id=customer_id,
-        monitor_id=monitor.id,
-        chat_id=msg.chat_id,
-        message_id=msg.id,
-        source_user_id=msg.sender_id,
-        source_text=text,
-        layer1_matched={"matched": layer1["matched"]},
-        observation_window_seconds=obs_seconds,
-    )
-    logger.info(
-        "group_reply_pipeline: pending_reply id=%s queued (window=%ss)",
-        pr.id, obs_seconds,
-    )
-    return {"pending_reply_id": pr.id}
+        if not result["pass"]:
+            if result.get("borderline"):
+                pr = _insert_borderline(
+                    session=session,
+                    customer_id=customer_id, monitor_id=monitor.id,
+                    chat_id=msg.chat_id, message_id=msg.id,
+                    source_user_id=msg.sender_id, source_text=text,
+                    layer1_matched=result["layer1_matched"],
+                    layer2_similarity=result["layer2_similarity"],
+                    layer3=result.get("layer3"),
+                    skip_reason=result["skip_reason"],
+                )
+                return {"skipped": "borderline", "pending_reply_id": pr.id}
+            return {"skipped": result["skip_reason"]}
+
+        # All layers pass → queue observing
+        obs_min, obs_max = DEFAULT_PERSONA["observation_window_seconds_range"]
+        obs_seconds = random.randint(obs_min, obs_max)
+        pr = _insert_observing(
+            session=session,
+            customer_id=customer_id, monitor_id=monitor.id,
+            chat_id=msg.chat_id, message_id=msg.id,
+            source_user_id=msg.sender_id, source_text=text,
+            layer1_matched=result["layer1_matched"],
+            layer2_similarity=result["layer2_similarity"],
+            layer3=result["layer3"],
+            observation_window_seconds=obs_seconds,
+        )
+        logger.info(
+            "pipeline: pending_reply id=%s queued (window=%ss, score=%s)",
+            pr.id, obs_seconds, result["layer3"]["score"],
+        )
+        return {"pending_reply_id": pr.id}
 
 
-def _insert_pending_reply(
-    *,
-    customer_id: int,
-    monitor_id: int,
-    chat_id: int,
-    message_id: int,
-    source_user_id: int,
-    source_text: str,
-    layer1_matched: dict,
-    observation_window_seconds: int,
+def _insert_observing(
+    *, session, customer_id, monitor_id, chat_id, message_id, source_user_id,
+    source_text, layer1_matched, layer2_similarity, layer3, observation_window_seconds,
 ) -> PendingReply:
-    """Sync insert using the project's standard sync SQLModel Session pattern.
-
-    Mirrors the pattern used throughout backend/app/services/ (e.g. billing_service.py,
-    ai_reply_service.py) which all use sync `Session(engine)` from app.core.db.
-    """
-    from sqlmodel import Session
-    from app.core.db import engine
-
     now = datetime.now(timezone.utc)
     pr = PendingReply(
-        customer_id=customer_id,
-        monitor_id=monitor_id,
-        chat_id=chat_id,
-        message_id=message_id,
-        source_user_id=source_user_id,
+        customer_id=customer_id, monitor_id=monitor_id,
+        chat_id=chat_id, message_id=message_id, source_user_id=source_user_id,
         source_text=source_text,
-        layer1_matched=layer1_matched,
+        layer1_matched={"matched": layer1_matched},
+        layer2_similarity=layer2_similarity,
+        layer3_score=layer3["score"],
+        layer3_needs=layer3.get("extracted_needs", []),
+        layer3_solution_topic=layer3.get("suggested_solution_topic", ""),
+        layer3_confidence=layer3["confidence"],
         status=PendingReplyStatus.OBSERVING.value,
         fire_at=now + timedelta(seconds=observation_window_seconds),
         created_at=now,
     )
-    with Session(engine) as session:
-        session.add(pr)
-        session.commit()
-        session.refresh(pr)
+    session.add(pr)
+    session.commit()
+    session.refresh(pr)
+    return pr
+
+
+def _insert_borderline(
+    *, session, customer_id, monitor_id, chat_id, message_id, source_user_id,
+    source_text, layer1_matched, layer2_similarity, layer3, skip_reason,
+) -> PendingReply:
+    """borderline 写库供后续训练阈值, 不走 observing 流程。"""
+    now = datetime.now(timezone.utc)
+    pr = PendingReply(
+        customer_id=customer_id, monitor_id=monitor_id,
+        chat_id=chat_id, message_id=message_id, source_user_id=source_user_id,
+        source_text=source_text,
+        layer1_matched={"matched": layer1_matched},
+        layer2_similarity=layer2_similarity,
+        layer3_score=layer3.get("score") if layer3 else None,
+        layer3_needs=layer3.get("extracted_needs", []) if layer3 else None,
+        layer3_solution_topic=layer3.get("suggested_solution_topic", "") if layer3 else None,
+        layer3_confidence=layer3.get("confidence") if layer3 else None,
+        status=PendingReplyStatus.SKIPPED_BORDERLINE.value,
+        skip_reason=skip_reason,
+        created_at=now,
+        decided_at=now,
+    )
+    session.add(pr)
+    session.commit()
+    session.refresh(pr)
     return pr
