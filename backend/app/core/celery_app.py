@@ -119,11 +119,17 @@ celery_app.conf.update(
             "task": "group_reply_scanner.tick",
             "schedule": 30.0,           # 每 30 秒扫到期 pending_replies
         },
+        # ── Group AI Sales Phase 3a: 闲聊调度器 ──────────────────────
+        "chitchat-scheduler": {
+            "task": "chitchat_scheduler.tick",
+            "schedule": 300.0,          # 每 5 分钟触发一次
+        },
     },
 
     # ==================== 任务发现 ====================
     include=[
         "app.workers.group_reply_scanner",
+        "app.workers.chitchat_scheduler",
     ],
 
     # ==================== 任务路由 ====================
