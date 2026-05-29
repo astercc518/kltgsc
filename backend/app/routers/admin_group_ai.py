@@ -167,4 +167,39 @@ async def delete_case(
         raise HTTPException(404, "case not found")
     return {"ok": True}
 
-# NOTE: extract endpoint (案例自动抽取) 在 Task 10 后再加
+
+from app.services.case_study_extractor import extract_cases_for_customer
+
+
+@router.post("/customers/{customer_id}/case-studies/extract")
+async def extract_cases_endpoint(
+    customer_id: int, max_history: int = 100,
+    session: Session = Depends(get_session),
+):
+    """从主号历史抽取案例候选 (不直接入库, 返回供 admin review)"""
+    cases = await extract_cases_for_customer(
+        session=session, customer_id=customer_id, max_history=max_history,
+    )
+    return {"candidates": cases}
+
+
+class CasesBatchCreate(BaseModel):
+    cases: list[CaseStudyCreate]
+
+
+@router.post("/customers/{customer_id}/case-studies/batch")
+async def batch_create_cases(
+    customer_id: int, body: CasesBatchCreate,
+    session: Session = Depends(get_session),
+):
+    """admin review 后批量入库 (source='ai_confirmed')"""
+    ids = []
+    for c in body.cases:
+        case = create_case_study(
+            session=session, customer_id=customer_id,
+            industry=c.industry, deal_size=c.deal_size, period=c.period,
+            problem=c.problem, solution=c.solution, outcome=c.outcome,
+            tags=c.tags, source="ai_confirmed",
+        )
+        ids.append(case.id)
+    return {"ids": ids}
