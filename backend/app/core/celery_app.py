@@ -114,7 +114,17 @@ celery_app.conf.update(
             "schedule": 600.0,          # 每 10 分钟扫一次
             "options": {"queue": "low_priority"},
         },
+        # ── Group AI Sales Phase 1: 群内 AI 回复扫描器 ────────────────
+        "group-reply-scanner": {
+            "task": "group_reply_scanner.tick",
+            "schedule": 30.0,           # 每 30 秒扫到期 pending_replies
+        },
     },
+
+    # ==================== 任务发现 ====================
+    include=[
+        "app.workers.group_reply_scanner",
+    ],
 
     # ==================== 任务路由 ====================
     task_routes={
