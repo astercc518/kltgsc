@@ -96,6 +96,17 @@ if "celery" not in sys.modules:
     _exc_mod.SoftTimeLimitExceeded = SoftTimeLimitExceeded
     sys.modules["celery.exceptions"] = _exc_mod
 
+    # celery.schedules  — crontab used in celery_app.py beat_schedule
+    _sched_mod = types.ModuleType("celery.schedules")
+
+    class _FakeCrontab:
+        """Minimal crontab stub — never executed in unit tests."""
+        def __init__(self, *a, **kw):
+            pass
+
+    _sched_mod.crontab = _FakeCrontab
+    sys.modules["celery.schedules"] = _sched_mod
+
     # celery.result  — AsyncResult used in task status endpoints
     _result_mod = types.ModuleType("celery.result")
 

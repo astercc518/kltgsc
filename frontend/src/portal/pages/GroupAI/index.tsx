@@ -13,6 +13,7 @@ import {
   TeamOutlined,
   MessageOutlined,
   LineChartOutlined,
+  SearchOutlined,
 } from '@ant-design/icons';
 import { Link, Outlet, useLocation, Navigate } from 'react-router-dom';
 
@@ -25,6 +26,7 @@ const items = [
   { key: 'personas',   icon: <TeamOutlined />,      label: <Link to="personas">账号人设</Link> },
   { key: 'chitchat',   icon: <MessageOutlined />,   label: <Link to="chitchat">闲聊话题</Link> },
   { key: 'stats',      icon: <LineChartOutlined />, label: <Link to="stats">实时统计</Link> },
+  { key: 'discovery',  icon: <SearchOutlined />,    label: <Link to="discovery">线索群发现</Link> },
 ];
 
 export default function GroupAILayout() {

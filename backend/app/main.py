@@ -98,3 +98,6 @@ app.include_router(inbox_group_ai.router)
 
 from app.routers import portal_group_ai  # noqa: E402
 app.include_router(portal_group_ai.router)
+
+from app.routers import portal_discovery  # noqa: E402
+app.include_router(portal_discovery.router)

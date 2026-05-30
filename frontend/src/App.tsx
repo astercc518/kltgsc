@@ -79,6 +79,7 @@ import CaseStudies from './portal/pages/GroupAI/CaseStudies';
 import WorkerPersonas from './portal/pages/GroupAI/WorkerPersonas';
 import ChitchatTopics from './portal/pages/GroupAI/ChitchatTopics';
 import RealtimeStats from './portal/pages/GroupAI/RealtimeStats';
+import GroupDiscovery from './portal/pages/GroupAI/GroupDiscovery';
 import SalesLayout from './sales/Layout';
 import SalesInbox from './sales/pages/Inbox';
 import SalesLeadDetail from './sales/pages/LeadDetail';
@@ -489,6 +490,7 @@ const App: React.FC = () => {
             <Route path="personas" element={<WorkerPersonas />} />
             <Route path="chitchat" element={<ChitchatTopics />} />
             <Route path="stats" element={<RealtimeStats />} />
+            <Route path="discovery" element={<GroupDiscovery />} />
           </Route>
         </Route>
 

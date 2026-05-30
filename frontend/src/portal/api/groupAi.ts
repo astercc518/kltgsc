@@ -6,6 +6,20 @@ import portalApi from '../api';
 
 // === Types ===
 
+export interface DiscoveryCandidate {
+  id: number;
+  chat_link: string | null;
+  chat_username: string | null;
+  title: string | null;
+  members_count: number | null;
+  category: string | null;
+  source: string;
+  source_query: string | null;
+  score: number | null;
+  status: string;
+  discovered_at: string;
+}
+
 export interface ICPState {
   icp_text: string | null;
   has_embedding: boolean;
@@ -124,4 +138,13 @@ export const groupAiApi = {
   // Stats
   getRecentStats: () =>
     portalApi.get<RecentStats>('/portal/group-ai/stats/recent').then(r => r.data),
+
+  // Discovery candidates
+  listDiscoveryCandidates: (status = 'pending') =>
+    portalApi.get<DiscoveryCandidate[]>('/portal/group-ai/discovery/candidates', { params: { status } })
+      .then(r => r.data),
+  approveDiscoveryCandidate: (id: number) =>
+    portalApi.post(`/portal/group-ai/discovery/${id}/approve`),
+  rejectDiscoveryCandidate: (id: number) =>
+    portalApi.post(`/portal/group-ai/discovery/${id}/reject`),
 };
