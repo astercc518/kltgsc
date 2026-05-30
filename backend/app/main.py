@@ -101,3 +101,6 @@ app.include_router(portal_group_ai.router)
 
 from app.routers import portal_discovery  # noqa: E402
 app.include_router(portal_discovery.router)
+
+from app.routers import portal_join_failures  # noqa: E402
+app.include_router(portal_join_failures.router)

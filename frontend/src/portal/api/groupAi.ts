@@ -90,6 +90,16 @@ export interface RecentStats {
   };
 }
 
+export interface JoinFailureRow {
+  id: number;
+  chat_link: string;
+  status: string;
+  captcha_type: string | null;
+  last_error: string | null;
+  captcha_attempts: number;
+  created_at: string;
+}
+
 // === API ===
 
 export const groupAiApi = {
@@ -147,4 +157,10 @@ export const groupAiApi = {
     portalApi.post(`/portal/group-ai/discovery/${id}/approve`),
   rejectDiscoveryCandidate: (id: number) =>
     portalApi.post(`/portal/group-ai/discovery/${id}/reject`),
+
+  // Join failures (Phase 8)
+  listJoinFailures: () =>
+    portalApi.get<JoinFailureRow[]>('/portal/group-ai/join/failures').then(r => r.data),
+  abandonJoinAttempt: (id: number) =>
+    portalApi.post(`/portal/group-ai/join/${id}/abandon`),
 };
