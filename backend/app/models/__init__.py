@@ -77,3 +77,4 @@ from .case_study import CaseStudy  # noqa: F401
 from .worker_persona import WorkerPersona  # noqa: F401
 from .chitchat import ChitchatPool, ChitchatLog  # noqa: F401
 from .ab_experiment import ABExperiment  # noqa: F401
+from .account_lifecycle_event import AccountLifecycleEvent  # noqa: F401
