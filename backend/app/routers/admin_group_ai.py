@@ -440,3 +440,67 @@ async def list_ab_experiments(
         }
         for e in rows
     ]
+
+
+# === AB Experiment Metrics / Report / CSV Export ===
+
+from fastapi.responses import PlainTextResponse
+from app.services.experiment_metrics_service import aggregate_metrics_by_tag
+from app.services.experiment_report_service import build_experiment_report, render_csv
+
+
+@router.get("/ab/experiments/{exp_id}/metrics")
+async def get_experiment_metrics(
+    exp_id: int,
+    session: Session = Depends(get_session),
+    _admin: User = Depends(get_current_admin),
+):
+    """Per-variant metric counters + rates (no significance)."""
+    exp = session.get(ABExperiment, exp_id)
+    if exp is None:
+        raise HTTPException(404, "experiment not found")
+    result = {}
+    for variant in exp.variants:
+        tag = f"{exp.name}:{variant['tag']}"
+        m = aggregate_metrics_by_tag(session=session, experiment_tag=tag)
+        result[variant["tag"]] = {
+            "sent": m.sent, "suggested": m.suggested,
+            "skipped_total": m.skipped_total, "failed": m.failed,
+            "reply_rate": m.reply_rate(),
+            "private_conversion_rate": m.private_conversion_rate(),
+            "kick_rate": m.kick_rate(),
+            "anti_hallucination_failure_rate": m.anti_hallucination_failure_rate(),
+        }
+    return result
+
+
+@router.get("/ab/experiments/{exp_id}/report")
+async def get_experiment_report(
+    exp_id: int,
+    session: Session = Depends(get_session),
+    _admin: User = Depends(get_current_admin),
+):
+    """Full report JSON (variants + CIs + significance)."""
+    exp = session.get(ABExperiment, exp_id)
+    if exp is None:
+        raise HTTPException(404, "experiment not found")
+    return build_experiment_report(session=session, experiment=exp)
+
+
+@router.get("/ab/experiments/{exp_id}/report.csv",
+            response_class=PlainTextResponse)
+async def export_experiment_csv(
+    exp_id: int,
+    session: Session = Depends(get_session),
+    _admin: User = Depends(get_current_admin),
+):
+    """CSV download of full experiment report."""
+    exp = session.get(ABExperiment, exp_id)
+    if exp is None:
+        raise HTTPException(404, "experiment not found")
+    report = build_experiment_report(session=session, experiment=exp)
+    return PlainTextResponse(
+        content=render_csv(report),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=ab_report_{exp.name}.csv"},
+    )
