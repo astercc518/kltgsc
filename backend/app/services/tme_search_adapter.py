@@ -1,6 +1,12 @@
 """
-tme_search_adapter — 通过 t.me/{username} 抓公开群信息 (fallback when TGStat 失败).
-当前实现简化: 仅根据已知 username 验证存在性 + 抓 title/description.
+tme_search_adapter — supplementary group info fetcher by known username.
+
+Used to verify existence and retrieve title/description/member-count for a
+group whose username is already known (e.g. Phase 8 captcha join-verification).
+
+NOTE: t.me does NOT support keyword search — it only serves single-username
+lookup pages.  This module is NOT a TGStat keyword-search fallback; it cannot
+replace TGStat for discovery.  Do not wire it as a keyword-search fallback.
 """
 import logging
 import re

@@ -54,6 +54,9 @@ async def search_groups_by_keyword(
     for item in items:
         username = item.get("username")
         chat_id = item.get("id")
+        # F2: skip items with no usable identifier (would produce garbage link like t.me/c/None)
+        if not username and not chat_id:
+            continue
         link = f"https://t.me/{username}" if username else f"https://t.me/c/{chat_id}"
         result.append({
             "username": username,

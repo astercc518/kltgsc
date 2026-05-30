@@ -1,5 +1,5 @@
 """DiscoveredGroup — 待审批/已审批的候选线索群"""
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import BigInteger, Column, DateTime, Float, ForeignKey, Integer, JSON, Text
@@ -42,8 +42,8 @@ class DiscoveredGroup(SQLModel, table=True):
         default=None,
         sa_column=Column(JSONB().with_variant(JSON(), "sqlite"), nullable=True),
     )
-    discovered_at: Optional[datetime] = Field(
-        default=None,
+    discovered_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
         sa_column=Column(DateTime(timezone=True), nullable=False),
     )
     decided_at: Optional[datetime] = Field(

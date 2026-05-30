@@ -85,18 +85,23 @@ async def reject_candidate(
     row = session.get(DiscoveredGroup, candidate_id)
     if row is None or row.customer_id != customer.id:
         raise HTTPException(404, "candidate not found")
+    # F1: guard against double-reject / reject-after-approve
+    if row.status != "pending":
+        raise HTTPException(409, f"cannot reject in state {row.status}")
 
     row.status = "rejected"
     row.decided_at = datetime.now(timezone.utc)
+    # F9: decided_by — Phase 8 TODO: return (customer, customer_user) from dep
+    # get_current_customer currently returns Customer ORM only; no user.id available here.
     session.add(row)
 
-    # Add to blacklist
-    bl = DiscoveryBlacklist(
-        customer_id=customer.id,
-        chat_link=row.chat_link or "",
-        reason="customer_rejected",
-        created_at=datetime.now(timezone.utc),
-    )
-    session.add(bl)
+    # F3: only blacklist when chat_link is non-null (avoids unique-constraint collision)
+    if row.chat_link:
+        bl = DiscoveryBlacklist(
+            customer_id=customer.id,
+            chat_link=row.chat_link,
+            reason="customer_rejected",
+        )
+        session.add(bl)
     session.commit()
     return {"ok": True}

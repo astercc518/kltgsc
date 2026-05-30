@@ -24,7 +24,7 @@ from app.models.discovered_group import DiscoveredGroup
 from app.models.discovery_blacklist import DiscoveryBlacklist
 from app.services.tgstat_adapter import search_groups_by_keyword
 from app.services.group_ranking_service import (
-    compute_score, is_chat_already_monitored,
+    build_monitored_set, compute_score, is_chat_already_monitored,
 )
 
 logger = logging.getLogger(__name__)
@@ -65,6 +65,9 @@ async def discover_for_customer(
         keywords = _extract_keywords_from_icp(customer.icp_profile_text)
         logger.info("discovery: customer %s keywords=%s", customer_id, keywords)
 
+        # F5: fetch monitored set once per customer (not once per keyword)
+        monitored_set = build_monitored_set(session=session, customer_id=customer_id)
+
         blacklist_rows = session.exec(
             select(DiscoveryBlacklist).where(
                 DiscoveryBlacklist.customer_id == customer_id
@@ -91,7 +94,7 @@ async def discover_for_customer(
                     continue
 
                 already_monitored = is_chat_already_monitored(
-                    session=session, customer_id=customer_id,
+                    monitored_set=monitored_set,
                     chat_username=r.get("username"), chat_id=r.get("chat_id"),
                 )
 

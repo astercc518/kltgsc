@@ -1,4 +1,11 @@
-"""Weekly batch: discover new candidate groups for all active customers."""
+"""
+Weekly batch: discover new candidate groups for all active customers.
+
+NOTE: This task uses asyncio.run(), which requires Celery's default `prefork`
+pool.  If the worker is started with ``--pool=gevent`` or ``--pool=eventlet``
+this will raise RuntimeError at runtime.  Configure Celery deployment to use
+prefork (the default) for the queue that handles group_discovery.weekly.
+"""
 import asyncio
 import logging
 

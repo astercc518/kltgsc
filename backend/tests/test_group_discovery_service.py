@@ -51,6 +51,8 @@ async def test_discover_inserts_new_candidates():
     with patch("app.services.group_discovery_service.Session", return_value=fake_session), \
          patch("app.services.group_discovery_service.search_groups_by_keyword",
                new=AsyncMock(return_value=fake_search_result)), \
+         patch("app.services.group_discovery_service.build_monitored_set",
+               return_value=set()), \
          patch("app.services.group_discovery_service.is_chat_already_monitored",
                return_value=False):
         n = await discover_for_customer(customer_id=1)

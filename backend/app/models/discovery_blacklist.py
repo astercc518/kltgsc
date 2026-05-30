@@ -1,5 +1,5 @@
 """DiscoveryBlacklist — 客户拒绝过的群, 不再推荐"""
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import BigInteger, Column, DateTime, ForeignKey, Integer, Text
@@ -22,7 +22,7 @@ class DiscoveryBlacklist(SQLModel, table=True):
     )
     chat_link: str = Field(sa_column=Column(Text, nullable=False))
     reason: Optional[str] = Field(default=None, sa_column=Column(Text, nullable=True))
-    created_at: Optional[datetime] = Field(
-        default=None,
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
         sa_column=Column(DateTime(timezone=True), nullable=False),
     )

@@ -14,6 +14,11 @@ from app.models.keyword_monitor import KeywordMonitor
 logger = logging.getLogger(__name__)
 
 
+def _norm(s: str) -> str:
+    """Normalize a group identifier: strip whitespace, leading @, lowercase."""
+    return s.strip().lstrip("@").lower()
+
+
 def compute_score(
     *,
     members_count: Optional[int],
@@ -54,24 +59,41 @@ def compute_score(
     return max(0.0, min(100.0, score))
 
 
-def is_chat_already_monitored(
-    *, session, customer_id: int, chat_username: Optional[str], chat_id: Optional[int],
-) -> bool:
-    """检查群是否已在 keyword_monitor.target_groups."""
-    if not chat_username and not chat_id:
-        return False
+def build_monitored_set(*, session, customer_id: int) -> set:
+    """
+    F5: Build a normalized set of all target group identifiers already being
+    monitored by this customer.  Call once per customer and pass the result to
+    is_chat_already_monitored to avoid an extra DB query per candidate.
+    """
     rows = session.exec(
         select(KeywordMonitor).where(KeywordMonitor.customer_id == customer_id)
     ).all()
-    needles = []
-    if chat_username:
-        needles.extend([chat_username, f"@{chat_username}", f"https://t.me/{chat_username}"])
-    if chat_id:
-        needles.append(str(chat_id))
+    monitored: set = set()
     for m in rows:
-        targets = (m.target_groups or "").split(",")
-        for t in targets:
-            t = t.strip()
-            if t and any(n in t for n in needles):
-                return True
-    return False
+        for t in (m.target_groups or "").split(","):
+            t_norm = _norm(t)
+            if t_norm:
+                monitored.add(t_norm)
+    return monitored
+
+
+def is_chat_already_monitored(
+    *, monitored_set: set, chat_username: Optional[str], chat_id: Optional[int],
+) -> bool:
+    """
+    F4: Check whether a group is already in keyword_monitor.target_groups using
+    normalized exact-match (strips leading @, lowercased) to avoid substring
+    false-positives (e.g. 'usdt_otc' substring-matching '@usdt_otc_china').
+
+    Accept a pre-built monitored_set from build_monitored_set() instead of
+    hitting the DB on every candidate (F5 — hoist query out of per-keyword loop).
+    """
+    if not chat_username and not chat_id:
+        return False
+    # Build candidate needles in the same normalized form
+    needles: set = set()
+    if chat_username:
+        needles.add(_norm(chat_username))
+    if chat_id:
+        needles.add(str(chat_id).strip())
+    return bool(needles & monitored_set)
