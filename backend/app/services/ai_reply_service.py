@@ -337,3 +337,60 @@ class AIReplyService:
         )
         self.session.add(record)
         self.session.commit()
+
+
+# ── Phase 4a Task 2: 私聊 LLM prompt 拼群上下文 ──────────────────────────────
+
+from app.services.group_reply_context_service import fetch_recent_group_replies_for_user  # noqa: E402
+
+
+async def llm_generate(prompt: str) -> Optional[str]:
+    """Thin LLM wrapper — patchable by tests, bridges to LLMService.
+
+    实施者: 如果 ai_reply_service 内部已经有更具体的 LLM 调用入口,
+    把这个 wrapper 桥接到那里。否则直接用 LLMService。
+    """
+    from sqlmodel import Session as _Session
+    from app.core.db import engine
+    with _Session(engine) as s:
+        return await LLMService(s).generate(prompt, source="ai_reply_with_group_ctx")
+
+
+def _format_group_context_block(history: list) -> str:
+    if not history:
+        return ""
+    lines = ["你之前在群里给这位用户回复过:"]
+    for i, h in enumerate(history, 1):
+        lines.append(
+            f"  {i}. (主题: {h.get('solution_topic', '')}) "
+            f"需求点: {', '.join(h.get('extracted_needs', []))}. "
+            f"回复: 「{h.get('reply_text', '')}」"
+        )
+    lines.append("现在他来私聊, 接住上面的话题继续聊, 不要重复自我介绍。")
+    return "\n".join(lines)
+
+
+async def generate_private_reply_with_context(
+    *, session, customer_id: int, source_user_id: int, private_message: str,
+) -> Optional[str]:
+    """
+    拼好群上下文 → 调 LLM 生成私聊回复。
+    群 context fetch 失败 → 降级到无 context 回复, 不阻塞。
+    """
+    _logger = logging.getLogger(__name__)
+
+    try:
+        history = fetch_recent_group_replies_for_user(
+            session=session, customer_id=customer_id,
+            source_user_id=source_user_id, limit=3,
+        )
+    except Exception:
+        _logger.exception("group context fetch failed; fallback to no-context")
+        history = []
+
+    context_block = _format_group_context_block(history)
+    if context_block:
+        prompt = f"{context_block}\n\n用户现在的私聊消息: 「{private_message}」\n请回复:"
+    else:
+        prompt = f"用户消息: 「{private_message}」\n请回复:"
+    return await llm_generate(prompt)

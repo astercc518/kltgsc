@@ -47,6 +47,10 @@ import BusinessOps from './pages/BusinessOps';
 import UserManagement from './pages/UserManagement';
 import FeaturePack from './pages/FeaturePack';
 import ActivationCodes from './pages/billing/ActivationCodes';
+import GroupAIInteractions from './pages/inbox/GroupAIInteractions';
+import ExperimentList from './pages/ab/ExperimentList';
+import ExperimentCreate from './pages/ab/ExperimentCreate';
+import ExperimentReport from './pages/ab/ExperimentReport';
 
 // ── TG1.AI Customer Portal (Epic 1.5) ─────────────────────────────
 import PortalLayout from './portal/Layout';
@@ -68,6 +72,14 @@ import PortalBulkDetail from './portal/pages/BulkDetail';
 import PortalBulkInbox from './portal/pages/BulkInbox';
 import PortalScrape from './portal/pages/Scrape';
 import PortalInvite from './portal/pages/Invite';
+import GroupAILayout from './portal/pages/GroupAI';
+import IcpEditor from './portal/pages/GroupAI/IcpEditor';
+import Thresholds from './portal/pages/GroupAI/Thresholds';
+import CaseStudies from './portal/pages/GroupAI/CaseStudies';
+import WorkerPersonas from './portal/pages/GroupAI/WorkerPersonas';
+import ChitchatTopics from './portal/pages/GroupAI/ChitchatTopics';
+import RealtimeStats from './portal/pages/GroupAI/RealtimeStats';
+import GroupDiscovery from './portal/pages/GroupAI/GroupDiscovery';
 import SalesLayout from './sales/Layout';
 import SalesInbox from './sales/pages/Inbox';
 import SalesLeadDetail from './sales/pages/LeadDetail';
@@ -253,6 +265,14 @@ const buildMenuItems = (role?: string, isSuperuser?: boolean): MenuProps['items'
         key: '8',
         label: <Link to="/inbox">聚合聊天</Link>,
       },
+      {
+        key: 'group-ai-interactions',
+        label: <Link to="/admin/group-ai-interactions">群内 AI 互动</Link>,
+      },
+      {
+        key: 'ab-experiments',
+        label: <Link to="/admin/ab/experiments">A/B 实验</Link>,
+      },
     ]
   },
   ];
@@ -380,6 +400,10 @@ const AppContent: React.FC = () => {
                     <Route path="/users" element={<AdminOnly><UserManagement /></AdminOnly>} />
                     <Route path="/feature-pack" element={<AdminOnly><FeaturePack /></AdminOnly>} />
                     <Route path="/activation-codes" element={<AdminOnly><ActivationCodes /></AdminOnly>} />
+                    <Route path="/admin/group-ai-interactions" element={<GroupAIInteractions />} />
+                    <Route path="/admin/ab/experiments" element={<ExperimentList />} />
+                    <Route path="/admin/ab/experiments/new" element={<ExperimentCreate />} />
+                    <Route path="/admin/ab/experiments/:id" element={<ExperimentReport />} />
                 </Routes>
             </div>
         </Content>
@@ -458,6 +482,16 @@ const App: React.FC = () => {
           <Route path="knowledge-bases" element={<PortalKnowledgeBases />} />
           <Route path="main-account" element={<PortalMainAccount />} />
           <Route path="settings" element={<PortalSettings />} />
+          <Route path="group-ai" element={<GroupAILayout />}>
+            <Route index element={<Navigate to="icp" replace />} />
+            <Route path="icp" element={<IcpEditor />} />
+            <Route path="thresholds" element={<Thresholds />} />
+            <Route path="cases" element={<CaseStudies />} />
+            <Route path="personas" element={<WorkerPersonas />} />
+            <Route path="chitchat" element={<ChitchatTopics />} />
+            <Route path="stats" element={<RealtimeStats />} />
+            <Route path="discovery" element={<GroupDiscovery />} />
+          </Route>
         </Route>
 
         {/* ── Sales workbench (Epic E) — customer_sales + platform_sales ── */}
