@@ -12,6 +12,7 @@ from sqlmodel import Session, select
 from app.api.deps import get_current_admin
 from app.core.db import get_session
 from app.models.ab_experiment import ABExperiment
+from app.models.ab_experiment_audit_log import ABExperimentAuditLog
 from app.models.user import User
 from app.services.case_study_service import (
     create_case_study, delete_case_study,
@@ -383,6 +384,14 @@ async def create_ab_experiment(
         primary_metric=body.primary_metric,
     )
     session.add(exp)
+    session.flush()  # populate exp.id before audit
+    audit = ABExperimentAuditLog(
+        experiment_id=exp.id, action="created",
+        operator_id=getattr(_admin, "id", None),
+        reason=None, metadata_json=None,
+        created_at=datetime.now(timezone.utc),
+    )
+    session.add(audit)
     session.commit()
     session.refresh(exp)
     return {"id": exp.id}
@@ -402,6 +411,13 @@ async def start_ab_experiment(
         raise HTTPException(409, f"cannot start in state {exp.status}")
     exp.status = "running"
     exp.started_at = datetime.now(timezone.utc)
+    audit = ABExperimentAuditLog(
+        experiment_id=exp.id, action="started",
+        operator_id=getattr(_admin, "id", None),
+        reason=None, metadata_json=None,
+        created_at=datetime.now(timezone.utc),
+    )
+    session.add(audit)
     session.commit()
     return {"ok": True, "started_at": exp.started_at}
 
@@ -420,6 +436,13 @@ async def stop_ab_experiment(
         raise HTTPException(409, f"cannot stop in state {exp.status}")
     exp.status = "finished"
     exp.ended_at = datetime.now(timezone.utc)
+    audit = ABExperimentAuditLog(
+        experiment_id=exp.id, action="stopped",
+        operator_id=getattr(_admin, "id", None),
+        reason=None, metadata_json=None,
+        created_at=datetime.now(timezone.utc),
+    )
+    session.add(audit)
     session.commit()
     return {"ok": True, "ended_at": exp.ended_at}
 
@@ -507,3 +530,26 @@ async def export_experiment_csv(
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.get("/ab/experiments/{exp_id}/audit")
+async def get_experiment_audit(
+    exp_id: int,
+    session: Session = Depends(get_session),
+    _admin: User = Depends(get_current_admin),
+):
+    """Return audit log for an experiment, newest first."""
+    exp = session.get(ABExperiment, exp_id)
+    if exp is None:
+        raise HTTPException(404, "experiment not found")
+    rows = session.exec(
+        select(ABExperimentAuditLog)
+        .where(ABExperimentAuditLog.experiment_id == exp_id)
+        .order_by(ABExperimentAuditLog.created_at.desc())
+    ).all()
+    return [
+        {
+            "id": r.id, "action": r.action, "operator_id": r.operator_id,
+            "reason": r.reason, "created_at": r.created_at,
+        } for r in rows
+    ]
