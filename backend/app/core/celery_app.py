@@ -124,12 +124,18 @@ celery_app.conf.update(
             "task": "chitchat_scheduler.tick",
             "schedule": 300.0,          # 每 5 分钟触发一次
         },
+        # ── Group AI Sales Phase 6: A/B 自动停止 ──────────────────────
+        "ab-auto-stop-daily": {
+            "task": "ab_auto_stop.daily_check",
+            "schedule": 86400.0,        # 24h
+        },
     },
 
     # ==================== 任务发现 ====================
     include=[
         "app.workers.group_reply_scanner",
         "app.workers.chitchat_scheduler",
+        "app.workers.ab_auto_stop",
     ],
 
     # ==================== 任务路由 ====================
