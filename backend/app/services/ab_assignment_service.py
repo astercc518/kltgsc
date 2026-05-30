@@ -13,6 +13,9 @@ from app.models.ab_experiment import ABExperiment
 
 logger = logging.getLogger(__name__)
 
+# Lower number = higher priority: monitor-level overrides customer, customer overrides global.
+_SCOPE_PRIORITY = {"monitor": 0, "customer": 1, "global": 2}
+
 
 def compute_bucket(*, experiment_id: int, source_user_id: int) -> float:
     """同 (exp, user) 永远进同一 bucket [0, 1)"""
@@ -59,4 +62,6 @@ def find_applicable_experiments(
             ((ABExperiment.scope == "monitor") & (ABExperiment.scope_value == monitor_id))
         )
     )
-    return list(session.exec(stmt).all())
+    rows = list(session.exec(stmt).all())
+    rows.sort(key=lambda e: _SCOPE_PRIORITY.get(e.scope, 99))
+    return rows
