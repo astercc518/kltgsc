@@ -81,3 +81,5 @@ from .ab_experiment_audit_log import ABExperimentAuditLog  # noqa: F401
 from .account_lifecycle_event import AccountLifecycleEvent  # noqa: F401
 from .discovered_group import DiscoveredGroup  # noqa: F401
 from .discovery_blacklist import DiscoveryBlacklist  # noqa: F401
+from .join_attempt import JoinAttempt  # noqa: F401
+from .captcha_event import CaptchaEvent  # noqa: F401
