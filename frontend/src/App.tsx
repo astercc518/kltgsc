@@ -47,6 +47,7 @@ import BusinessOps from './pages/BusinessOps';
 import UserManagement from './pages/UserManagement';
 import FeaturePack from './pages/FeaturePack';
 import ActivationCodes from './pages/billing/ActivationCodes';
+import GroupAIInteractions from './pages/inbox/GroupAIInteractions';
 
 // ── TG1.AI Customer Portal (Epic 1.5) ─────────────────────────────
 import PortalLayout from './portal/Layout';
@@ -260,6 +261,10 @@ const buildMenuItems = (role?: string, isSuperuser?: boolean): MenuProps['items'
         key: '8',
         label: <Link to="/inbox">聚合聊天</Link>,
       },
+      {
+        key: 'group-ai-interactions',
+        label: <Link to="/admin/group-ai-interactions">群内 AI 互动</Link>,
+      },
     ]
   },
   ];
@@ -387,6 +392,7 @@ const AppContent: React.FC = () => {
                     <Route path="/users" element={<AdminOnly><UserManagement /></AdminOnly>} />
                     <Route path="/feature-pack" element={<AdminOnly><FeaturePack /></AdminOnly>} />
                     <Route path="/activation-codes" element={<AdminOnly><ActivationCodes /></AdminOnly>} />
+                    <Route path="/admin/group-ai-interactions" element={<GroupAIInteractions />} />
                 </Routes>
             </div>
         </Content>
