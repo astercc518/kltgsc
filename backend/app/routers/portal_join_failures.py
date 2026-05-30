@@ -13,7 +13,9 @@ from sqlmodel import Session, select
 
 from app.api.deps_customer import get_current_customer
 from app.core.db import get_session
-from app.models.join_attempt import JoinAttempt, STATUS_ABANDONED, STATUS_FAILED
+from app.models.join_attempt import (
+    JoinAttempt, STATUS_ABANDONED, STATUS_CAPTCHA, STATUS_FAILED,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -62,8 +64,8 @@ async def abandon_join_attempt(
     row = session.get(JoinAttempt, attempt_id)
     if row is None or row.customer_id != customer.id:
         raise HTTPException(404, "join_attempt not found")
-    if row.status not in (STATUS_FAILED, "captcha"):
-        raise HTTPException(409, f"cannot abandon attempt in state '{row.status}'")
+    if row.status not in (STATUS_FAILED, STATUS_CAPTCHA):
+        raise HTTPException(409, f"cannot abandon in state {row.status}")
 
     row.status = STATUS_ABANDONED
     row.updated_at = datetime.now(timezone.utc)

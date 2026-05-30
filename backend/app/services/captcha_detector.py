@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 INLINE_KEYWORDS = ["human", "verify", "我不是", "robot", "captcha", "点击", "tap", "按一下"]
 QA_INDICATORS = ["?", "？"]
+VERIFICATION_HINTS = ["验证", "verify", "captcha", "回答以下", "请回答", "为什么", "怎么"]
 
 
 def detect_captcha_type(
@@ -48,10 +49,12 @@ def detect_captcha_type(
     for msg in recent_messages:
         text = msg.get("text") or ""
         if msg.get("from_bot") and any(q in text for q in QA_INDICATORS) and len(text) < 100:
-            return {
-                "type": "text_qa",
-                "evidence": {"question": text, "message": msg},
-            }
+            # Strengthen: must also have verification hint, OR be very short (< 30 chars)
+            if any(h in text.lower() for h in VERIFICATION_HINTS) or len(text) < 30:
+                return {
+                    "type": "text_qa",
+                    "evidence": {"question": text, "message": msg},
+                }
 
     # Admin DM check
     if admin_dms_after_join:

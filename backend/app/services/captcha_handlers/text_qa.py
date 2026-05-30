@@ -25,6 +25,10 @@ async def solve_text_qa(
     if not question or not question.strip():
         return {"success": False, "answer": None, "error": "empty_question"}
 
+    if dry_run:
+        # Skip LLM call in dry_run; return placeholder
+        return {"success": True, "answer": "[dry_run placeholder]", "error": None}
+
     template_block = customer_join_template or "我是行业内朋友推荐知道的"
     prompt = f"""你是一个加入 TG 群的新成员, 群里 bot 问了一个验证问题. 简短回答 (不超 30 字), 用日常口语:
 
@@ -41,9 +45,6 @@ async def solve_text_qa(
 
     if not answer or len(answer) > 100:
         return {"success": False, "answer": answer, "error": "bad_llm_response"}
-
-    if dry_run:
-        return {"success": True, "answer": answer, "error": None}
 
     try:
         await telethon_client.send_message(chat_id, answer)

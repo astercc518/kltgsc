@@ -38,7 +38,7 @@ async def scan_and_process() -> int:
                 select(JoinAttempt.id).where(
                     JoinAttempt.status.in_(["pending", "captcha"]),  # type: ignore[union-attr]
                     JoinAttempt.updated_at <= cutoff,
-                ).limit(50)
+                ).order_by(JoinAttempt.updated_at.asc()).limit(50)  # type: ignore[union-attr]
             ).all()
         )
 

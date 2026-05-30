@@ -70,6 +70,10 @@ async def process_attempt(*, attempt_id: int) -> str:
     """
     Process one join_attempt end-to-end. Returns final status string.
 
+    Single-session pattern to avoid TOCTOU race: status read + update happen
+    inside the same session so no other worker can interleave between the
+    status check and the write.
+
     Phase 8 v1: Telethon client integration is a placeholder stub.
     The real implementation must be wired to the existing listener_service
     client management once client references are available.
@@ -107,18 +111,28 @@ async def process_attempt(*, attempt_id: int) -> str:
             )
             return attempt.status
 
-    # Phase 8 v1 placeholder — Telethon integration wired in follow-up PR.
-    # Mark as failed so the failure queue surfaces it for manual review.
-    logger.info(
-        "process_attempt: attempt_id=%s — Telethon integration pending, marking failed",
-        attempt_id,
-    )
-    _update_attempt(
-        attempt_id=attempt_id,
-        status=STATUS_FAILED,
-        last_error="telethon_integration_pending",
-    )
-    return STATUS_FAILED
+        # Phase 8 v1 placeholder — Telethon integration wired in follow-up PR.
+        # Mark as failed so the failure queue surfaces it for manual review.
+        logger.info(
+            "process_attempt: attempt_id=%s — Telethon integration pending, marking failed",
+            attempt_id,
+        )
+        attempt.status = STATUS_FAILED
+        attempt.last_error = "telethon_integration_pending"
+        attempt.updated_at = datetime.now(timezone.utc)
+        session.add(attempt)
+
+        evt = CaptchaEvent(
+            join_attempt_id=attempt_id,
+            handler="placeholder",
+            succeeded=False,
+            error_message="telethon_integration_pending",
+            created_at=datetime.now(timezone.utc),
+        )
+        session.add(evt)
+
+        session.commit()
+        return STATUS_FAILED
 
 
 def _update_attempt(*, attempt_id: int, **fields) -> None:

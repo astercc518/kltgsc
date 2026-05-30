@@ -18,6 +18,17 @@ GEMINI_VISION_URL = (
 )
 
 
+def _detect_mime_type(image_bytes: bytes) -> str:
+    """Detect MIME type from image header bytes."""
+    if image_bytes[:2] == b'\xff\xd8':
+        return "image/jpeg"
+    if image_bytes[:8] == b'\x89PNG\r\n\x1a\n':
+        return "image/png"
+    if image_bytes[:6] in (b'GIF87a', b'GIF89a'):
+        return "image/gif"
+    return "image/png"  # safe default
+
+
 async def analyze_captcha_image(
     *, image_bytes: bytes, prompt_hint: str = "",
 ) -> Optional[str]:
@@ -33,11 +44,12 @@ async def analyze_captcha_image(
         return None
 
     b64 = base64.b64encode(image_bytes).decode("ascii")
+    mime_type = _detect_mime_type(image_bytes)
     body = {
         "contents": [{
             "parts": [
                 {"text": f"分析这张 CAPTCHA 图片. {prompt_hint}\n描述图片内容并建议如何回答."},
-                {"inline_data": {"mime_type": "image/png", "data": b64}},
+                {"inline_data": {"mime_type": mime_type, "data": b64}},
             ],
         }],
         "generationConfig": {"maxOutputTokens": 200},

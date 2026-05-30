@@ -98,6 +98,7 @@ export interface JoinFailureRow {
   last_error: string | null;
   captcha_attempts: number;
   created_at: string;
+  updated_at: string;
 }
 
 // === API ===

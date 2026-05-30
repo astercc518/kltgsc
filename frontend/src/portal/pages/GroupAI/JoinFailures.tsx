@@ -5,7 +5,7 @@
  * either abandon (stop retrying) or handle them manually.
  */
 import React, { useState } from 'react';
-import { Button, Empty, message, Space, Table, Tag, Tooltip, Typography } from 'antd';
+import { Button, Empty, message, Popconfirm, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { groupAiApi, JoinFailureRow } from '../../api/groupAi';
 
@@ -21,6 +21,7 @@ const CAPTCHA_TYPE_COLORS: Record<string, string> = {
 
 export default function JoinFailures() {
   const queryClient = useQueryClient();
+  const [pendingAbandonId, setPendingAbandonId] = useState<number | null>(null);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['join-failures'],
@@ -30,6 +31,8 @@ export default function JoinFailures() {
 
   const abandonMut = useMutation({
     mutationFn: (id: number) => groupAiApi.abandonJoinAttempt(id),
+    onMutate: (id) => setPendingAbandonId(id),
+    onSettled: () => setPendingAbandonId(null),
     onSuccess: () => {
       message.success('已标记为放弃');
       queryClient.invalidateQueries({ queryKey: ['join-failures'] });
@@ -97,14 +100,19 @@ export default function JoinFailures() {
       key: 'action',
       width: 100,
       render: (_: unknown, row: JoinFailureRow) => (
-        <Button
-          danger
-          size="small"
-          loading={abandonMut.isPending}
-          onClick={() => abandonMut.mutate(row.id)}
+        <Popconfirm
+          title="确认放弃这个加群尝试?"
+          description="放弃后无法恢复，系统不会再重试。"
+          onConfirm={() => abandonMut.mutate(row.id)}
         >
-          放弃
-        </Button>
+          <Button
+            danger
+            size="small"
+            loading={abandonMut.isPending && pendingAbandonId === row.id}
+          >
+            放弃
+          </Button>
+        </Popconfirm>
       ),
     },
   ];

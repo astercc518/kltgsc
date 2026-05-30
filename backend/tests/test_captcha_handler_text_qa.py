@@ -56,24 +56,17 @@ async def test_llm_generates_short_answer_and_sends(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_dry_run_does_not_send(monkeypatch):
-    """dry_run=True generates answer but does not call send_message."""
+    """dry_run=True returns placeholder without calling LLM or send_message."""
     from app.services.captcha_handlers import text_qa as tq_module
 
-    fake_answer = "朋友介绍的"
-
     mock_llm_instance = MagicMock()
-    mock_llm_instance.generate = AsyncMock(return_value=fake_answer)
+    mock_llm_instance.generate = AsyncMock(return_value="should_not_be_called")
     mock_llm_cls = MagicMock(return_value=mock_llm_instance)
-
-    mock_session_ctx = MagicMock()
-    mock_session_ctx.__enter__ = MagicMock(return_value=MagicMock())
-    mock_session_ctx.__exit__ = MagicMock(return_value=False)
 
     fake_client = MagicMock()
     fake_client.send_message = AsyncMock()
 
-    with patch.object(tq_module, "LLMService", mock_llm_cls), \
-         patch.object(tq_module, "Session", return_value=mock_session_ctx):
+    with patch.object(tq_module, "LLMService", mock_llm_cls):
         result = await tq_module.solve_text_qa(
             telethon_client=fake_client,
             chat_id=99999,
@@ -83,7 +76,10 @@ async def test_dry_run_does_not_send(monkeypatch):
         )
 
     assert result["success"] is True
-    assert result["answer"] == fake_answer
+    assert result["answer"] == "[dry_run placeholder]"
+    assert result["error"] is None
+    # LLM must NOT be called in dry_run
+    mock_llm_instance.generate.assert_not_awaited()
     fake_client.send_message.assert_not_awaited()
 
 

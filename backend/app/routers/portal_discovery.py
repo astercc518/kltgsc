@@ -74,6 +74,10 @@ async def approve_candidate(
     row.status = "approved"
     row.decided_at = datetime.now(timezone.utc)
     session.add(row)
+
+    # Capture fields into locals before commit to avoid expired-object lazy-load
+    chat_link_value = row.chat_link
+    candidate_id = row.id
     session.commit()
 
     # Phase 8: queue a join attempt via the first available worker account.
@@ -91,8 +95,8 @@ async def approve_candidate(
         attempt_id = queue_join(
             customer_id=customer.id,
             account_id=worker.id,
-            chat_link=row.chat_link,
-            discovered_group_id=row.id,
+            chat_link=chat_link_value,
+            discovered_group_id=candidate_id,
         )
         logger.info(
             "approve_candidate: queued join_attempt=%s for group=%s worker=%s",
