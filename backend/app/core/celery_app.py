@@ -1,4 +1,5 @@
 from celery import Celery
+from celery.schedules import crontab
 from kombu import Queue
 from app.core.config import settings
 
@@ -129,6 +130,11 @@ celery_app.conf.update(
             "task": "ab_auto_stop.daily_check",
             "schedule": 86400.0,        # 24h
         },
+        # ── Group AI Sales Phase 7: 线索群自动发现 ─────────────────────
+        "group-discovery-weekly": {
+            "task": "group_discovery.weekly",
+            "schedule": crontab(day_of_week=1, hour=9, minute=0),  # Monday 9am UTC
+        },
     },
 
     # ==================== 任务发现 ====================
@@ -136,6 +142,7 @@ celery_app.conf.update(
         "app.workers.group_reply_scanner",
         "app.workers.chitchat_scheduler",
         "app.workers.ab_auto_stop",
+        "app.workers.group_discovery_weekly",
     ],
 
     # ==================== 任务路由 ====================
