@@ -135,6 +135,11 @@ celery_app.conf.update(
             "task": "group_discovery.weekly",
             "schedule": crontab(day_of_week=1, hour=9, minute=0),  # Monday 9am UTC
         },
+        # ── Group AI Sales Phase 8: 加群人机验证状态机扫描器 ──────────
+        "join-attempt-scan": {
+            "task": "join_attempt.scan",
+            "schedule": 60.0,          # 每 60 秒扫一次 pending/captcha 行
+        },
     },
 
     # ==================== 任务发现 ====================
@@ -143,6 +148,7 @@ celery_app.conf.update(
         "app.workers.chitchat_scheduler",
         "app.workers.ab_auto_stop",
         "app.workers.group_discovery_weekly",
+        "app.workers.join_attempt_scanner",
     ],
 
     # ==================== 任务路由 ====================
