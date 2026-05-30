@@ -71,6 +71,7 @@ import PortalInvite from './portal/pages/Invite';
 import GroupAILayout from './portal/pages/GroupAI';
 import IcpEditor from './portal/pages/GroupAI/IcpEditor';
 import Thresholds from './portal/pages/GroupAI/Thresholds';
+import CaseStudies from './portal/pages/GroupAI/CaseStudies';
 import SalesLayout from './sales/Layout';
 import SalesInbox from './sales/pages/Inbox';
 import SalesLeadDetail from './sales/pages/LeadDetail';
@@ -465,7 +466,7 @@ const App: React.FC = () => {
             <Route index element={<Navigate to="icp" replace />} />
             <Route path="icp" element={<IcpEditor />} />
             <Route path="thresholds" element={<Thresholds />} />
-            <Route path="cases" element={<div>Case studies placeholder (Task 5)</div>} />
+            <Route path="cases" element={<CaseStudies />} />
             <Route path="personas" element={<div>Personas placeholder (Task 6)</div>} />
             <Route path="chitchat" element={<div>Chitchat topics placeholder (Task 7)</div>} />
             <Route path="stats" element={<div>Stats placeholder (Task 8)</div>} />
