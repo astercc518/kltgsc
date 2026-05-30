@@ -11,6 +11,7 @@ from typing import Optional
 
 from sqlalchemy import BigInteger, Column, DateTime, ForeignKey, Integer, JSON, Text
 from sqlalchemy.dialects import sqlite as _sqlite_dialect
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
 # SQLite requires INTEGER (not BIGINT) for auto-increment primary keys.
@@ -31,7 +32,8 @@ class ABExperimentAuditLog(SQLModel, table=True):
     )
     reason: Optional[str] = Field(default=None, sa_column=Column(Text, nullable=True))
     metadata_json: Optional[dict] = Field(
-        default=None, sa_column=Column(JSON, nullable=True)
+        default=None,
+        sa_column=Column(JSONB().with_variant(JSON(), "sqlite"), nullable=True),
     )
     created_at: Optional[datetime] = Field(
         default=None,
