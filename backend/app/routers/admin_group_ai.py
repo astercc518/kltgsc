@@ -499,8 +499,11 @@ async def export_experiment_csv(
     if exp is None:
         raise HTTPException(404, "experiment not found")
     report = build_experiment_report(session=session, experiment=exp)
+    import re
+    safe_name = re.sub(r"[^A-Za-z0-9_.\-]", "_", exp.name)[:60]
+    filename = f"ab_report_{safe_name}.csv"
     return PlainTextResponse(
         content=render_csv(report),
         media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename=ab_report_{exp.name}.csv"},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
