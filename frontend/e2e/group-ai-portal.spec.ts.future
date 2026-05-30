@@ -1,0 +1,107 @@
+/**
+ * Group AI Portal — E2E happy path
+ *
+ * This file uses a `.future` extension so test runners ignore it until
+ * Playwright is installed. Once `@playwright/test` is in package.json,
+ * rename to `group-ai-portal.spec.ts`.
+ *
+ * Required env vars:
+ *   E2E_PORTAL_BASE_URL  — portal base URL
+ *   E2E_CUSTOMER_TOKEN   — valid customer JWT
+ *   E2E_ADMIN_BASE_URL   — admin base URL
+ *   E2E_ADMIN_TOKEN      — valid admin JWT
+ */
+import { test, expect } from '@playwright/test';
+
+// ---------------------------------------------------------------------------
+// Customer Portal — Group AI
+// ---------------------------------------------------------------------------
+
+test.describe('Customer Portal — Group AI', () => {
+  test.skip(
+    () => !process.env.E2E_PORTAL_BASE_URL || !process.env.E2E_CUSTOMER_TOKEN,
+    'E2E_PORTAL_BASE_URL + E2E_CUSTOMER_TOKEN required',
+  );
+
+  test('客户能保存 ICP 并看到统计页', async ({ page }) => {
+    const baseUrl = process.env.E2E_PORTAL_BASE_URL!;
+
+    // Inject customer token via localStorage (matches portal/auth.ts pattern)
+    await page.goto(baseUrl);
+    await page.evaluate((tok) => {
+      localStorage.setItem('customer_token', tok);
+    }, process.env.E2E_CUSTOMER_TOKEN!);
+
+    // ICP save
+    await page.goto(`${baseUrl}/portal/group-ai/icp`);
+    await page.fill('textarea', '想找 USDT 大额买家, 单笔 100k USDT 以上');
+    await page.click('button:has-text("保存")');
+    await expect(
+      page.locator('.ant-message-success, [role="alert"]:has-text("ok")'),
+    ).toBeVisible({ timeout: 5000 });
+
+    // Stats page loads core metrics
+    await page.goto(`${baseUrl}/portal/group-ai/stats`);
+    await expect(page.locator('text=今日命中')).toBeVisible();
+  });
+
+  test('客户案例库 — 新增一条后列表可见', async ({ page }) => {
+    const baseUrl = process.env.E2E_PORTAL_BASE_URL!;
+
+    await page.goto(baseUrl);
+    await page.evaluate((tok) => {
+      localStorage.setItem('customer_token', tok);
+    }, process.env.E2E_CUSTOMER_TOKEN!);
+
+    await page.goto(`${baseUrl}/portal/group-ai/cases`);
+    await page.click('button:has-text("新增")');
+    await page.fill('input[placeholder*="标题"]', 'E2E 测试案例');
+    await page.fill('textarea', '这是一个自动化测试写入的案例内容。');
+    await page.click('button:has-text("确认")');
+    await expect(page.locator('text=E2E 测试案例')).toBeVisible({ timeout: 5000 });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Admin — Group AI Inbox + Approve
+// ---------------------------------------------------------------------------
+
+test.describe('Admin — Group AI Inbox', () => {
+  test.skip(
+    () => !process.env.E2E_ADMIN_BASE_URL || !process.env.E2E_ADMIN_TOKEN,
+    'E2E_ADMIN_BASE_URL + E2E_ADMIN_TOKEN required',
+  );
+
+  test('admin 能查看 group-ai-interactions 页', async ({ page }) => {
+    const baseUrl = process.env.E2E_ADMIN_BASE_URL!;
+
+    await page.goto(baseUrl);
+    await page.evaluate((tok) => {
+      localStorage.setItem('admin_token', tok);
+    }, process.env.E2E_ADMIN_TOKEN!);
+
+    await page.goto(`${baseUrl}/admin/group-ai-interactions`);
+    await expect(page.locator('h4:has-text("群内 AI 互动")')).toBeVisible();
+  });
+
+  test('admin approve suggested → 状态变 sent', async ({ page }) => {
+    const baseUrl = process.env.E2E_ADMIN_BASE_URL!;
+
+    await page.goto(baseUrl);
+    await page.evaluate((tok) => {
+      localStorage.setItem('admin_token', tok);
+    }, process.env.E2E_ADMIN_TOKEN!);
+
+    await page.goto(`${baseUrl}/admin/group-ai-interactions`);
+
+    // Click first "Approve" button in the inbox table
+    const approveBtn = page.locator('button:has-text("批准"), button:has-text("Approve")').first();
+    await expect(approveBtn).toBeVisible({ timeout: 5000 });
+    await approveBtn.click();
+
+    // Row status should update to sent
+    await expect(
+      page.locator('td:has-text("sent"), td:has-text("已发送")').first(),
+    ).toBeVisible({ timeout: 5000 });
+  });
+});

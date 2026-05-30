@@ -11,9 +11,15 @@ SourceGroup / AIPersona / Campaign 等）都通过 customer_id 归属到某个�
 - subscription_status / current_period_end: 由支付 webhook 维护
 """
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
+from sqlalchemy import Column, JSON, Text
 from sqlmodel import Field, SQLModel
+
+try:
+    from pgvector.sqlalchemy import Vector as _PGVector
+except ImportError:
+    _PGVector = None
 
 
 # 订阅套餐（与 [[project-business-model-aas]] 三档对齐）
@@ -94,6 +100,40 @@ class Customer(CustomerBase, table=True):
     handover_group_link: Optional[str] = Field(default=None, max_length=256)
     takeover_timeout_minutes: int = Field(default=5)
     notify_main_account: bool = Field(default=True)
+
+    # ── Phase 1: ICP 画像 + 潜在客户探测器参数 ──
+    # icp_profile_text: LLM 生成的 ICP 自然语言描述（可空，首次激活后生成）
+    icp_profile_text: Optional[str] = Field(
+        default=None, sa_column=Column(Text, nullable=True)
+    )
+
+    # icp_profile_embedding: 768-dim pgvector embedding，供 cosine 相似度粗筛
+    # pgvector 在生产环境必须存在；graceful import fallback 仅供本地无 pgvector 开发用
+    icp_profile_embedding: Optional[Any] = Field(
+        default=None,
+        sa_column=Column(_PGVector(768), nullable=True) if _PGVector is not None else Column(Text, nullable=True),
+    )
+
+    # lead_detector_thresholds: 结构化阈值参数，Postgres 实列为 JSONB (migration)；
+    # 此处用跨方言 JSON 类型，使 SQLite-based 单测 create_all 也能通过。
+    lead_detector_thresholds: dict = Field(
+        default_factory=lambda: {
+            "layer2_sim": 0.55,
+            "layer3_score": 60,
+            "layer3_confidence": 0.7,
+        },
+        sa_column=Column(
+            JSON,
+            nullable=False,
+            server_default='{"layer2_sim":0.55,"layer3_score":60,"layer3_confidence":0.7}',
+        ),
+    )
+
+    # param_version: 参数版本标记，用于感知 threshold schema 迭代
+    param_version: str = Field(
+        default="v1",
+        sa_column=Column(Text, nullable=False, server_default="v1"),
+    )
 
 
 class CustomerCreate(SQLModel):

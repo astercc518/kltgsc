@@ -114,7 +114,29 @@ celery_app.conf.update(
             "schedule": 600.0,          # 每 10 分钟扫一次
             "options": {"queue": "low_priority"},
         },
+        # ── Group AI Sales Phase 1: 群内 AI 回复扫描器 ────────────────
+        "group-reply-scanner": {
+            "task": "group_reply_scanner.tick",
+            "schedule": 30.0,           # 每 30 秒扫到期 pending_replies
+        },
+        # ── Group AI Sales Phase 3a: 闲聊调度器 ──────────────────────
+        "chitchat-scheduler": {
+            "task": "chitchat_scheduler.tick",
+            "schedule": 300.0,          # 每 5 分钟触发一次
+        },
+        # ── Group AI Sales Phase 6: A/B 自动停止 ──────────────────────
+        "ab-auto-stop-daily": {
+            "task": "ab_auto_stop.daily_check",
+            "schedule": 86400.0,        # 24h
+        },
     },
+
+    # ==================== 任务发现 ====================
+    include=[
+        "app.workers.group_reply_scanner",
+        "app.workers.chitchat_scheduler",
+        "app.workers.ab_auto_stop",
+    ],
 
     # ==================== 任务路由 ====================
     task_routes={
