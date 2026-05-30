@@ -48,6 +48,9 @@ import UserManagement from './pages/UserManagement';
 import FeaturePack from './pages/FeaturePack';
 import ActivationCodes from './pages/billing/ActivationCodes';
 import GroupAIInteractions from './pages/inbox/GroupAIInteractions';
+import ExperimentList from './pages/ab/ExperimentList';
+import ExperimentCreate from './pages/ab/ExperimentCreate';
+import ExperimentReport from './pages/ab/ExperimentReport';
 
 // ── TG1.AI Customer Portal (Epic 1.5) ─────────────────────────────
 import PortalLayout from './portal/Layout';
@@ -265,6 +268,10 @@ const buildMenuItems = (role?: string, isSuperuser?: boolean): MenuProps['items'
         key: 'group-ai-interactions',
         label: <Link to="/admin/group-ai-interactions">群内 AI 互动</Link>,
       },
+      {
+        key: 'ab-experiments',
+        label: <Link to="/admin/ab/experiments">A/B 实验</Link>,
+      },
     ]
   },
   ];
@@ -393,6 +400,9 @@ const AppContent: React.FC = () => {
                     <Route path="/feature-pack" element={<AdminOnly><FeaturePack /></AdminOnly>} />
                     <Route path="/activation-codes" element={<AdminOnly><ActivationCodes /></AdminOnly>} />
                     <Route path="/admin/group-ai-interactions" element={<GroupAIInteractions />} />
+                    <Route path="/admin/ab/experiments" element={<ExperimentList />} />
+                    <Route path="/admin/ab/experiments/new" element={<ExperimentCreate />} />
+                    <Route path="/admin/ab/experiments/:id" element={<ExperimentReport />} />
                 </Routes>
             </div>
         </Content>
