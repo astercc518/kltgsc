@@ -442,3 +442,100 @@ class LLMService:
         except Exception as e:
             logger.error(f"Intent analysis failed: {e}")
             return {"intent": "unknown", "confidence": 0.0, "tags": []}
+
+    async def score_lead_message(
+        self,
+        text: str,
+        icp_text: Optional[str],
+        kb_top3: list,
+        recent_context: list,
+    ) -> dict:
+        """
+        Layer 3: 评分 + 需求提取 + 方案话题建议。
+
+        Args:
+            text: 当前群消息
+            icp_text: 客户 ICP 自由文本 (None 则不喂)
+            kb_top3: KB 检索 top 3, [{"text": ..., "score": ...}, ...]
+            recent_context: 最近群上下文, [{"text": ..., "sender": ...}, ...]
+
+        Returns 一致 schema (失败/解析错都返回 zero score):
+            {
+              "score": 0-100,
+              "intent_type": "buy|sell|ask|chat|spam|other",
+              "extracted_needs": [str],
+              "suggested_solution_topic": str,
+              "confidence": 0.0-1.0,
+              "reason": str,
+            }
+        """
+        default_fail = {
+            "score": 0, "intent_type": "other", "extracted_needs": [],
+            "suggested_solution_topic": "", "confidence": 0.0, "reason": "llm_failed",
+        }
+        if not self.is_configured():
+            return default_fail
+
+        icp_block = f"客户 ICP 画像:\n{icp_text}\n" if icp_text else ""
+        kb_block = "\n".join(f"- {h.get('text', '')}" for h in kb_top3) if kb_top3 else "(无)"
+        ctx_block = "\n".join(
+            f"  {m.get('sender', '?')}: {m.get('text', '')}"
+            for m in (recent_context or [])[-5:]
+        ) or "(无)"
+
+        prompt = f"""你在做 TG 群消息的业务线索评分. 客户是一个销售方, 收到群里陌生人的消息, 要判断这条消息是不是真实业务需求。
+
+{icp_block}你的业务知识 (KB 检索 top 3):
+{kb_block}
+
+群最近 5 条上下文:
+{ctx_block}
+
+当前评分的消息:「{text}」
+
+输出 JSON, 不要 markdown 包装:
+{{
+  "score": 0-100 整数 (业务需求强度: 90+ 强需求, 60-89 中等, 30-59 弱, <30 闲聊或无关),
+  "intent_type": "buy" | "sell" | "ask" | "chat" | "spam" | "other",
+  "extracted_needs": [字符串数组, 提取的具体需求点; 无则 []],
+  "suggested_solution_topic": 一句话方案主题 (用来后续 KB/案例检索),
+  "confidence": 0.0-1.0 浮点 (你对评分的把握),
+  "reason": 一句话理由
+}}
+"""
+        raw = await self.generate(prompt, source="score_lead_message")
+        if not raw:
+            return default_fail
+
+        # 容忍 ```json 包装
+        cleaned = raw.strip()
+        if cleaned.startswith("```"):
+            lines = cleaned.split("\n")
+            if len(lines) >= 3:
+                cleaned = "\n".join(lines[1:-1])
+            else:
+                cleaned = cleaned.strip("`").strip()
+
+        try:
+            parsed = json.loads(cleaned)
+        except (json.JSONDecodeError, TypeError):
+            logger.warning("score_lead_message: failed to parse JSON: %r", raw[:200])
+            return default_fail
+
+        # clamp + 默认填充
+        score = int(parsed.get("score", 0))
+        score = max(0, min(100, score))
+        confidence = float(parsed.get("confidence", 0.0))
+        confidence = max(0.0, min(1.0, confidence))
+        intent_type = parsed.get("intent_type", "other")
+        if intent_type not in ("buy", "sell", "ask", "chat", "spam", "other"):
+            intent_type = "other"
+
+        return {
+            "score": score,
+            "intent_type": intent_type,
+            "extracted_needs": parsed.get("extracted_needs", []) or [],
+            "suggested_solution_topic": parsed.get("suggested_solution_topic", "") or "",
+            "confidence": confidence,
+            "reason": parsed.get("reason", "") or "",
+        }
