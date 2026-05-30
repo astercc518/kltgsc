@@ -16,6 +16,7 @@ export default function GroupAIInteractions() {
   const qc = useQueryClient();
   const [editing, setEditing] = React.useState<InboxRow | null>(null);
   const [editText, setEditText] = React.useState('');
+  const [pendingApproveId, setPendingApproveId] = React.useState<number | null>(null);
 
   const { data: rows = [] } = useQuery({
     queryKey: ['admin-inbox-group-ai', customerId],
@@ -26,6 +27,8 @@ export default function GroupAIInteractions() {
 
   const approveMut = useMutation({
     mutationFn: (pr_id: number) => groupAiAdminApi.approveSuggested(pr_id),
+    onMutate: (pr_id) => setPendingApproveId(pr_id),
+    onSettled: () => setPendingApproveId(null),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-inbox-group-ai', customerId] }),
   });
   const editMut = useMutation({
@@ -50,7 +53,8 @@ export default function GroupAIInteractions() {
         r.status === 'suggested' ? (
           <Space>
             <Button size="small" onClick={() => { setEditing(r); setEditText(r.reply_text || ''); }}>编辑</Button>
-            <Button size="small" type="primary" loading={approveMut.isPending}
+            <Button size="small" type="primary"
+                    loading={approveMut.isPending && pendingApproveId === r.id}
                     onClick={() => approveMut.mutate(r.id)}>批准发送</Button>
           </Space>
         ) : null },

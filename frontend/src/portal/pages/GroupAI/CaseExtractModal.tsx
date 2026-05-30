@@ -10,6 +10,12 @@ export default function CaseExtractModal({ open, onClose }: { open: boolean; onC
   const [selected, setSelected] = React.useState<Set<number>>(new Set());
   const qc = useQueryClient();
 
+  const handleClose = () => {
+    setCandidates([]);
+    setSelected(new Set());
+    onClose();
+  };
+
   const extractMut = useMutation({
     mutationFn: () => groupAiApi.extractCases(100),
     onSuccess: (data) => setCandidates(data.candidates),
@@ -22,9 +28,7 @@ export default function CaseExtractModal({ open, onClose }: { open: boolean; onC
     onSuccess: () => {
       message.success(`已录入 ${selected.size} 条`);
       qc.invalidateQueries({ queryKey: ['portal-cases'] });
-      setSelected(new Set());
-      setCandidates([]);
-      onClose();
+      handleClose();
     },
   });
 
@@ -33,9 +37,9 @@ export default function CaseExtractModal({ open, onClose }: { open: boolean; onC
   }, [open]);
 
   return (
-    <Modal title="从主号历史会话扫描案例" open={open} onCancel={onClose} width={800}
+    <Modal title="从主号历史会话扫描案例" open={open} onCancel={handleClose} width={800}
            footer={[
-             <Button key="cancel" onClick={onClose}>取消</Button>,
+             <Button key="cancel" onClick={handleClose}>取消</Button>,
              <Button key="save" type="primary"
                      disabled={selected.size === 0}
                      loading={batchMut.isPending}

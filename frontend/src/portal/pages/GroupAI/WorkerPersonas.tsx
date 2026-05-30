@@ -4,7 +4,7 @@
  * 数据流: list accounts → click → 拉 persona → drawer 编辑 → upsert.
  */
 import React from 'react';
-import { Card, Avatar, Button, Drawer, Form, Input, Select, InputNumber, Space, Tag, Typography, Row, Col } from 'antd';
+import { Card, Avatar, Button, Drawer, Form, Input, Select, InputNumber, Space, Tag, Typography, Row, Col, message } from 'antd';
 import { UserOutlined, EditOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { groupAiApi, WorkerPersona } from '../../api/groupAi';
@@ -35,7 +35,14 @@ export default function WorkerPersonas() {
   });
 
   React.useEffect(() => {
-    if (persona) form.setFieldsValue(persona);
+    if (persona) {
+      form.setFieldsValue({
+        ...persona,
+        active_hours: persona.active_hours != null
+          ? JSON.stringify(persona.active_hours, null, 2)
+          : '',
+      });
+    }
   }, [persona, form]);
 
   const upsertMut = useMutation({
@@ -77,9 +84,21 @@ export default function WorkerPersonas() {
       >
         <Form form={form} layout="vertical" initialValues={{
           customer_id: 0, // 占位; backend 实际从 token 推断
-        }} onFinish={(values) => upsertMut.mutate({
-          ...values, customer_id: 0,  // backend 会忽略, 用 customer auth
-        })}>
+        }} onFinish={(values) => {
+          // Parse active_hours from JSON string to dict
+          let parsedActiveHours = values.active_hours;
+          if (typeof values.active_hours === 'string' && values.active_hours.trim() !== '') {
+            try {
+              parsedActiveHours = JSON.parse(values.active_hours);
+            } catch {
+              message.error('active_hours JSON 格式错误');
+              return;
+            }
+          } else if (typeof values.active_hours === 'string' && values.active_hours.trim() === '') {
+            parsedActiveHours = null;
+          }
+          upsertMut.mutate({ ...values, active_hours: parsedActiveHours, customer_id: 0 });
+        }}>
           <Form.Item name="display_name" label="显示名"><Input /></Form.Item>
           <Form.Item name="region" label="地区"><Input placeholder="香港 / 上海" /></Form.Item>
           <Form.Item name="occupation" label="职业"><Input placeholder="OTC 中介 / SaaS 销售" /></Form.Item>

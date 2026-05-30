@@ -38,22 +38,39 @@ export interface ABMetric {
 }
 
 export interface ABReport {
-  experiment_id: number;
-  experiment_name: string;
-  status: string;
-  primary_metric: string;
+  /** Backend key is "experiment" (the experiment name string). */
+  experiment: string;
+  primary_metric: string | null;
   variants: Array<{
     tag: string;
-    sent: number; suggested: number; skipped_total: number; failed: number;
-    reply_rate: number; private_conversion_rate: number;
-    kick_rate: number; anti_hallucination_failure_rate: number;
-    reply_ci_lo: number; reply_ci_hi: number;
-    private_conversion_ci_lo: number; private_conversion_ci_hi: number;
-    kick_ci_lo: number; kick_ci_hi: number;
-    failure_ci_lo: number; failure_ci_hi: number;
+    counters?: {
+      sent: number;
+      suggested: number;
+      skipped_total: number;
+      failed: number;
+      private_conversion_count?: number;
+      kick_count?: number;
+      total_triggered?: number;
+    };
+    metrics?: {
+      reply_rate: number;
+      private_conversion_rate: number;
+      kick_rate: number;
+      anti_hallucination_failure_rate: number;
+    };
+    ci?: {
+      reply_rate_ci?: [number, number];
+      private_conversion_rate_ci?: [number, number];
+      kick_rate_ci?: [number, number];
+      anti_hallucination_failure_rate_ci?: [number, number];
+    };
   }>;
-  significance: { metric: string; z: number | null; p_value: number | null; significant_at_95: boolean } | null;
-  generated_at: string;
+  significance: {
+    primary_metric: string;
+    z_stat: number | null;
+    p_value: number | null;
+    significant: boolean;
+  } | null;
 }
 
 export const abApi = {

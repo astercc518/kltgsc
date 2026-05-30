@@ -80,7 +80,7 @@ export default function Thresholds() {
           保存
         </Button>
         <Button onClick={() => setValues(DEFAULTS)}>恢复默认</Button>
-        <Tag>当前生效: L2={data?.thresholds.layer2_sim} L3-S={data?.thresholds.layer3_score} L3-C={data?.thresholds.layer3_confidence}</Tag>
+        <Tag>当前生效: L2={data?.thresholds?.layer2_sim} L3-S={data?.thresholds?.layer3_score} L3-C={data?.thresholds?.layer3_confidence}</Tag>
       </Space>
     </div>
   );

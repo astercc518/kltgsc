@@ -6,7 +6,7 @@
 import React from 'react';
 import {
   Button, Card, Col, Descriptions, Row, Spin, Statistic, Tag, Typography, Alert,
-  Space,
+  Space, notification,
 } from 'antd';
 import { DownloadOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
@@ -14,13 +14,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { abApi, ABReport } from '../../services/groupAi';
 
 const { Title, Text } = Typography;
-
-const STATUS_COLOR: Record<string, string> = {
-  draft: 'default',
-  running: 'green',
-  finished: 'blue',
-  paused: 'orange',
-};
 
 const METRIC_LABEL: Record<string, string> = {
   reply_rate: '回复率',
@@ -33,8 +26,9 @@ function pct(v: number) {
   return `${(v * 100).toFixed(2)}%`;
 }
 
-function ciStr(lo: number, hi: number) {
-  return `[${pct(lo)}, ${pct(hi)}]`;
+function ciStr(ci: [number, number] | undefined) {
+  if (!ci) return '—';
+  return `[${pct(ci[0])}, ${pct(ci[1])}]`;
 }
 
 interface VariantCardProps {
@@ -43,13 +37,23 @@ interface VariantCardProps {
 }
 
 function VariantCard({ v, isPrimary }: VariantCardProps) {
+  const sent = v.counters?.sent ?? 0;
+  const suggested = v.counters?.suggested ?? 0;
+  const skipped = v.counters?.skipped_total ?? 0;
+  const failed = v.counters?.failed ?? 0;
+
+  const replyRate = v.metrics?.reply_rate ?? 0;
+  const pcrRate = v.metrics?.private_conversion_rate ?? 0;
+  const kickRate = v.metrics?.kick_rate ?? 0;
+  const ahfrRate = v.metrics?.anti_hallucination_failure_rate ?? 0;
+
   return (
     <Card
       title={
         <Space>
           <Tag color="blue">{v.tag}</Tag>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            发送 {v.sent} / 建议 {v.suggested} / 跳过 {v.skipped_total} / 失败 {v.failed}
+            发送 {sent} / 建议 {suggested} / 跳过 {skipped} / 失败 {failed}
           </Text>
         </Space>
       }
@@ -60,11 +64,11 @@ function VariantCard({ v, isPrimary }: VariantCardProps) {
         <Col xs={24} sm={12} md={6}>
           <Statistic
             title={<span style={{ fontWeight: isPrimary('reply_rate') ? 700 : 400 }}>回复率</span>}
-            value={pct(v.reply_rate)}
+            value={pct(replyRate)}
             valueStyle={{ color: isPrimary('reply_rate') ? '#1677ff' : undefined }}
           />
           <Text type="secondary" style={{ fontSize: 12 }}>
-            95% CI {ciStr(v.reply_ci_lo, v.reply_ci_hi)}
+            95% CI {ciStr(v.ci?.reply_rate_ci)}
           </Text>
         </Col>
 
@@ -72,11 +76,11 @@ function VariantCard({ v, isPrimary }: VariantCardProps) {
         <Col xs={24} sm={12} md={6}>
           <Statistic
             title={<span style={{ fontWeight: isPrimary('private_conversion_rate') ? 700 : 400 }}>私聊转化率</span>}
-            value={pct(v.private_conversion_rate)}
+            value={pct(pcrRate)}
             valueStyle={{ color: isPrimary('private_conversion_rate') ? '#1677ff' : undefined }}
           />
           <Text type="secondary" style={{ fontSize: 12 }}>
-            95% CI {ciStr(v.private_conversion_ci_lo, v.private_conversion_ci_hi)}
+            95% CI {ciStr(v.ci?.private_conversion_rate_ci)}
           </Text>
         </Col>
 
@@ -84,11 +88,11 @@ function VariantCard({ v, isPrimary }: VariantCardProps) {
         <Col xs={24} sm={12} md={6}>
           <Statistic
             title={<span style={{ fontWeight: isPrimary('kick_rate') ? 700 : 400 }}>踢人率</span>}
-            value={pct(v.kick_rate)}
+            value={pct(kickRate)}
             valueStyle={{ color: isPrimary('kick_rate') ? '#ff4d4f' : undefined }}
           />
           <Text type="secondary" style={{ fontSize: 12 }}>
-            95% CI {ciStr(v.kick_ci_lo, v.kick_ci_hi)}
+            95% CI {ciStr(v.ci?.kick_rate_ci)}
           </Text>
         </Col>
 
@@ -96,11 +100,11 @@ function VariantCard({ v, isPrimary }: VariantCardProps) {
         <Col xs={24} sm={12} md={6}>
           <Statistic
             title={<span style={{ fontWeight: isPrimary('anti_hallucination_failure_rate') ? 700 : 400 }}>幻觉失败率</span>}
-            value={pct(v.anti_hallucination_failure_rate)}
+            value={pct(ahfrRate)}
             valueStyle={{ color: isPrimary('anti_hallucination_failure_rate') ? '#ff4d4f' : undefined }}
           />
           <Text type="secondary" style={{ fontSize: 12 }}>
-            95% CI {ciStr(v.failure_ci_lo, v.failure_ci_hi)}
+            95% CI {ciStr(v.ci?.anti_hallucination_failure_rate_ci)}
           </Text>
         </Col>
       </Row>
@@ -119,6 +123,28 @@ export default function ExperimentReport() {
     enabled: !!numId,
     refetchInterval: 60000,
   });
+
+  const downloadCsv = async () => {
+    const token = localStorage.getItem('token') || '';
+    const url = abApi.csvUrl(numId);
+    try {
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = `ab_report_${report?.experiment ?? id}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (e) {
+      notification.error({ message: 'CSV 下载失败', description: String(e) });
+    }
+  };
 
   if (isLoading) {
     return (
@@ -158,34 +184,21 @@ export default function ExperimentReport() {
             返回列表
           </Button>
           <Title level={4} style={{ margin: 0 }}>
-            {report.experiment_name}
-            <Tag
-              color={STATUS_COLOR[report.status] ?? 'default'}
-              style={{ marginLeft: 12, verticalAlign: 'middle', fontSize: 12 }}
-            >
-              {report.status}
-            </Tag>
+            {report.experiment}
           </Title>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            报告生成时间: {new Date(report.generated_at).toLocaleString('zh-CN')}
-          </Text>
         </div>
 
-        <a href={abApi.csvUrl(numId)} download>
-          <Button icon={<DownloadOutlined />}>下载 CSV</Button>
-        </a>
+        <Button icon={<DownloadOutlined />} onClick={downloadCsv}>下载 CSV</Button>
       </div>
 
       {/* ── Experiment metadata ── */}
       <Card style={{ marginBottom: 24 }}>
         <Descriptions size="small" column={{ xs: 1, sm: 2, md: 3 }}>
-          <Descriptions.Item label="实验 ID">{report.experiment_id}</Descriptions.Item>
-          <Descriptions.Item label="状态">
-            <Tag color={STATUS_COLOR[report.status] ?? 'default'}>{report.status}</Tag>
-          </Descriptions.Item>
+          <Descriptions.Item label="实验名称">{report.experiment}</Descriptions.Item>
           <Descriptions.Item label="主要指标">
             {report.primary_metric ? (METRIC_LABEL[report.primary_metric] ?? report.primary_metric) : '未设置'}
           </Descriptions.Item>
+          <Descriptions.Item label="变体数">{report.variants.length}</Descriptions.Item>
         </Descriptions>
       </Card>
 
@@ -201,7 +214,7 @@ export default function ExperimentReport() {
           title="显著性检验"
           style={{ marginTop: 8 }}
           extra={
-            sig.significant_at_95 ? (
+            sig.significant ? (
               <Tag color="green">✓ 95% 置信显著</Tag>
             ) : (
               <Tag color="red">✗ 不显著</Tag>
@@ -210,10 +223,10 @@ export default function ExperimentReport() {
         >
           <Descriptions size="small" column={{ xs: 1, sm: 3 }}>
             <Descriptions.Item label="指标">
-              {METRIC_LABEL[sig.metric] ?? sig.metric}
+              {METRIC_LABEL[sig.primary_metric] ?? sig.primary_metric}
             </Descriptions.Item>
             <Descriptions.Item label="Z 值">
-              {sig.z != null ? sig.z.toFixed(4) : '—'}
+              {sig.z_stat != null ? sig.z_stat.toFixed(4) : '—'}
             </Descriptions.Item>
             <Descriptions.Item label="P 值">
               {sig.p_value != null ? sig.p_value.toFixed(4) : '—'}

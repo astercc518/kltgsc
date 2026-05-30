@@ -1,5 +1,5 @@
 import React from 'react';
-import { Table, Button, Space, Drawer, Form, Input, Tag, Popconfirm, Typography } from 'antd';
+import { Table, Button, Space, Drawer, Form, Input, Select, Tag, Popconfirm, Typography } from 'antd';
 import { PlusOutlined, ScanOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { groupAiApi, CaseStudy } from '../../api/groupAi';
@@ -89,7 +89,7 @@ export default function CaseStudies() {
           <Form.Item name="solution" label="方案" rules={[{ required: true }]}><Input.TextArea rows={3} /></Form.Item>
           <Form.Item name="outcome" label="效果" rules={[{ required: true }]}><Input.TextArea rows={3} /></Form.Item>
           <Form.Item name="tags" label="标签">
-            <Input placeholder="逗号分隔, e.g. OTC,USDT" />
+            <Select mode="tags" tokenSeparators={[',', '，']} placeholder="按 Enter 添加标签" />
           </Form.Item>
           <Button type="primary" htmlType="submit" loading={createMut.isPending || updateMut.isPending}>
             保存
