@@ -69,6 +69,7 @@ import PortalBulkInbox from './portal/pages/BulkInbox';
 import PortalScrape from './portal/pages/Scrape';
 import PortalInvite from './portal/pages/Invite';
 import GroupAILayout from './portal/pages/GroupAI';
+import IcpEditor from './portal/pages/GroupAI/IcpEditor';
 import SalesLayout from './sales/Layout';
 import SalesInbox from './sales/pages/Inbox';
 import SalesLeadDetail from './sales/pages/LeadDetail';
@@ -461,7 +462,7 @@ const App: React.FC = () => {
           <Route path="settings" element={<PortalSettings />} />
           <Route path="group-ai" element={<GroupAILayout />}>
             <Route index element={<Navigate to="icp" replace />} />
-            <Route path="icp" element={<div>ICP editor placeholder (Task 3)</div>} />
+            <Route path="icp" element={<IcpEditor />} />
             <Route path="thresholds" element={<div>Thresholds placeholder (Task 4)</div>} />
             <Route path="cases" element={<div>Case studies placeholder (Task 5)</div>} />
             <Route path="personas" element={<div>Personas placeholder (Task 6)</div>} />
