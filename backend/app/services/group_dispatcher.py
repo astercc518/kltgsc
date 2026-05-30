@@ -69,6 +69,16 @@ async def dispatch_send(pending_reply) -> None:
             skip_reason="send_failed",
             responder_account_id=pending_reply.responder_account_id,
         )
+        try:
+            from app.services.websocket_manager import manager as ws_manager
+            customer_id = getattr(pending_reply, "customer_id", None)
+            if customer_id:
+                await ws_manager.broadcast({
+                    "type": "portal_stats_update",
+                    "customer_id": customer_id,
+                })
+        except Exception:
+            pass
         return
 
     charged = await _charge_customer(pending_reply=pending_reply, amount_usd=BILLING_PER_REPLY_USD)
@@ -86,6 +96,16 @@ async def dispatch_send(pending_reply) -> None:
         reply_text=pending_reply.reply_text,
         responder_account_id=pending_reply.responder_account_id,
     )
+    try:
+        from app.services.websocket_manager import manager as ws_manager
+        customer_id = getattr(pending_reply, "customer_id", None)
+        if customer_id:
+            await ws_manager.broadcast({
+                "type": "portal_stats_update",
+                "customer_id": customer_id,
+            })
+    except Exception:
+        pass
 
 
 def _pick_typing_delay() -> int:

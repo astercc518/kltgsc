@@ -7,10 +7,12 @@ import React from 'react';
 import { Card, Row, Col, Statistic, Collapse, Tag, Typography, Empty } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { groupAiApi } from '../../api/groupAi';
+import { usePortalStatsWebsocket } from '../../hooks/usePortalStatsWebsocket';
 
 const { Title, Paragraph } = Typography;
 
 export default function RealtimeStats() {
+  usePortalStatsWebsocket();  // Phase 6: WS push + 30s polling fallback
   const { data } = useQuery({
     queryKey: ['portal-stats'],
     queryFn: () => groupAiApi.getRecentStats(),

@@ -23,6 +23,19 @@ from app.services.lead_detector import run_all_layers
 logger = logging.getLogger(__name__)
 
 
+async def _broadcast_stat_update(*, customer_id: int) -> None:
+    """Phase 6: broadcast portal stats invalidation."""
+    try:
+        from app.services.websocket_manager import manager as ws_manager
+        await ws_manager.broadcast({
+            "type": "portal_stats_update",
+            "customer_id": customer_id,
+        })
+    except Exception:
+        # ws failure shouldn't block pipeline
+        pass
+
+
 async def entrypoint(msg, account, monitor) -> dict:
     """
     Returns:
@@ -101,6 +114,7 @@ async def entrypoint(msg, account, monitor) -> dict:
                     skip_reason=result["skip_reason"],
                     experiment_tag=experiment_tag,
                 )
+                await _broadcast_stat_update(customer_id=customer_id)
                 return {"skipped": "borderline", "pending_reply_id": pr.id}
             return {"skipped": result["skip_reason"]}
 
@@ -122,6 +136,7 @@ async def entrypoint(msg, account, monitor) -> dict:
             "pipeline: pending_reply id=%s queued (window=%ss, score=%s)",
             pr.id, obs_seconds, result["layer3"]["score"],
         )
+        await _broadcast_stat_update(customer_id=customer_id)
         return {"pending_reply_id": pr.id}
 
 
