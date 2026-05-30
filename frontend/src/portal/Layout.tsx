@@ -23,6 +23,7 @@ import {
   CloudDownloadOutlined,
   UsergroupAddOutlined,
   ThunderboltOutlined,
+  RobotOutlined,
 } from '@ant-design/icons';
 import { Link, Outlet, useLocation, Navigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -81,6 +82,7 @@ const PortalLayout: React.FC = () => {
       icon: <ThunderboltOutlined />,
       label: <Link to="/portal/monitors">AI 监听</Link>,
     }] : []),
+    { key: '/portal/group-ai', icon: <RobotOutlined />, label: <Link to="/portal/group-ai">群内 AI 销售员</Link> },
     { key: '/portal/accounts', icon: <TeamOutlined />, label: <Link to="/portal/accounts">TG Accounts</Link> },
     { key: '/portal/leads', icon: <MessageOutlined />, label: <Link to="/portal/leads">Leads</Link> },
     { key: '/portal/knowledge-bases', icon: <BookOutlined />, label: <Link to="/portal/knowledge-bases">Knowledge Base</Link> },

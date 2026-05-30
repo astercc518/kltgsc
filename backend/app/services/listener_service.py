@@ -19,6 +19,24 @@ from app.models.keyword_monitor import KeywordMonitor, KeywordHit
 from app.services.telegram_client import get_proxy_dict, _create_client_and_run
 from app.services.keyword_monitor_service import KeywordMonitorService
 from app.services.score_service import ScoreService
+from app.services import group_reply_pipeline
+from app.services.account_lifecycle_tracker import record_event
+
+# Typed exception imports — Pyrogram variant with graceful fallback
+try:
+    from pyrogram.errors import SessionRevoked, AuthKeyUnregistered, UserDeactivated
+    SessionRevokedError = SessionRevoked
+    AuthKeyUnregisteredError = AuthKeyUnregistered
+    UserDeactivatedError = UserDeactivated
+except ImportError:
+    try:
+        from telethon.errors import (  # type: ignore[import]
+            SessionRevokedError, AuthKeyUnregisteredError, UserDeactivatedError,
+        )
+    except ImportError:
+        SessionRevokedError = type("SessionRevokedError", (Exception,), {})       # type: ignore[misc,assignment]
+        AuthKeyUnregisteredError = type("AuthKeyUnregisteredError", (Exception,), {})  # type: ignore[misc,assignment]
+        UserDeactivatedError = type("UserDeactivatedError", (Exception,), {})     # type: ignore[misc,assignment]
 
 logger = logging.getLogger(__name__)
 
@@ -215,6 +233,19 @@ class ListenerService:
                     await self._execute_passive_marketing(
                         client, message, session, monitor, hit, user_id, username, first_name
                     )
+
+                # === Phase 1 群内 AI 销售员管线触发 ===
+                # 仅对群/超级群/频道消息触发；私聊 DM 由 ai_reply_service 负责。
+                # 与现有 intercept / keyword auto_reply 并行，不互斥（两者目标不同）。
+                if getattr(message.chat, "type", None) in (
+                    enums.ChatType.GROUP,
+                    enums.ChatType.SUPERGROUP,
+                    enums.ChatType.CHANNEL,
+                ):
+                    try:
+                        await group_reply_pipeline.entrypoint(message, account_obj, monitor)
+                    except Exception:
+                        logger.exception("group_reply_pipeline failed (non-blocking)")
 
     def _check_target_group(self, monitor: KeywordMonitor, message) -> bool:
         """检查消息是否来自目标群组"""
@@ -819,8 +850,32 @@ class ListenerService:
             logger.info("Connecting clients...")
             # 逐个 start 以便连接后获取 Telegram user_id
             for c in self.clients:
+                _acc = self.client_accounts.get(getattr(c, "name", "") or "")
                 try:
                     await c.start()
+                except (SessionRevokedError, AuthKeyUnregisteredError) as exc:
+                    logger.warning("session invalid for account %s: %s", getattr(_acc, "id", "?"), exc)
+                    if _acc is not None:
+                        try:
+                            with Session(engine) as _s:
+                                record_event(
+                                    session=_s, account_id=_acc.id,
+                                    event_type="session_invalid", reason=str(exc),
+                                )
+                        except Exception:
+                            logger.warning("lifecycle hook failed", exc_info=True)
+                    # do not re-raise — skip this client, keep others running
+                except UserDeactivatedError as exc:
+                    logger.warning("account deactivated %s: %s", getattr(_acc, "id", "?"), exc)
+                    if _acc is not None:
+                        try:
+                            with Session(engine) as _s:
+                                record_event(
+                                    session=_s, account_id=_acc.id,
+                                    event_type="banned", reason=str(exc),
+                                )
+                        except Exception:
+                            logger.warning("lifecycle hook failed", exc_info=True)
                 except Exception as e:
                     logger.error(f"Client start failed: {e}")
 
