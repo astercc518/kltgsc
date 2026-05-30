@@ -10,9 +10,8 @@ experiment_metrics_service — 按 experiment_tag 聚合 4 个核心 A/B 指标�
 
 total_triggered = sent + suggested + skipped_total + failed
 
-Phase 5 simplification
-  _count_private_conversions_after_sent returns 0 (placeholder).
-  Real Lead join is deferred to a later phase.
+Phase 6
+  _count_private_conversions_after_sent delegates to lead_conversion_service.
 """
 import logging
 from dataclasses import dataclass
@@ -93,18 +92,15 @@ def _count_status(*, session, experiment_tag: str, status: str) -> int:
 
 
 def _count_private_conversions_after_sent(
-    *, session, experiment_tag: str
+    *, session, experiment_tag: str,
 ) -> int:
-    """
-    Count source_users who private-messaged the main account within 24 h
-    after their group reply was sent.
-
-    TODO (Phase 6): implement real Lead join once Lead.source_tg_id is indexed
-    and a private_chat_started_at timestamp is available.
-
-    Phase 5 simplification: return 0 as placeholder.
-    """
-    return 0  # noqa: placeholder
+    """Phase 6: real implementation via lead_conversion_service."""
+    from app.services.lead_conversion_service import (
+        count_private_conversions_for_experiment,
+    )
+    return count_private_conversions_for_experiment(
+        session=session, experiment_tag=experiment_tag,
+    )
 
 
 def _count_kicks_after_sent(*, session, experiment_tag: str) -> int:
