@@ -1236,4 +1236,29 @@ Phase 6 (本 PR)  → 生产强化        ~175 backend + portal WS
 
 **7 个 PR, 60+ commits, 80+ tasks, ~28000 行代码**.
 
-至此 spec §9 (路线图) + §10 (A/B 框架) + §8.2 (Portal UI) 全部实施完毕。剩余的优化 (KB 文档导入 / 多语 / 移动端 / 实验自动停规则调参) 都是产品迭代而非架构补丁, 可按业务节奏增量做。
+至此 spec §9 (路线图) + §10 (A/B 框架) + §8.2 (Portal UI) 全部实施完毕。
+
+---
+
+## 后续独立 Epic Plans
+
+Phase 6 之后还有 2 个独立 epic plans 已写, 不在主路线图但属于产品上线必备:
+
+- **[Phase 7 — group discovery](2026-05-30-group-ai-sales-phase7-group-discovery.md)** (~8 task)
+  - TGStat API + t.me/s 搜索 → 自动给客户推荐高质量候选群
+  - 客户在 portal 一键审批 / 拒绝 + blacklist
+  - Celery beat weekly batch (周一上午)
+  - 解决 "如何查找活跃线索群" 问题
+
+- **[Phase 8 — captcha 处理](2026-05-30-group-ai-sales-phase8-captcha.md)** (~10 task)
+  - 4 个 CAPTCHA handler (inline button / text Q&A / Gemini Vision / admin DM)
+  - join_attempt 状态机 + failed queue + portal 手动兜底
+  - Phase 7 approve → 自动 queue_join → 走 captcha 流程加入
+  - 解决 "加群人机验证如何过" 问题, 把 "可加群率 ≈ 40-60%" 量化为指标
+
+**Phase 7 + 8 是衔接关系** (7 输出候选 → 8 实际加入), 但与 Phase 1-6 是**纯加法独立 epic** —— 不依赖 Phase 6 (生产强化) 先完成。Phase 7/8 可在 Phase 6 灰度同时启动。
+
+剩余真正"按业务节奏"的优化项:
+- KB 文档导入 (PDF / Word / URL) — 独立 epic
+- i18n 多语 / 移动端深度优化 — 产品决定
+- 真人接话检测灵敏度调参 / 实验自动停规则调参 — 灰度数据驱动
