@@ -20,6 +20,24 @@ from datetime import datetime, timezone
 
 from app.core.group_reply_config import BILLING_PER_REPLY_USD, TYPING_DELAY_SECONDS
 from app.models.pending_reply import PendingReplyStatus
+from app.services.account_lifecycle_tracker import record_event
+
+# Typed exception imports — Pyrogram variant with graceful fallback
+try:
+    from pyrogram.errors import (  # type: ignore[import]
+        UserBannedInChannel as UserBannedInChannelError,
+        ChatWriteForbidden as ChatWriteForbiddenError,
+        ChannelPrivate as ChannelPrivateError,
+    )
+except ImportError:
+    try:
+        from telethon.errors import (  # type: ignore[import]
+            UserBannedInChannelError, ChatWriteForbiddenError, ChannelPrivateError,
+        )
+    except ImportError:
+        UserBannedInChannelError = type("UserBannedInChannelError", (Exception,), {})  # type: ignore[misc,assignment]
+        ChatWriteForbiddenError = type("ChatWriteForbiddenError", (Exception,), {})    # type: ignore[misc,assignment]
+        ChannelPrivateError = type("ChannelPrivateError", (Exception,), {})            # type: ignore[misc,assignment]
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +120,30 @@ async def _telethon_send_to_group(*, account_id: int, chat_id: int, text: str) -
             text=text,
         )
         return bool(success)
+    except (UserBannedInChannelError, ChatWriteForbiddenError) as exc:
+        logger.warning("kicked from chat %s account %s: %s", chat_id, account_id, exc)
+        try:
+            from app.core.db import engine as _engine
+            with Session(_engine) as _s:
+                record_event(
+                    session=_s, account_id=account_id,
+                    event_type="kicked_from_chat", chat_id=chat_id, reason=str(exc),
+                )
+        except Exception:
+            logger.warning("lifecycle hook failed", exc_info=True)
+        return False
+    except ChannelPrivateError as exc:
+        logger.warning("channel private for chat %s account %s: %s", chat_id, account_id, exc)
+        try:
+            from app.core.db import engine as _engine
+            with Session(_engine) as _s:
+                record_event(
+                    session=_s, account_id=account_id,
+                    event_type="kicked_from_chat", chat_id=chat_id, reason=str(exc),
+                )
+        except Exception:
+            logger.warning("lifecycle hook failed", exc_info=True)
+        return False
     except Exception:
         logger.exception("telethon send failed for account_id=%s", account_id)
         return False
