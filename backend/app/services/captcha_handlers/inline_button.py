@@ -9,6 +9,37 @@ VERIFY_BUTTON_KEYWORDS = [
 ]
 
 
+def _iter_buttons(message):
+    """Yield (row, button) pairs from either pyrogram or test-mock shape."""
+    keyboard = None
+    rm = getattr(message, "reply_markup", None)
+    if rm is not None:
+        candidate = getattr(rm, "inline_keyboard", None)
+        if isinstance(candidate, (list, tuple)):
+            keyboard = candidate
+
+    if keyboard is None:
+        candidate = getattr(message, "buttons", None)
+        if isinstance(candidate, (list, tuple)):
+            keyboard = candidate
+
+    if not keyboard:
+        return
+
+    for row in keyboard:
+        for btn in row:
+            yield row, btn
+
+
+def list_button_texts(message) -> list[str]:
+    """Return all button labels in render order (used by hybrid handler)."""
+    return [
+        (getattr(btn, "text", "") or "").strip()
+        for _, btn in _iter_buttons(message)
+        if (getattr(btn, "text", None) or "").strip()
+    ]
+
+
 def _find_verify_button_text(message) -> str | None:
     """
     Scan message.reply_markup.inline_keyboard for a button whose label contains
@@ -18,35 +49,41 @@ def _find_verify_button_text(message) -> str | None:
     each btn has a `.text` attribute — that path is exercised by the existing
     unit tests and we keep it working.
     """
-    keyboard = None
-    rm = getattr(message, "reply_markup", None)
-    if rm is not None:
-        candidate = getattr(rm, "inline_keyboard", None)
-        if isinstance(candidate, (list, tuple)):
-            keyboard = candidate
-
-    if keyboard is None:
-        # legacy / mock shape: message.buttons is a 2D list of objects with .text
-        candidate = getattr(message, "buttons", None)
-        if isinstance(candidate, (list, tuple)):
-            keyboard = candidate
-
-    if not keyboard:
-        return None
-
-    for row in keyboard:
-        for btn in row:
-            text = getattr(btn, "text", None)
-            if not text:
-                continue
-            lowered = text.lower()
-            if any(kw.lower() in lowered for kw in VERIFY_BUTTON_KEYWORDS):
-                return text
+    for _, btn in _iter_buttons(message):
+        text = getattr(btn, "text", None)
+        if not text:
+            continue
+        lowered = text.lower()
+        if any(kw.lower() in lowered for kw in VERIFY_BUTTON_KEYWORDS):
+            return text
     return None
 
 
-async def solve_inline_button(*, client=None, message, dry_run: bool = False,
-                              telethon_client=None) -> dict:
+def _find_exact_button_text(message, preferred: str) -> str | None:
+    """Phase 12 helper — locate the button whose label equals `preferred`."""
+    if not preferred:
+        return None
+    preferred_strip = preferred.strip()
+    preferred_lower = preferred_strip.lower()
+    for _, btn in _iter_buttons(message):
+        text = getattr(btn, "text", None)
+        if not text:
+            continue
+        if text == preferred_strip or text.strip() == preferred_strip:
+            return text
+        if text.lower() == preferred_lower:
+            return text
+    return None
+
+
+async def solve_inline_button(
+    *,
+    client=None,
+    message,
+    dry_run: bool = False,
+    preferred_text: str | None = None,
+    telethon_client=None,
+) -> dict:
     """
     Click the inline verify button on `message`.
 
@@ -54,14 +91,27 @@ async def solve_inline_button(*, client=None, message, dry_run: bool = False,
     bound method on the message itself). `telethon_client` is accepted as an
     alias for backward compat with the existing unit tests.
 
+    `preferred_text` (Phase 12 hybrid): when supplied, try to match a button
+    whose label equals that string before falling back to the VERIFY_BUTTON_
+    KEYWORDS scan. Lets the vision_button_hybrid handler drive selection of
+    a specific button picked by Gemini Vision.
+
     Returns: {"success": bool, "clicked_button": str | None, "error": str | None}
     """
     if getattr(message, "reply_markup", None) is None and not getattr(message, "buttons", None):
         return {"success": False, "clicked_button": None, "error": "no_keyboard"}
 
-    target_text = _find_verify_button_text(message)
+    target_text = None
+    if preferred_text:
+        target_text = _find_exact_button_text(message, preferred_text)
+    if target_text is None:
+        target_text = _find_verify_button_text(message)
     if not target_text:
-        return {"success": False, "clicked_button": None, "error": "no_verify_button_found"}
+        return {
+            "success": False,
+            "clicked_button": None,
+            "error": "no_verify_button_found",
+        }
 
     if dry_run:
         return {"success": True, "clicked_button": target_text, "error": None}
