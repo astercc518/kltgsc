@@ -104,3 +104,6 @@ app.include_router(portal_discovery.router)
 
 from app.routers import portal_join_failures  # noqa: E402
 app.include_router(portal_join_failures.router)
+
+from app.routers import portal_captcha_templates  # noqa: E402
+app.include_router(portal_captcha_templates.router)

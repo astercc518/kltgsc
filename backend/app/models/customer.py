@@ -135,6 +135,18 @@ class Customer(CustomerBase, table=True):
         sa_column=Column(Text, nullable=False, server_default="v1"),
     )
 
+    # ── Phase 10: captcha 自动答题 / admin DM 模板 ──
+    # captcha_join_template: text_qa handler 用做答题上下文
+    #   "你为什么想加这个群" / "怎么知道这个群"。建议 < 200 字。
+    captcha_join_template: Optional[str] = Field(
+        default=None, sa_column=Column(Text, nullable=True)
+    )
+    # captcha_intro_template: admin_dm handler 用做申请加群话术
+    #   eg "你好，看到xx推荐的，想加群学习交流"。建议 < 300 字。
+    captcha_intro_template: Optional[str] = Field(
+        default=None, sa_column=Column(Text, nullable=True)
+    )
+
 
 class CustomerCreate(SQLModel):
     email: str
