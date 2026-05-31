@@ -331,6 +331,15 @@ async def _dispatch_handler(
         msg = raw_msg.get("_message") if isinstance(raw_msg, dict) else raw_msg
         return await solve_inline_button(client=client, message=msg)
 
+    if ctype == "vision_with_buttons":
+        # Phase 12 hybrid: Gemini Vision reads the image and picks a button.
+        from app.services.captcha_handlers.vision_button_hybrid import (
+            solve_vision_button_hybrid,
+        )
+        raw_msg = evidence.get("message", {})
+        msg = raw_msg.get("_message") if isinstance(raw_msg, dict) else raw_msg
+        return await solve_vision_button_hybrid(client=client, message=msg)
+
     if ctype == "text_qa":
         from app.services.captcha_handlers.text_qa import solve_text_qa
         question = evidence.get("question", "")

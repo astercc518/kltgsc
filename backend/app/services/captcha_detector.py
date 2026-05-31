@@ -2,7 +2,11 @@
 captcha_detector — 识别加群后遇到的 CAPTCHA 类型.
 
 调用时机: 加群后等 10s 拉前 5 条新消息.
-返回: 'inline_button' | 'text_qa' | 'vision' | 'admin_dm' | 'no_captcha' | 'unknown'
+返回: 'vision_with_buttons' | 'inline_button' | 'text_qa' | 'vision' | 'admin_dm' | 'no_captcha' | 'unknown'
+
+Phase 12 加 'vision_with_buttons': 当 bot 消息同时含 photo 和 inline buttons
+(常见模式: 图里写问题, 按钮选答案), 优先此分类, hybrid handler 用 Gemini Vision
+读图选 button. 走 inline_button 单条件分支会因 keyword 不匹配而漏掉这类.
 """
 import logging
 
@@ -24,6 +28,22 @@ def detect_captcha_type(
     """
     if not recent_messages and not admin_dms_after_join:
         return {"type": "no_captcha", "evidence": {}}
+
+    # Phase 12: photo + buttons + bot — hybrid path runs Gemini Vision against
+    # the image to pick which button answers it. Must come BEFORE the regular
+    # inline_button check, which would otherwise miss this case when the
+    # button labels carry no VERIFICATION_HINTS keyword (common — buttons just
+    # read "A" / "B" / a number / an emoji etc.).
+    for msg in recent_messages:
+        if (
+            msg.get("buttons")
+            and msg.get("has_photo")
+            and msg.get("from_bot")
+        ):
+            return {
+                "type": "vision_with_buttons",
+                "evidence": {"message": msg},
+            }
 
     # Check inline button
     for msg in recent_messages:
