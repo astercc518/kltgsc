@@ -30,7 +30,18 @@ def test_admin_dm_detection():
     assert result["type"] == "admin_dm"
 
 
-def test_unknown_when_no_match():
+def test_no_captcha_for_benign_human_chatter():
+    """Phase 9: non-bot chatter without captcha vectors → no_captcha, not unknown."""
     msg = {"text": "Hello", "buttons": [], "has_photo": False, "from_bot": False}
+    result = detect_captcha_type(recent_messages=[msg], admin_dms_after_join=[])
+    assert result["type"] == "no_captcha"
+
+
+def test_unknown_when_bot_sends_uncategorised_message():
+    """Bot-sent message that doesn't match any known captcha shape → unknown."""
+    msg = {
+        "text": "A long bot announcement without question marks or hints",
+        "buttons": [], "has_photo": False, "from_bot": True,
+    }
     result = detect_captcha_type(recent_messages=[msg], admin_dms_after_join=[])
     assert result["type"] == "unknown"

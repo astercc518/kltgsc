@@ -63,4 +63,23 @@ def detect_captcha_type(
             "evidence": {"dms": admin_dms_after_join},
         }
 
+    # If nothing in the recent window even looks like a captcha vector
+    # (no buttons anywhere, no bot-sent photos, no short bot questions),
+    # treat it as benign group chatter rather than 'unknown' — the latter
+    # would otherwise cause the orchestrator to mis-classify normal welcome
+    # messages as a captcha and stall the attempt in CAPTCHA state.
+    has_captcha_signal = False
+    for msg in recent_messages:
+        if msg.get("buttons"):
+            has_captcha_signal = True
+            break
+        if msg.get("has_photo") and msg.get("from_bot"):
+            has_captcha_signal = True
+            break
+        if msg.get("from_bot"):
+            has_captcha_signal = True
+            break
+    if not has_captcha_signal:
+        return {"type": "no_captcha", "evidence": {}}
+
     return {"type": "unknown", "evidence": {"messages": recent_messages}}
