@@ -81,6 +81,7 @@ import ChitchatTopics from './portal/pages/GroupAI/ChitchatTopics';
 import RealtimeStats from './portal/pages/GroupAI/RealtimeStats';
 import GroupDiscovery from './portal/pages/GroupAI/GroupDiscovery';
 import JoinFailures from './portal/pages/GroupAI/JoinFailures';
+import CaptchaTemplatesPage from './portal/pages/GroupAI/CaptchaTemplates';
 import SalesLayout from './sales/Layout';
 import SalesInbox from './sales/pages/Inbox';
 import SalesLeadDetail from './sales/pages/LeadDetail';
@@ -493,6 +494,7 @@ const App: React.FC = () => {
             <Route path="stats" element={<RealtimeStats />} />
             <Route path="discovery" element={<GroupDiscovery />} />
             <Route path="join-failures" element={<JoinFailures />} />
+            <Route path="captcha-templates" element={<CaptchaTemplatesPage />} />
           </Route>
         </Route>
 

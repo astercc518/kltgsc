@@ -370,19 +370,34 @@ async def _dispatch_handler(
 
 def _customer_join_template(customer_id: int) -> Optional[str]:
     """
-    Look up the customer's text-Q&A join template.
+    Look up the customer's text-Q&A join template (Phase 10 column).
 
-    Phase 9 keeps the schema unchanged; the Customer model has no template
-    column yet. Returning None lets the handler fall back to its built-in
-    default ("我是行业内朋友推荐知道的"). A future epic can add columns and
-    wire them through here.
+    Returns the stripped template string when set, else None so the handler
+    falls back to its built-in default ("我是行业内朋友推荐知道的").
     """
-    return None
+    from app.models.customer import Customer
+    with Session(engine) as s:
+        c = s.get(Customer, customer_id)
+        if c is None:
+            return None
+        tmpl = getattr(c, "captcha_join_template", None)
+        return tmpl.strip() if tmpl and tmpl.strip() else None
 
 
 def _customer_intro_template(customer_id: int) -> Optional[str]:
-    """Same shape as _customer_join_template; reserved for future schema."""
-    return None
+    """
+    Look up the customer's admin-DM intro template (Phase 10 column).
+
+    Returns None when unset; admin_dm handler then short-circuits with
+    'no_template_set' rather than DMing the admin with empty content.
+    """
+    from app.models.customer import Customer
+    with Session(engine) as s:
+        c = s.get(Customer, customer_id)
+        if c is None:
+            return None
+        tmpl = getattr(c, "captcha_intro_template", None)
+        return tmpl.strip() if tmpl and tmpl.strip() else None
 
 
 def _finalize_joined(attempt_id: int, account_id: int, *, chat_id=None) -> None:

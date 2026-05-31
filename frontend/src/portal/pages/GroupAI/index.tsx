@@ -15,6 +15,7 @@ import {
   LineChartOutlined,
   SearchOutlined,
   WarningOutlined,
+  RobotOutlined,
 } from '@ant-design/icons';
 import { Link, Outlet, useLocation, Navigate } from 'react-router-dom';
 
@@ -29,6 +30,7 @@ const items = [
   { key: 'stats',      icon: <LineChartOutlined />, label: <Link to="stats">实时统计</Link> },
   { key: 'discovery',  icon: <SearchOutlined />,    label: <Link to="discovery">线索群发现</Link> },
   { key: 'join-failures', icon: <WarningOutlined />, label: <Link to="join-failures">加群失败队列</Link> },
+  { key: 'captcha-templates', icon: <RobotOutlined />, label: <Link to="captcha-templates">CAPTCHA 模板</Link> },
 ];
 
 export default function GroupAILayout() {

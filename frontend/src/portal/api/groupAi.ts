@@ -164,4 +164,15 @@ export const groupAiApi = {
     portalApi.get<JoinFailureRow[]>('/portal/group-ai/join/failures').then(r => r.data),
   abandonJoinAttempt: (id: number) =>
     portalApi.post(`/portal/group-ai/join/${id}/abandon`),
+
+  // Captcha templates (Phase 10) — text_qa + admin_dm answer templates
+  getCaptchaTemplates: () =>
+    portalApi.get<CaptchaTemplates>('/portal/group-ai/captcha-templates').then(r => r.data),
+  updateCaptchaTemplates: (payload: Partial<CaptchaTemplates>) =>
+    portalApi.put<CaptchaTemplates>('/portal/group-ai/captcha-templates', payload).then(r => r.data),
 };
+
+export interface CaptchaTemplates {
+  captcha_join_template: string | null;
+  captcha_intro_template: string | null;
+}
