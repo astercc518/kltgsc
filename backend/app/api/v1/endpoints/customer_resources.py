@@ -127,6 +127,81 @@ def list_my_leads(
     return rows
 
 
+class LeadAttributionEntry(BaseModel):
+    pending_reply_id: int
+    monitor_id: Optional[int] = None
+    chat_id: Optional[int] = None
+    source_user_id: Optional[int] = None
+    source_text: Optional[str] = None
+    reply_text: Optional[str] = None
+    sent_at: Optional[datetime] = None
+    layer3_score: Optional[int] = None
+    layer3_confidence: Optional[float] = None
+    experiment_tag: Optional[str] = None
+
+
+class LeadAttributionResponse(BaseModel):
+    lead_id: int
+    customer_id: int
+    entries: List[LeadAttributionEntry]
+
+
+@router.get(
+    "/leads/{lead_id}/attribution",
+    response_model=LeadAttributionResponse,
+)
+def get_lead_attribution(
+    lead_id: int,
+    customer: Customer = Depends(get_current_customer),
+    session: Session = Depends(get_session),
+) -> Any:
+    """Phase 11: which group AI replies led to this lead.
+
+    Returns the list of PendingReply rows linked to this lead via
+    lead_attribution_service. Lead must belong to the current customer;
+    otherwise 404 (we do not leak whether other customers' leads exist).
+    """
+    from app.services.lead_attribution_service import (
+        link_pending_replies_for_lead,
+        list_attribution_for_lead,
+    )
+
+    lead = session.get(Lead, lead_id)
+    if lead is None or lead.customer_id != customer.id:
+        raise HTTPException(status_code=404, detail="lead not found")
+
+    # Best-effort lazy link: if backfill hasn't caught up yet, try right now.
+    # Idempotent — only touches rows with lead_id IS NULL.
+    try:
+        link_pending_replies_for_lead(session, lead)
+    except Exception:
+        # Don't fail the read on a transient link error
+        pass
+
+    replies = list_attribution_for_lead(
+        session, lead_id=lead_id, customer_id=customer.id,
+    )
+
+    entries = [
+        LeadAttributionEntry(
+            pending_reply_id=r.id,
+            monitor_id=r.monitor_id,
+            chat_id=r.chat_id,
+            source_user_id=r.source_user_id,
+            source_text=r.source_text,
+            reply_text=r.reply_text,
+            sent_at=r.sent_at,
+            layer3_score=r.layer3_score,
+            layer3_confidence=r.layer3_confidence,
+            experiment_tag=r.experiment_tag,
+        )
+        for r in replies
+    ]
+    return LeadAttributionResponse(
+        lead_id=lead_id, customer_id=customer.id, entries=entries,
+    )
+
+
 # ─────────────────────────────────────────────────────────────────────────
 # Epic 5.2 — Customer-tunable settings (handover group + timeout)
 # ─────────────────────────────────────────────────────────────────────────

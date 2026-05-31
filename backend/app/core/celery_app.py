@@ -140,6 +140,11 @@ celery_app.conf.update(
             "task": "join_attempt.scan",
             "schedule": 60.0,          # 每 60 秒扫一次 pending/captcha 行
         },
+        # ── Group AI Sales Phase 11: Lead 归因回填 ────────────────────
+        "lead-attribution-backfill": {
+            "task": "lead_attribution.backfill",
+            "schedule": 1800.0,        # 30 分钟一次
+        },
     },
 
     # ==================== 任务发现 ====================
@@ -149,6 +154,7 @@ celery_app.conf.update(
         "app.workers.ab_auto_stop",
         "app.workers.group_discovery_weekly",
         "app.workers.join_attempt_scanner",
+        "app.workers.lead_attribution_backfill",
     ],
 
     # ==================== 任务路由 ====================
