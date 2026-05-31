@@ -12,21 +12,27 @@ logger = logging.getLogger(__name__)
 
 async def solve_text_qa(
     *,
-    telethon_client,
+    client=None,
     chat_id: int,
     question: str,
     customer_join_template: Optional[str],
     dry_run: bool = False,
+    telethon_client=None,
 ) -> dict:
     """
-    customer_join_template: 客户预填的"我们如何知道这个群" 上下文.
-    返回: {"success": bool, "answer": str | None, "error": str | None}
+    Generate a short answer via LLM and send it as a group message.
+
+    `client` is a pyrogram Client (send_message API is the same shape as the
+    test mocks). `telethon_client` is accepted as alias for backward compat.
+
+    Returns: {"success": bool, "answer": str | None, "error": str | None}
     """
+    real_client = client if client is not None else telethon_client
+
     if not question or not question.strip():
         return {"success": False, "answer": None, "error": "empty_question"}
 
     if dry_run:
-        # Skip LLM call in dry_run; return placeholder
         return {"success": True, "answer": "[dry_run placeholder]", "error": None}
 
     template_block = customer_join_template or "我是行业内朋友推荐知道的"
@@ -46,8 +52,11 @@ async def solve_text_qa(
     if not answer or len(answer) > 100:
         return {"success": False, "answer": answer, "error": "bad_llm_response"}
 
+    if real_client is None:
+        return {"success": False, "answer": answer, "error": "no_client"}
+
     try:
-        await telethon_client.send_message(chat_id, answer)
+        await real_client.send_message(chat_id, answer)
         return {"success": True, "answer": answer, "error": None}
     except Exception as e:
         logger.exception("text_qa send failed")
