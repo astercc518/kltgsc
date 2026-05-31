@@ -144,7 +144,29 @@ export const resourcesApi = {
   leads: (params: { source?: string; bulk_batch_id?: number; status?: string; limit?: number } = {}) =>
     portalApi.get<any[]>('/customer/leads', { params }).then(r => r.data),
   knowledgeBases: () => portalApi.get<any[]>('/customer/knowledge-bases').then(r => r.data),
+  // Phase 11: which group-AI replies led to this lead
+  leadAttribution: (leadId: number) =>
+    portalApi.get<LeadAttributionResponse>(`/customer/leads/${leadId}/attribution`).then(r => r.data),
 };
+
+export interface LeadAttributionEntry {
+  pending_reply_id: number;
+  monitor_id: number | null;
+  chat_id: number | null;
+  source_user_id: number | null;
+  source_text: string | null;
+  reply_text: string | null;
+  sent_at: string | null;
+  layer3_score: number | null;
+  layer3_confidence: number | null;
+  experiment_tag: string | null;
+}
+
+export interface LeadAttributionResponse {
+  lead_id: number;
+  customer_id: number;
+  entries: LeadAttributionEntry[];
+}
 
 // Bulk Send W1 — wallet
 export interface Wallet {
