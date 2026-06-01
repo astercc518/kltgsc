@@ -15,8 +15,10 @@ from typing import List, Dict, Any
 from fastapi import APIRouter, Depends, Query
 from sqlmodel import Session, select, func
 
+from app.api.deps import get_current_admin
 from app.core.db import get_session
 from app.models.llm_usage import LLMUsage
+from app.models.user import User
 
 router = APIRouter()
 
@@ -25,6 +27,7 @@ router = APIRouter()
 def safety_stats(
     hours: int = Query(24, ge=1, le=720),
     session: Session = Depends(get_session),
+    _admin: User = Depends(get_current_admin),
 ) -> Dict[str, Any]:
     """Aggregate counts: total, L0-blocked, L1-blocked, routed-deepseek, routed-vertex."""
     since = datetime.utcnow() - timedelta(hours=hours)
@@ -54,6 +57,7 @@ def safety_stats(
 def recent_blocks(
     limit: int = Query(50, ge=1, le=500),
     session: Session = Depends(get_session),
+    _admin: User = Depends(get_current_admin),
 ) -> List[Dict[str, Any]]:
     rows = session.exec(
         select(LLMUsage)
@@ -78,6 +82,7 @@ def recent_blocks(
 def stats_by_source(
     hours: int = Query(24, ge=1, le=720),
     session: Session = Depends(get_session),
+    _admin: User = Depends(get_current_admin),
 ) -> List[Dict[str, Any]]:
     since = datetime.utcnow() - timedelta(hours=hours)
     rows = session.exec(

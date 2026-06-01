@@ -13,13 +13,15 @@ from sqlmodel import Session, delete
 from app.main import app
 from app.core.db import engine
 from app.models.llm_usage import LLMUsage
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_current_admin
 
 
 @pytest.fixture
 def client():
     # Stub auth so endpoints are reachable in tests without real JWT.
+    # /admin/safety/* routes are admin-restricted, so stub both deps.
     app.dependency_overrides[get_current_user] = lambda: {"is_admin": True}
+    app.dependency_overrides[get_current_admin] = lambda: {"is_admin": True}
     yield TestClient(app)
     app.dependency_overrides.clear()
 
