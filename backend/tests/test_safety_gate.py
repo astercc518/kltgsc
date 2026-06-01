@@ -40,10 +40,20 @@ async def test_l0_allows_clean_text_through():
     llm.gemini_client = MagicMock()
     llm._get_gemini_response = AsyncMock(return_value=("hello back", 10, 5))
 
-    result = await llm.get_response(
-        prompt="给我一份贵公司的报价单,谢谢",
-        source="test_l0_clean",
+    # Mock L1 moderator: the gate now runs both L0 and L1, so a clean L0
+    # pass-through still triggers L1 — we stub it to a clean verdict to
+    # avoid the toxic-bert model download in the unit-test environment.
+    from app.services.llm import _GATE
+    from app.services.safety.moderation import ModerationVerdict, ModerationScore
+    clean_verdict = ModerationVerdict(
+        score=ModerationScore(0.0, 0.0, 0.0, 0.0, 0.0),
+        tier="clean", blocked=False, avoid_vertex=False, dim_triggered=None,
     )
+    with patch.object(_GATE.moderator, "evaluate", return_value=clean_verdict):
+        result = await llm.get_response(
+            prompt="给我一份贵公司的报价单,谢谢",
+            source="test_l0_clean",
+        )
 
     assert result == "hello back"
     llm._get_gemini_response.assert_awaited_once()
@@ -70,3 +80,59 @@ async def test_l0_covers_analyze_intent_via_wrapped_prompt():
     assert isinstance(result, dict)
     assert result.get("intent") == "unknown"
     llm._get_gemini_response.assert_not_called()
+
+
+from app.services.safety.moderation import ModerationVerdict, ModerationScore
+
+
+@pytest.mark.asyncio
+async def test_l1_red_blocks_call():
+    """L1 red tier blocks the call entirely (no provider dispatch)."""
+    mock_session = MagicMock(spec=Session)
+    mock_session.exec.return_value.first.return_value = None
+    mock_session.get.return_value = None
+
+    llm = LLMService(mock_session)
+    llm.provider = "vertex"
+    llm.gemini_client = MagicMock()
+    llm._get_gemini_response = AsyncMock(return_value=("never", 10, 5))
+
+    from app.services.llm import _GATE
+    red_score = ModerationScore(sexual=0.99, violence=0.0, hate=0.0,
+                                self_harm=0.0, political=0.0)
+    red_verdict = ModerationVerdict(
+        score=red_score, tier="red",
+        blocked=True, avoid_vertex=True, dim_triggered="sexual",
+    )
+    with patch.object(_GATE.moderator, "evaluate", return_value=red_verdict):
+        result = await llm.get_response(prompt="ambiguous text", source="test_l1_red")
+
+    assert result is None
+    llm._get_gemini_response.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_l1_grey_still_allows_call():
+    """Grey tier does NOT block at the gate — L2 router will reroute later.
+    The gate only blocks on red."""
+    mock_session = MagicMock(spec=Session)
+    mock_session.exec.return_value.first.return_value = None
+    mock_session.get.return_value = None
+
+    llm = LLMService(mock_session)
+    llm.provider = "vertex"
+    llm.gemini_client = MagicMock()
+    llm._get_gemini_response = AsyncMock(return_value=("ok", 10, 5))
+
+    from app.services.llm import _GATE
+    grey_score = ModerationScore(sexual=0.5, violence=0.0, hate=0.0,
+                                 self_harm=0.0, political=0.0)
+    grey_verdict = ModerationVerdict(
+        score=grey_score, tier="grey",
+        blocked=False, avoid_vertex=True, dim_triggered="sexual",
+    )
+    with patch.object(_GATE.moderator, "evaluate", return_value=grey_verdict):
+        result = await llm.get_response(prompt="borderline", source="test_l1_grey")
+
+    assert result == "ok"
+    llm._get_gemini_response.assert_awaited_once()
