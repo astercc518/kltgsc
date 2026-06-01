@@ -204,6 +204,38 @@ def create_account(
     session.refresh(db_account)
     return db_account
 
+def _safe_remove_session_files(paths: List[Optional[str]]) -> None:
+    """Best-effort cleanup of session files after DB commit succeeded."""
+    for path in paths:
+        if not path:
+            continue
+        for p in (path, path + ".telethon"):
+            try:
+                if os.path.exists(p):
+                    os.remove(p)
+            except Exception as e:
+                logger.warning(f"Failed to remove session file {p}: {e}")
+
+
+def _delete_accounts(session: Session, accounts: list) -> int:
+    """Commit account deletes inside a transaction; raise HTTPException on failure.
+
+    DB cascade (b6c7d8e9f0a1) handles 8 child tables; lead.account_id → NULL.
+    Session files removed only after commit succeeds.
+    """
+    session_files = [a.session_file_path for a in accounts]
+    try:
+        for account in accounts:
+            session.delete(account)
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        logger.exception("Account delete failed")
+        raise HTTPException(status_code=500, detail=f"删除失败: {type(e).__name__}: {e}")
+    _safe_remove_session_files(session_files)
+    return len(accounts)
+
+
 @router.post("/batch/delete")
 def delete_accounts_batch(
     account_ids: List[int] = Body(..., embed=True),
@@ -211,23 +243,7 @@ def delete_accounts_batch(
 ):
     """批量删除账号"""
     accounts = session.exec(select(Account).where(Account.id.in_(account_ids))).all()
-    deleted_count = 0
-    for account in accounts:
-        # 删除关联的 session 文件
-        if account.session_file_path:
-            import os
-            try:
-                if os.path.exists(account.session_file_path):
-                    os.remove(account.session_file_path)
-                # 也删除可能存在的 .session.telethon 文件
-                telethon_path = account.session_file_path + ".telethon"
-                if os.path.exists(telethon_path):
-                    os.remove(telethon_path)
-            except Exception:
-                pass
-        session.delete(account)
-        deleted_count += 1
-    session.commit()
+    deleted_count = _delete_accounts(session, list(accounts))
     return {"message": f"已删除 {deleted_count} 个账号", "deleted_count": deleted_count}
 
 @router.post("/batch/delete-abnormal")
@@ -237,18 +253,7 @@ def delete_abnormal_accounts(session: Session = Depends(get_session)):
     accounts = session.exec(
         select(Account).where(col(Account.status).in_(abnormal_statuses))
     ).all()
-    deleted_count = 0
-    for account in accounts:
-        if account.session_file_path:
-            for path in [account.session_file_path, account.session_file_path + ".telethon"]:
-                try:
-                    if os.path.exists(path):
-                        os.remove(path)
-                except Exception:
-                    pass
-        session.delete(account)
-        deleted_count += 1
-    session.commit()
+    deleted_count = _delete_accounts(session, list(accounts))
     return {"message": f"已删除 {deleted_count} 个异常账号", "deleted_count": deleted_count}
 
 @router.delete("/{account_id}")
@@ -260,8 +265,7 @@ def delete_account(
     account = session.get(Account, account_id)
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
-    session.delete(account)
-    session.commit()
+    _delete_accounts(session, [account])
     return {"message": "Account deleted"}
 
 @router.put("/{account_id}/role")

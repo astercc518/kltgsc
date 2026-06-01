@@ -3,7 +3,7 @@ from sqlmodel import SQLModel, Field, Relationship
 from datetime import datetime
 
 class LeadBase(SQLModel):
-    account_id: int = Field(index=True, foreign_key="account.id")
+    account_id: Optional[int] = Field(default=None, index=True, foreign_key="account.id")
     telegram_user_id: int = Field(index=True)
     username: Optional[str] = None
     first_name: Optional[str] = None
