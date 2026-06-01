@@ -94,6 +94,30 @@ async def test_generate_clean_text_calls_vertex_llmservice():
         _, kwargs = mock_llm_cls.call_args
         assert kwargs.get("config_id") == 1
 
+        # Verify source-suffix contract: downstream sees `t1:routed_vertex`
+        mock_llm.get_response.assert_awaited_once()
+        _, get_resp_kwargs = mock_llm.get_response.call_args
+        assert get_resp_kwargs.get("source") == "t1:routed_vertex"
+
+
+@pytest.mark.asyncio
+async def test_generate_grey_text_calls_deepseek_with_correct_source():
+    mock_session = MagicMock(spec=Session)
+    router = LLMRouter(vertex_config_id=1, deepseek_config_id=2)
+    with patch("app.services.safety.router._GATE.evaluate",
+               return_value=_grey_verdict()), \
+         patch("app.services.safety.router.LLMService") as mock_llm_cls:
+        mock_llm = mock_llm_cls.return_value
+        mock_llm.get_response = AsyncMock(return_value="grey ok")
+
+        out = await router.generate(mock_session, "borderline", source="t2")
+
+        assert out == "grey ok"
+        _, kwargs = mock_llm_cls.call_args
+        assert kwargs.get("config_id") == 2  # deepseek
+        _, get_resp_kwargs = mock_llm.get_response.call_args
+        assert get_resp_kwargs.get("source") == "t2:routed_deepseek"
+
 
 @pytest.mark.asyncio
 async def test_generate_red_refuses_without_calling_provider():

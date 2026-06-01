@@ -54,10 +54,19 @@ class LLMRouter:
         def _find(name: str) -> Optional[int]:
             row = session.exec(select(AIConfig).where(AIConfig.name == name)).first()
             return row.id if row else None
-        return cls(
-            vertex_config_id=_find(VERTEX_CONFIG_NAME),
-            deepseek_config_id=_find(DEEPSEEK_CONFIG_NAME),
-        )
+        vertex_id = _find(VERTEX_CONFIG_NAME)
+        deepseek_id = _find(DEEPSEEK_CONFIG_NAME)
+        if vertex_id is None:
+            logger.warning(
+                f"LLMRouter: no AIConfig row named {VERTEX_CONFIG_NAME!r} — "
+                f"clean traffic will fall back to LLMService default config"
+            )
+        if deepseek_id is None:
+            logger.warning(
+                f"LLMRouter: no AIConfig row named {DEEPSEEK_CONFIG_NAME!r} — "
+                f"grey traffic will fail-closed (refuse) until seeded"
+            )
+        return cls(vertex_config_id=vertex_id, deepseek_config_id=deepseek_id)
 
     def decide(self, verdict) -> RouteDecision:
         if verdict.blocked:
