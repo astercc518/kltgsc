@@ -146,6 +146,16 @@ class Moderator:
         if thresholds:
             self.thresholds.update(thresholds)
 
+    @classmethod
+    def warmup(cls) -> None:
+        """Eagerly load the ONNX session + tokenizer.
+
+        Call this at app startup to avoid a multi-second blocking first
+        request when the model gets fetched from HuggingFace Hub.
+        Idempotent — calling repeatedly is a no-op after the first success.
+        """
+        _get_session()
+
     # ------------------------------------------------------------------
     # Inference (mocked in unit tests)
     # ------------------------------------------------------------------

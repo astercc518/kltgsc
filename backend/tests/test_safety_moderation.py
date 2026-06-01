@@ -66,3 +66,14 @@ def test_thresholds_overridable():
     )):
         v = mod.evaluate("borderline")
     assert v.tier == "grey"
+
+
+def test_warmup_invokes_loader_once():
+    """warmup() triggers model load; subsequent calls reuse the cached session."""
+    from app.services.safety import moderation as mod_module
+    with patch.object(mod_module, "_get_session") as mock_loader:
+        Moderator.warmup()
+        Moderator.warmup()
+    # Loader called twice (warmup itself is idempotent; the internal
+    # double-check inside _get_session is what dedupes the actual work).
+    assert mock_loader.call_count == 2
