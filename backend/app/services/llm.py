@@ -12,6 +12,31 @@ from sqlmodel import Session, select
 
 logger = logging.getLogger(__name__)
 
+# L0 keyword blacklist — first-line guard before any provider dispatch.
+# See docs/superpowers/plans/2026-06-01-llm-safety-stack.md and memory entry
+# `project-llm-safety-architecture` for the layered design.
+from app.services.safety.blacklist import Blacklist as _Blacklist
+_BLACKLIST = _Blacklist.load_default()
+
+
+def _l0_check(prompt: str, source: str, model: str, provider: str,
+              account_id, persona_id, chat_id) -> bool:
+    """Returns True iff L0 blocked the call; logs + records usage row when blocked."""
+    verdict = _BLACKLIST.match(prompt)
+    if not verdict.hit:
+        return False
+    logger.warning(
+        f"L0 blacklist hit: list={verdict.list_name} term={verdict.term!r} "
+        f"source={source} account_id={account_id} provider={provider}"
+    )
+    record_usage(
+        provider=provider, model=model, source=f"{source}:blocked_L0",
+        input_tokens=0, output_tokens=0,
+        account_id=account_id, persona_id=persona_id, chat_id=chat_id,
+    )
+    return True
+
+
 # Try to import Google GenAI SDK (new version)
 try:
     from google import genai
@@ -256,6 +281,9 @@ class LLMService:
         persona_id: Optional[int] = None,
         chat_id: Optional[str] = None,
     ) -> Optional[str]:
+        if _l0_check(prompt, source, self.model, self.provider,
+                     account_id, persona_id, chat_id):
+            return None
         if self.provider in ("gemini", "vertex") and self.gemini_client:
             text, in_tok, out_tok = await self._get_gemini_response(prompt, system_prompt, history)
         elif self.client:
