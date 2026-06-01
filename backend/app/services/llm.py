@@ -22,8 +22,35 @@ _GATE = _SafetyGate()
 
 def _safety_check(prompt: str, source: str, model: str, provider: str,
                   account_id, persona_id, chat_id) -> bool:
-    """Returns True iff the gate blocked the call. Records usage with block_layer suffix."""
-    verdict = _GATE.evaluate(prompt)
+    """Returns True iff the gate blocked the call. Records usage with block_layer suffix.
+
+    Fail-open on L1 (moderation model) exceptions: if the ONNX model is
+    unavailable or inference crashes, we warn and treat as not-blocked so
+    production traffic isn't bricked. L0 (blacklist) always runs.
+    """
+    try:
+        verdict = _GATE.evaluate(prompt)
+    except Exception as e:
+        logger.warning(
+            f"Safety gate L1 unavailable, falling back to L0-only: "
+            f"err={type(e).__name__}: {e} source={source}"
+        )
+        # L0-only fallback — direct blacklist match, no L1
+        bl_verdict = _GATE.blacklist.match(prompt)
+        if not bl_verdict.hit:
+            return False
+        logger.warning(
+            f"Safety gate blocked (L0 fallback): list={bl_verdict.list_name} "
+            f"term={bl_verdict.term!r} source={source} account_id={account_id} provider={provider}"
+        )
+        record_usage(
+            provider=provider, model=model,
+            source=f"{source}:blocked_L0",
+            input_tokens=0, output_tokens=0,
+            account_id=account_id, persona_id=persona_id, chat_id=chat_id,
+        )
+        return True
+
     if not verdict.blocked:
         return False
     logger.warning(

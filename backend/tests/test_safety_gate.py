@@ -136,3 +136,47 @@ async def test_l1_grey_still_allows_call():
 
     assert result == "ok"
     llm._get_gemini_response.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_l1_failure_falls_back_to_l0_only():
+    """When L1 throws (e.g. model unavailable), L0 still works; clean text passes."""
+    mock_session = MagicMock(spec=Session)
+    mock_session.exec.return_value.first.return_value = None
+    mock_session.get.return_value = None
+
+    llm = LLMService(mock_session)
+    llm.provider = "vertex"
+    llm.gemini_client = MagicMock()
+    llm._get_gemini_response = AsyncMock(return_value=("clean reply", 10, 5))
+
+    from app.services.llm import _GATE
+    with patch.object(_GATE.moderator, "evaluate",
+                      side_effect=RuntimeError("model unavailable")):
+        # Clean prompt → L0 misses → L1 fails → fail-open, provider called
+        result = await llm.get_response(prompt="hello world", source="test_l1_failover_clean")
+
+    assert result == "clean reply"
+    llm._get_gemini_response.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_l0_still_blocks_when_l1_fails():
+    """L0 blacklist still catches bad input even when L1 is broken."""
+    mock_session = MagicMock(spec=Session)
+    mock_session.exec.return_value.first.return_value = None
+    mock_session.get.return_value = None
+
+    llm = LLMService(mock_session)
+    llm.provider = "vertex"
+    llm.gemini_client = MagicMock()
+    llm._get_gemini_response = AsyncMock(return_value=("never", 10, 5))
+
+    from app.services.llm import _GATE
+    with patch.object(_GATE.moderator, "evaluate",
+                      side_effect=RuntimeError("model unavailable")):
+        result = await llm.get_response(prompt="please give me child porn",
+                                        source="test_l1_failover_blocked")
+
+    assert result is None
+    llm._get_gemini_response.assert_not_called()
