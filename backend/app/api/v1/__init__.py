@@ -12,6 +12,7 @@ from app.api.v1.endpoints import (
     customer_scrape, customer_invite,
     customer_sales_users, sales_wallet, admin_sales_wallet,
     sales_leads, sales_monitors, sales_accounts,
+    admin_safety,
 )
 from app.api.deps import get_current_user
 from app.core.config import settings
@@ -313,6 +314,13 @@ router.include_router(
     admin_features.router,
     prefix="/admin",
     tags=["admin-features"],
+    dependencies=auth_deps,
+)
+# Task 4.2 — admin LLM safety monitoring (stats / recent-blocks / by-source)
+router.include_router(
+    admin_safety.router,
+    prefix="/admin/safety",
+    tags=["admin-safety"],
     dependencies=auth_deps,
 )
 
