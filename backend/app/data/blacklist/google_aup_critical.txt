@@ -1,0 +1,19 @@
+# Google Generative AI AUP — absolute red lines (case-insensitive, substring match)
+# Reference: https://policies.google.com/terms/generative-ai/use-policy
+# Format: one keyword/phrase per line; lines starting with # are comments.
+# Keep this list small (<200 entries) — high precision > recall. L1 handles the long tail.
+
+# CSAM (explicit, English)
+child porn
+cp video
+minor sex
+
+# Violent extremism / terror plotting
+how to make c4
+build a pipe bomb
+bomb instructions
+
+# Specific self-harm methods (Google AUP §"dangerous content")
+suicide method
+how to overdose
+ways to kill myself
