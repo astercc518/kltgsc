@@ -26,3 +26,6 @@ class LLMUsage(SQLModel, table=True):
     account_id: Optional[int] = Field(default=None, index=True)
     persona_id: Optional[int] = Field(default=None, index=True)
     chat_id: Optional[str] = Field(default=None, index=True)
+    moderation_score: Optional[float] = Field(default=None, index=True)
+    block_layer: Optional[str] = Field(default=None, max_length=8, index=True)  # "L0" | "L1" | "L2" | None
+    routed_provider: Optional[str] = Field(default=None, max_length=32, index=True)
