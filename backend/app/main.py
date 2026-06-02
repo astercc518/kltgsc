@@ -27,6 +27,15 @@ async def lifespan(app: FastAPI):
     # Seed initial admin user
     with Session(engine) as session:
         seed_db(session)
+    # Warm up L1 moderation (ONNX model load) — otherwise first request blocks
+    # for several seconds. Fail-open: if model unavailable, _safety_check
+    # falls back to L0-only and logs a warning per request.
+    try:
+        from app.services.safety.moderation import Moderator
+        Moderator.warmup()
+        logger.info("L1 moderation model warmed up")
+    except Exception as e:
+        logger.warning(f"L1 moderation warmup failed (fail-open, L0-only): {e}")
     logger.info(f"TGSC Backend started. Security enabled: {settings.SECURITY_ENABLED}")
     yield
     # Shutdown events
