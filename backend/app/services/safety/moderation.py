@@ -1,21 +1,25 @@
-"""L1 multi-dim toxicity moderation wrapper.
+"""L1 multilingual toxicity moderation wrapper.
 
-Wraps `unitary/multilingual-toxic-xlm-roberta` (ONNX export) with a small
+Wraps `onnx-community/bert-multilingual-toxicity-classifier-ONNX` (an ONNX
+export of `textdetox/bert-multilingual-toxicity-classifier`) with a small
 threshold-based tiering layer:
 
   - clean: pass through to Vertex/LLM normally
   - grey:  route AWAY from Vertex (use safer fallback), but don't block
   - red:   block outright, return canned safe-decline
 
-The HuggingFace model exposes 6 raw labels:
-  ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
+The model is a single-label binary classifier (toxic / not-toxic) covering
+15 languages including Chinese, with F1 > 0.90 on benchmark datasets. It
+exposes 2 logits; we softmax them and take the probability of the toxic
+class as the single `toxic` dim.
 
-We collapse them into 5 product-facing dims:
-  sexual     ← obscene
-  violence   ← threat
-  hate       ← max(insult, identity_hate)
-  self_harm  ← severe_toxic   (proxy; toxic-bert has no dedicated dim)
-  political  ← 0.0            (no dim in this model; handled at L0/Vertex routing)
+We collapse the moderation surface to a single product-facing dim:
+  toxic  ← softmax(logits)[1]
+
+(Earlier iterations tried a 5-dim schema via `unitary/toxic-bert`, but the
+only multilingual options in the wild are binary; collapsing keeps the
+shim invisible to downstream `SafetyGate` / `LLMRouter` / `_safety_check`
+which only consume `moderation_score` and `max_dim`.)
 
 Inference is PyTorch-free: onnxruntime for the forward pass, transformers
 only for the tokenizer, huggingface_hub for the download.
@@ -28,25 +32,21 @@ ML stack (e.g. unit tests with mocks).
 """
 from __future__ import annotations
 
-import math
 import os
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Optional, Tuple
 
 DEFAULT_THRESHOLDS: Dict[str, float] = {
-    "sexual_grey": 0.40, "sexual_red": 0.85,
-    "violence_grey": 0.50, "violence_red": 0.85,
-    "hate_grey": 0.40, "hate_red": 0.80,
-    "self_harm_grey": 0.30, "self_harm_red": 0.70,
-    "political_grey": 0.50, "political_red": 1.01,  # political: only avoid Vertex; no red
+    "toxic_grey": 0.50,   # >= this → route away from Vertex (DeepSeek)
+    "toxic_red": 0.85,    # >= this → block entirely
 }
 
-_DIMS: Tuple[str, ...] = ("sexual", "violence", "hate", "self_harm", "political")
+_DIMS: Tuple[str, ...] = ("toxic",)
 
-_DEFAULT_MODEL_NAME = "unitary/multilingual-toxic-xlm-roberta"
-_DEFAULT_CACHE_DIR = "/app/.cache/toxic"
+_DEFAULT_MODEL_NAME = "onnx-community/bert-multilingual-toxicity-classifier-ONNX"
+_DEFAULT_CACHE_DIR = "/app/.cache/toxic-multilingual"
 
 # Module-level singleton state for ORT session + tokenizer.
 _session = None
@@ -56,25 +56,13 @@ _load_lock = threading.Lock()
 
 @dataclass
 class ModerationScore:
-    sexual: float
-    violence: float
-    hate: float
-    self_harm: float
-    political: float
+    toxic: float
 
     def to_dict(self) -> Dict[str, float]:
-        return {
-            "sexual": self.sexual,
-            "violence": self.violence,
-            "hate": self.hate,
-            "self_harm": self.self_harm,
-            "political": self.political,
-        }
+        return {"toxic": self.toxic}
 
     def max_dim(self) -> Tuple[str, float]:
-        d = self.to_dict()
-        name = max(d, key=lambda k: d[k])
-        return name, d[name]
+        return ("toxic", self.toxic)
 
 
 @dataclass
@@ -84,15 +72,6 @@ class ModerationVerdict:
     blocked: bool
     avoid_vertex: bool
     dim_triggered: Optional[str] = None
-
-
-def _sigmoid(x: float) -> float:
-    # Numerically stable sigmoid for scalar floats.
-    if x >= 0:
-        z = math.exp(-x)
-        return 1.0 / (1.0 + z)
-    z = math.exp(x)
-    return z / (1.0 + z)
 
 
 def _get_session():
@@ -139,7 +118,7 @@ def _get_session():
 
 
 class Moderator:
-    """L1 multi-dim toxicity classifier with grey/red tiering."""
+    """L1 multilingual toxicity classifier with grey/red tiering."""
 
     def __init__(self, thresholds: Optional[Dict[str, float]] = None) -> None:
         self.thresholds: Dict[str, float] = dict(DEFAULT_THRESHOLDS)
@@ -164,7 +143,7 @@ class Moderator:
 
         Tests patch this method to avoid downloading / running the model.
         """
-        import numpy as np  # local import: keeps module importable without numpy
+        import numpy as np
 
         sess, tok = _get_session()
         enc = tok(
@@ -178,28 +157,19 @@ class Moderator:
             "input_ids": enc["input_ids"].astype(np.int64),
             "attention_mask": enc["attention_mask"].astype(np.int64),
         }
+        # BERT models typically also want token_type_ids; pass zeros if present.
+        if "token_type_ids" in enc:
+            feeds["token_type_ids"] = enc["token_type_ids"].astype(np.int64)
+
         outputs = sess.run(None, feeds)
-        logits = outputs[0][0]  # shape (N,)
+        logits = outputs[0][0]  # shape (2,) for binary classifier
 
-        # HF label order: ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
-        probs = [_sigmoid(float(v)) for v in logits]
-        # Defensive: pad if model returned fewer dims than expected.
-        while len(probs) < 6:
-            probs.append(0.0)
+        # Softmax over 2 logits → toxic probability
+        e = np.exp(logits - np.max(logits))
+        probs = e / e.sum()
+        toxic_prob = float(probs[1])  # label 1 = toxic, label 0 = not-toxic
 
-        sexual = probs[2]                      # obscene
-        violence = probs[3]                    # threat
-        hate = max(probs[4], probs[5])         # insult / identity_hate
-        self_harm = probs[1]                   # severe_toxic (proxy)
-        political = 0.0                        # not modelled here
-
-        return ModerationScore(
-            sexual=sexual,
-            violence=violence,
-            hate=hate,
-            self_harm=self_harm,
-            political=political,
-        )
+        return ModerationScore(toxic=toxic_prob)
 
     # ------------------------------------------------------------------
     # Public API
@@ -207,7 +177,7 @@ class Moderator:
     def evaluate(self, text: str) -> ModerationVerdict:
         if not text or not text.strip():
             return ModerationVerdict(
-                score=ModerationScore(0.0, 0.0, 0.0, 0.0, 0.0),
+                score=ModerationScore(toxic=0.0),
                 tier="clean",
                 blocked=False,
                 avoid_vertex=False,

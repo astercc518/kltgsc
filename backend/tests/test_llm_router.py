@@ -13,7 +13,7 @@ def _clean_verdict():
         blocked=False, block_layer=None,
         blacklist_list=None, blacklist_term=None,
         moderation=ModerationVerdict(
-            score=ModerationScore(0.01, 0.0, 0.0, 0.0, 0.0),
+            score=ModerationScore(toxic=0.01),
             tier="clean", blocked=False, avoid_vertex=False, dim_triggered=None,
         ),
         avoid_vertex=False,
@@ -25,8 +25,8 @@ def _grey_verdict():
         blocked=False, block_layer=None,
         blacklist_list=None, blacklist_term=None,
         moderation=ModerationVerdict(
-            score=ModerationScore(0.5, 0.0, 0.0, 0.0, 0.0),
-            tier="grey", blocked=False, avoid_vertex=True, dim_triggered="sexual",
+            score=ModerationScore(toxic=0.6),
+            tier="grey", blocked=False, avoid_vertex=True, dim_triggered="toxic",
         ),
         avoid_vertex=True,
     )
@@ -37,8 +37,8 @@ def _red_verdict():
         blocked=True, block_layer="L1",
         blacklist_list=None, blacklist_term=None,
         moderation=ModerationVerdict(
-            score=ModerationScore(0.95, 0.0, 0.0, 0.0, 0.0),
-            tier="red", blocked=True, avoid_vertex=True, dim_triggered="sexual",
+            score=ModerationScore(toxic=0.95),
+            tier="red", blocked=True, avoid_vertex=True, dim_triggered="toxic",
         ),
         avoid_vertex=True,
     )

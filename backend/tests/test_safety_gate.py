@@ -46,7 +46,7 @@ async def test_l0_allows_clean_text_through():
     from app.services.llm import _GATE
     from app.services.safety.moderation import ModerationVerdict, ModerationScore
     clean_verdict = ModerationVerdict(
-        score=ModerationScore(0.0, 0.0, 0.0, 0.0, 0.0),
+        score=ModerationScore(toxic=0.0),
         tier="clean", blocked=False, avoid_vertex=False, dim_triggered=None,
     )
     with patch.object(_GATE.moderator, "evaluate", return_value=clean_verdict):
@@ -98,11 +98,10 @@ async def test_l1_red_blocks_call():
     llm._get_gemini_response = AsyncMock(return_value=("never", 10, 5))
 
     from app.services.llm import _GATE
-    red_score = ModerationScore(sexual=0.99, violence=0.0, hate=0.0,
-                                self_harm=0.0, political=0.0)
+    red_score = ModerationScore(toxic=0.99)
     red_verdict = ModerationVerdict(
         score=red_score, tier="red",
-        blocked=True, avoid_vertex=True, dim_triggered="sexual",
+        blocked=True, avoid_vertex=True, dim_triggered="toxic",
     )
     with patch.object(_GATE.moderator, "evaluate", return_value=red_verdict):
         result = await llm.get_response(prompt="ambiguous text", source="test_l1_red")
@@ -125,11 +124,10 @@ async def test_l1_grey_still_allows_call():
     llm._get_gemini_response = AsyncMock(return_value=("ok", 10, 5))
 
     from app.services.llm import _GATE
-    grey_score = ModerationScore(sexual=0.5, violence=0.0, hate=0.0,
-                                 self_harm=0.0, political=0.0)
+    grey_score = ModerationScore(toxic=0.6)
     grey_verdict = ModerationVerdict(
         score=grey_score, tier="grey",
-        blocked=False, avoid_vertex=True, dim_triggered="sexual",
+        blocked=False, avoid_vertex=True, dim_triggered="toxic",
     )
     with patch.object(_GATE.moderator, "evaluate", return_value=grey_verdict):
         result = await llm.get_response(prompt="borderline", source="test_l1_grey")
