@@ -248,6 +248,14 @@ def auto_assign_imported(session: Session, account_ids: List[int]) -> int:
     if n:
         session.commit()
 
+    # 自动验活（立即派发，~1-2s/号），失败会把 status 写为 banned/error 而非留在 init
+    try:
+        from app.tasks.account_tasks import check_account_status
+        for a in accounts:
+            check_account_status.delay(a.id)
+    except Exception as e:
+        logger.warning(f"Failed to queue check_account_status: {e}")
+
     # 延迟 30 秒触发资料同步，让 session 文件完全就绪
     if accounts_to_sync:
         try:
