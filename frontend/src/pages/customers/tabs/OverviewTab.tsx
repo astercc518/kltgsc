@@ -30,6 +30,10 @@ const OverviewTab: React.FC<{ customerId: number }> = ({ customerId }) => {
   });
 
   useEffect(() => {
+    setPollCount(0);
+  }, [customerId]);
+
+  useEffect(() => {
     if (!polling) return;
     const t = setInterval(() => setPollCount((n) => n + 1), 5000);
     return () => clearInterval(t);
