@@ -75,7 +75,7 @@ function renderTab() {
 }
 
 describe('QuotaFeaturesTab', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); });
 
   it('toggling a feature off calls upsertCustomerFeature with enabled=false', async () => {
     const user = userEvent.setup();

@@ -38,7 +38,7 @@ function renderTab() {
 }
 
 describe('AllocationTab', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); });
 
   it('cancel does NOT call reallocate API', async () => {
     const user = userEvent.setup();
