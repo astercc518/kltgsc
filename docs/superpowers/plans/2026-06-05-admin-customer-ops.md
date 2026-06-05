@@ -90,6 +90,8 @@ Already verified from `backend/app/api/v1/endpoints/admin_billing.py` and `backe
 
 **Purpose:** Single typed module that owns every call to `/admin/billing/*` and `/admin/features/*`. Tabs and pages import functions from here — they never use raw axios.
 
+> **STATUS: IMPLEMENTED + AMENDED** (2026-06-05). Initial commit `407af4d`, code review fix `9c4a07a`. The canonical types are in [`frontend/src/services/adminCustomers.ts`](frontend/src/services/adminCustomers.ts) — they differ from the draft below in 4 ways: (1) types `Invoice`, `FeatureRegistry`, `CustomerFeature`, `FeatureUsageSummary` were renamed to `AdminInvoice`, `AdminFeatureEntry`, `AdminCustomerFeature`, `AdminFeatureUsageSummary` and their fields aligned with backend `models/feature.py` and `models/subscription.py`; (2) `upsertCustomerFeature` now takes `(customerId, slug, update: CustomerFeatureUpdate)` instead of `(customerId, slug, enabled: boolean)`; (3) the local axios instance was removed in favour of `import api from './api'` (gets the existing 401/403 interceptor); (4) `AxiosError` is now a type-only import. **Downstream tasks (8, 10, 11) below have been patched to match.** The draft code block is kept below as historical context only.
+
 - [ ] **Step 1: Create the service module with shared axios instance**
 
 Create `frontend/src/services/adminCustomers.ts`:
@@ -1372,7 +1374,7 @@ import {
   quickProvision,
   AdminApiError,
   type Plan,
-  type Invoice,
+  type AdminInvoice,
 } from '../../../services/adminCustomers';
 
 const PLAN_LABELS: Record<Plan, string> = {
@@ -1416,10 +1418,15 @@ const BillingTab: React.FC<{ customerId: number }> = ({ customerId }) => {
   const invoiceColumns = [
     { title: 'Invoice ID', dataIndex: 'id', key: 'id' },
     {
+      title: '套餐',
+      dataIndex: 'plan',
+      key: 'plan',
+    },
+    {
       title: '金额',
-      dataIndex: 'amount_cents',
+      dataIndex: 'amount_usd',
       key: 'amount',
-      render: (cents: number) => `$${(cents / 100).toFixed(2)}`,
+      render: (usd: number) => `$${usd.toFixed(2)}`,
     },
     {
       title: '状态',
@@ -1433,7 +1440,12 @@ const BillingTab: React.FC<{ customerId: number }> = ({ customerId }) => {
       key: 'tx_hash',
       render: (h: string | null) => h ?? '—',
     },
-    { title: '备注', dataIndex: 'note', key: 'note', render: (v: string | null) => v ?? '—' },
+    {
+      title: '说明',
+      dataIndex: 'description',
+      key: 'description',
+      render: (v: string) => v || '—',
+    },
     {
       title: '创建时间',
       dataIndex: 'created_at',
@@ -1465,7 +1477,7 @@ const BillingTab: React.FC<{ customerId: number }> = ({ customerId }) => {
       </Card>
 
       <Card size="small" title="账单历史">
-        <Table<Invoice>
+        <Table<AdminInvoice>
           rowKey="id"
           dataSource={invoices ?? []}
           columns={invoiceColumns}
@@ -1774,12 +1786,42 @@ vi.mock('../../../services/adminCustomers', async () => {
   );
   return {
     ...actual,
-    upsertCustomerFeature: vi.fn().mockResolvedValue({ slug: 'ai_marketing', enabled: false }),
+    upsertCustomerFeature: vi.fn().mockResolvedValue({
+      feature_slug: 'ai_marketing',
+      enabled: false,
+      unit_price_cents: 0,
+      is_custom_price: false,
+      billing_unit: 'call',
+      name_zh: 'AI 营销',
+      name_en: 'AI Marketing',
+      category: 'ai',
+      notes: '',
+    }),
     listFeatureRegistry: vi.fn().mockResolvedValue([
-      { slug: 'ai_marketing', name: 'AI 营销', description: null, default_enabled: true },
+      {
+        slug: 'ai_marketing',
+        name_zh: 'AI 营销',
+        name_en: 'AI Marketing',
+        description: 'AI marketing',
+        billing_unit: 'call',
+        default_price_cents: 0,
+        enabled_by_default: true,
+        category: 'ai',
+        is_active: true,
+      },
     ]),
     listCustomerFeatures: vi.fn().mockResolvedValue([
-      { slug: 'ai_marketing', enabled: true, config_json: null },
+      {
+        feature_slug: 'ai_marketing',
+        enabled: true,
+        unit_price_cents: 0,
+        is_custom_price: false,
+        billing_unit: 'call',
+        name_zh: 'AI 营销',
+        name_en: 'AI Marketing',
+        category: 'ai',
+        notes: '',
+      },
     ]),
     getCustomerById: vi.fn().mockResolvedValue({
       id: 7,
@@ -1807,13 +1849,17 @@ function renderTab() {
 describe('QuotaFeaturesTab', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('toggling a feature off calls upsertCustomerFeature', async () => {
+  it('toggling a feature off calls upsertCustomerFeature with enabled=false', async () => {
     const user = userEvent.setup();
     renderTab();
     const toggle = await screen.findByRole('switch');
     await user.click(toggle);
     await waitFor(() =>
-      expect(svc.upsertCustomerFeature).toHaveBeenCalledWith(7, 'ai_marketing', false),
+      expect(svc.upsertCustomerFeature).toHaveBeenCalledWith(
+        7,
+        'ai_marketing',
+        expect.objectContaining({ enabled: false }),
+      ),
     );
   });
 });
@@ -1838,8 +1884,8 @@ import {
   listCustomerFeatures,
   upsertCustomerFeature,
   AdminApiError,
-  type FeatureRegistry,
-  type CustomerFeature,
+  type AdminFeatureEntry,
+  type AdminCustomerFeature,
 } from '../../../services/adminCustomers';
 
 const QuotaFeaturesTab: React.FC<{ customerId: number }> = ({ customerId }) => {
@@ -1860,7 +1906,7 @@ const QuotaFeaturesTab: React.FC<{ customerId: number }> = ({ customerId }) => {
 
   const toggleMutation = useMutation({
     mutationFn: ({ slug, enabled }: { slug: string; enabled: boolean }) =>
-      upsertCustomerFeature(customerId, slug, enabled),
+      upsertCustomerFeature(customerId, slug, { enabled }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-customer-features', customerId] });
       message.success('已更新');
@@ -1870,18 +1916,18 @@ const QuotaFeaturesTab: React.FC<{ customerId: number }> = ({ customerId }) => {
   });
 
   const enabledMap = new Map(
-    (customerFeatures ?? []).map((f: CustomerFeature) => [f.slug, f.enabled]),
+    (customerFeatures ?? []).map((f: AdminCustomerFeature) => [f.feature_slug, f.enabled]),
   );
 
   const featureColumns = [
-    { title: '功能', dataIndex: 'name', key: 'name' },
+    { title: '功能', dataIndex: 'name_zh', key: 'name_zh' },
     { title: 'Slug', dataIndex: 'slug', key: 'slug', render: (s: string) => <Tag>{s}</Tag> },
-    { title: '说明', dataIndex: 'description', key: 'description', render: (d: string | null) => d ?? '—' },
+    { title: '说明', dataIndex: 'description', key: 'description', render: (d: string) => d || '—' },
     {
       title: '已启用',
       key: 'enabled',
-      render: (_: unknown, r: FeatureRegistry) => {
-        const enabled = enabledMap.get(r.slug) ?? r.default_enabled;
+      render: (_: unknown, r: AdminFeatureEntry) => {
+        const enabled = enabledMap.get(r.slug) ?? r.enabled_by_default;
         return (
           <Switch
             checked={enabled}
@@ -1923,7 +1969,7 @@ const QuotaFeaturesTab: React.FC<{ customerId: number }> = ({ customerId }) => {
       </Card>
 
       <Card title="功能开关">
-        <Table<FeatureRegistry>
+        <Table<AdminFeatureEntry>
           rowKey="slug"
           dataSource={registry ?? []}
           columns={featureColumns}
@@ -1972,7 +2018,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, Table, Empty, Tag } from 'antd';
 import dayjs from 'dayjs';
-import { listCustomerUsage, type FeatureUsageSummary } from '../../../services/adminCustomers';
+import { listCustomerUsage, type AdminFeatureUsageSummary } from '../../../services/adminCustomers';
 
 const UsageLogsTab: React.FC<{ customerId: number }> = ({ customerId }) => {
   const { data, isLoading } = useQuery({
@@ -1981,26 +2027,34 @@ const UsageLogsTab: React.FC<{ customerId: number }> = ({ customerId }) => {
   });
 
   const columns = [
-    { title: '功能', dataIndex: 'slug', key: 'slug', render: (s: string) => <Tag>{s}</Tag> },
+    { title: '功能', dataIndex: 'name_zh', key: 'name_zh' },
+    { title: 'Slug', dataIndex: 'feature_slug', key: 'feature_slug', render: (s: string) => <Tag>{s}</Tag> },
     {
-      title: '周期起始',
-      dataIndex: 'period_start',
-      key: 'period_start',
-      render: (t: string) => dayjs(t).format('YYYY-MM-DD'),
+      title: '本月用量',
+      dataIndex: 'units_consumed',
+      key: 'units_consumed',
+      sorter: (a: AdminFeatureUsageSummary, b: AdminFeatureUsageSummary) =>
+        a.units_consumed - b.units_consumed,
+      defaultSortOrder: 'descend' as const,
     },
     {
-      title: '用量',
-      dataIndex: 'units_used',
-      key: 'units_used',
-      sorter: (a: FeatureUsageSummary, b: FeatureUsageSummary) => a.units_used - b.units_used,
-      defaultSortOrder: 'descend' as const,
+      title: '本月计费',
+      dataIndex: 'total_charged_cents',
+      key: 'total_charged_cents',
+      render: (cents: number) => `$${(cents / 100).toFixed(2)}`,
+    },
+    {
+      title: '最近一次',
+      dataIndex: 'last_charged_at',
+      key: 'last_charged_at',
+      render: (t: string | null) => (t ? dayjs(t).format('YYYY-MM-DD HH:mm') : '—'),
     },
   ];
 
   return (
     <Card title="功能用量摘要">
-      <Table<FeatureUsageSummary>
-        rowKey={(r) => `${r.slug}-${r.period_start}`}
+      <Table<AdminFeatureUsageSummary>
+        rowKey="feature_slug"
         dataSource={data ?? []}
         columns={columns}
         loading={isLoading}
