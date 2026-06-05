@@ -47,6 +47,9 @@ import BusinessOps from './pages/BusinessOps';
 import UserManagement from './pages/UserManagement';
 import FeaturePack from './pages/FeaturePack';
 import ActivationCodes from './pages/billing/ActivationCodes';
+import CustomerListPage from './pages/customers/CustomerListPage';
+import NewCustomerPage from './pages/customers/NewCustomerPage';
+import CustomerDetailPage from './pages/customers/CustomerDetailPage';
 
 // ── TG1.AI Customer Portal (Epic 1.5) ─────────────────────────────
 import PortalLayout from './portal/Layout';
@@ -153,6 +156,15 @@ const buildMenuItems = (role?: string, isSuperuser?: boolean): MenuProps['items'
     key: 'monitoring',
     icon: <RadarChartOutlined />,
     label: <Link to="/monitoring">实时监控</Link>,
+  },
+  {
+    key: 'customer-ops',
+    icon: <TeamOutlined />,
+    label: '客户运营',
+    children: [
+      { key: 'customer-list', label: <Link to="/customers">客户列表</Link> },
+      { key: 'customer-new', label: <Link to="/customers/new">新建客户</Link> },
+    ],
   },
   {
     key: 'business-ops',
@@ -377,6 +389,9 @@ const AppContent: React.FC = () => {
                     <Route path="/auto-register" element={<AutoRegister />} />
                     <Route path="/monitoring" element={<MonitoringDashboard />} />
                     <Route path="/business-ops" element={<BusinessOps />} />
+                    <Route path="/customers" element={<AdminOnly><CustomerListPage /></AdminOnly>} />
+                    <Route path="/customers/new" element={<AdminOnly><NewCustomerPage /></AdminOnly>} />
+                    <Route path="/customers/:id" element={<AdminOnly><CustomerDetailPage /></AdminOnly>} />
                     <Route path="/users" element={<AdminOnly><UserManagement /></AdminOnly>} />
                     <Route path="/feature-pack" element={<AdminOnly><FeaturePack /></AdminOnly>} />
                     <Route path="/activation-codes" element={<AdminOnly><ActivationCodes /></AdminOnly>} />
