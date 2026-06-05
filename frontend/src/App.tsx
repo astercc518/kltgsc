@@ -340,6 +340,8 @@ const AppContent: React.FC = () => {
         '/auto-register': '自动注册',
         '/monitoring': '实时监控',
         '/business-ops': '运营看板',
+        '/customers': '客户列表',
+        '/customers/new': '新建客户',
         '/activation-codes': '激活码管理',
     };
 
