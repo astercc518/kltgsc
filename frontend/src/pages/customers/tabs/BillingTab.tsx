@@ -43,6 +43,7 @@ const BillingTab: React.FC<{ customerId: number }> = ({ customerId }) => {
       setRenewModal(false);
       renewForm.resetFields();
       queryClient.invalidateQueries({ queryKey: ['admin-customer', customerId] });
+      queryClient.invalidateQueries({ queryKey: ['admin-customer', customerId, 'invoices'] });
     },
     onError: (err: unknown) => {
       message.error(err instanceof AdminApiError ? err.message : '续期失败');
@@ -131,7 +132,10 @@ const BillingTab: React.FC<{ customerId: number }> = ({ customerId }) => {
       <Modal
         title="手动续期 / 切套餐"
         open={renewModal}
-        onCancel={() => setRenewModal(false)}
+        onCancel={() => {
+          renewForm.resetFields();
+          setRenewModal(false);
+        }}
         onOk={() => renewForm.submit()}
         confirmLoading={renewMutation.isPending}
       >
