@@ -1,11 +1,5 @@
-import axios, { AxiosError } from 'axios';
-
-const api = axios.create({ baseURL: '/api/v1' });
-api.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem('token');
-  if (token) cfg.headers.Authorization = `Bearer ${token}`;
-  return cfg;
-});
+import type { AxiosError } from 'axios';
+import api from './api';
 
 // ---- Types (mirrors CustomerRead from backend/app/models/customer.py) ----
 
@@ -35,14 +29,23 @@ export interface Customer {
   last_login_at: string | null;
 }
 
-export interface Invoice {
+// Mirrors backend/app/models/subscription.py InvoiceRead
+export interface AdminInvoice {
   id: number;
   customer_id: number;
-  amount_cents: number;
+  subscription_id: number | null;
+  plan: string;
+  amount_usd: number;
+  amount_crypto: number;
+  currency: string;
+  network: string;
+  payment_address: string;
   status: string;
   tx_hash: string | null;
-  note: string | null;
+  description: string;
+  paid_at: string | null;
   created_at: string;
+  expires_at: string;
 }
 
 // Two modes:
@@ -66,23 +69,45 @@ export type QuickProvisionPayload =
       note?: string;
     };
 
-export interface FeatureRegistry {
+// Mirrors backend/app/models/feature.py FeatureRegistryRead
+export interface AdminFeatureEntry {
   slug: string;
-  name: string;
-  description: string | null;
-  default_enabled: boolean;
+  name_zh: string;
+  name_en: string;
+  description: string;
+  billing_unit: string;
+  default_price_cents: number;
+  enabled_by_default: boolean;
+  category: string;
+  is_active: boolean;
 }
 
-export interface CustomerFeature {
-  slug: string;
+// Mirrors backend/app/models/feature.py CustomerFeatureRead
+export interface AdminCustomerFeature {
+  feature_slug: string;
   enabled: boolean;
-  config_json: Record<string, unknown> | null;
+  unit_price_cents: number;
+  is_custom_price: boolean;
+  billing_unit: string;
+  name_zh: string;
+  name_en: string;
+  category: string;
+  notes: string;
 }
 
-export interface FeatureUsageSummary {
-  slug: string;
-  period_start: string;
-  units_used: number;
+// Mirrors backend/app/models/feature.py FeatureUsageSummary
+export interface AdminFeatureUsageSummary {
+  feature_slug: string;
+  name_zh: string;
+  units_consumed: number;
+  total_charged_cents: number;
+  last_charged_at: string | null;
+}
+
+export interface CustomerFeatureUpdate {
+  enabled: boolean;
+  custom_price_cents?: number | null;
+  notes?: string;
 }
 
 // ---- Error normalization ----
@@ -166,9 +191,9 @@ export async function regenerateKb(customerId: number): Promise<void> {
 
 // ---- Invoice endpoints ----
 
-export async function listInvoices(customerId: number): Promise<Invoice[]> {
+export async function listInvoices(customerId: number): Promise<AdminInvoice[]> {
   try {
-    const res = await api.get<Invoice[]>('/admin/billing/invoices', {
+    const res = await api.get<AdminInvoice[]>('/admin/billing/invoices', {
       params: { customer_id: customerId, limit: 100 },
     });
     return res.data;
@@ -179,18 +204,18 @@ export async function listInvoices(customerId: number): Promise<Invoice[]> {
 
 // ---- Feature endpoints ----
 
-export async function listFeatureRegistry(): Promise<FeatureRegistry[]> {
+export async function listFeatureRegistry(): Promise<AdminFeatureEntry[]> {
   try {
-    const res = await api.get<FeatureRegistry[]>('/admin/features/features');
+    const res = await api.get<AdminFeatureEntry[]>('/admin/features/features');
     return res.data;
   } catch (e) {
     normalize(e, 'GET', '/admin/features/features');
   }
 }
 
-export async function listCustomerFeatures(customerId: number): Promise<CustomerFeature[]> {
+export async function listCustomerFeatures(customerId: number): Promise<AdminCustomerFeature[]> {
   try {
-    const res = await api.get<CustomerFeature[]>(
+    const res = await api.get<AdminCustomerFeature[]>(
       `/admin/features/customers/${customerId}/features`,
     );
     return res.data;
@@ -202,12 +227,12 @@ export async function listCustomerFeatures(customerId: number): Promise<Customer
 export async function upsertCustomerFeature(
   customerId: number,
   slug: string,
-  enabled: boolean,
-): Promise<CustomerFeature> {
+  update: CustomerFeatureUpdate,
+): Promise<AdminCustomerFeature> {
   try {
-    const res = await api.put<CustomerFeature>(
+    const res = await api.put<AdminCustomerFeature>(
       `/admin/features/customers/${customerId}/features/${slug}`,
-      { enabled },
+      update,
     );
     return res.data;
   } catch (e) {
@@ -217,9 +242,9 @@ export async function upsertCustomerFeature(
 
 export async function listCustomerUsage(
   customerId: number,
-): Promise<FeatureUsageSummary[]> {
+): Promise<AdminFeatureUsageSummary[]> {
   try {
-    const res = await api.get<FeatureUsageSummary[]>(
+    const res = await api.get<AdminFeatureUsageSummary[]>(
       `/admin/features/customers/${customerId}/usage`,
     );
     return res.data;
