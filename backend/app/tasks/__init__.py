@@ -45,6 +45,8 @@ from app.tasks import handover_tasks  # noqa: F401
 from app.tasks import bulk_send_tasks  # noqa: F401
 # Bulk Send W5 — low-balance watcher beat task
 from app.tasks import bulk_balance_watcher  # noqa: F401
+# Daily lead summary — beat-driven 24h lead digest per customer
+from app.tasks import daily_lead_summary  # noqa: F401
 
 __all__ = [
     # Account tasks

@@ -1,4 +1,5 @@
 from celery import Celery
+from celery.schedules import crontab
 from kombu import Queue
 from app.core.config import settings
 
@@ -112,6 +113,12 @@ celery_app.conf.update(
         "bulk-low-balance-watcher": {
             "task": "app.tasks.bulk_balance_watcher.scan_low_balance",
             "schedule": 600.0,          # 每 10 分钟扫一次
+            "options": {"queue": "low_priority"},
+        },
+        # ── Daily lead summary ────────────────────────────────────────
+        "daily-lead-summary": {
+            "task": "app.tasks.daily_lead_summary.daily_lead_summary",
+            "schedule": crontab(hour=1, minute=0),  # 每天 01:00 UTC = 09:00 Asia/Shanghai
             "options": {"queue": "low_priority"},
         },
     },
