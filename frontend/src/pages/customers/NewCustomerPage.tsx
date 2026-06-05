@@ -35,6 +35,7 @@ const NewCustomerPage: React.FC = () => {
   const navigate = useNavigate();
   const [form] = Form.useForm<FormValues>();
   const [credentials, setCredentials] = useState<{ customer: Customer; password: string } | null>(null);
+  const blurSeqRef = React.useRef(0);
 
   const mutation = useMutation({
     mutationFn: async (vals: FormValues) =>
@@ -65,8 +66,10 @@ const NewCustomerPage: React.FC = () => {
   const handleEmailBlur = async () => {
     const email = form.getFieldValue('email');
     if (!email) return;
+    const mySeq = ++blurSeqRef.current;
     try {
       const all = await listCustomers({ limit: 500 });
+      if (mySeq !== blurSeqRef.current) return;  // a newer blur has run; ignore this result
       const dup = all.find((c) => c.email.toLowerCase() === email.toLowerCase());
       if (dup) {
         form.setFields([
@@ -158,7 +161,7 @@ const NewCustomerPage: React.FC = () => {
             <Button type="primary" htmlType="submit" loading={mutation.isPending}>
               开户并激活
             </Button>
-            <Button onClick={() => navigate('/customers')}>取消</Button>
+            <Button disabled={mutation.isPending} onClick={() => navigate('/customers')}>取消</Button>
           </Space>
         </Form.Item>
       </Form>

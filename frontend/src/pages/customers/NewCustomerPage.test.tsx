@@ -82,7 +82,7 @@ describe('NewCustomerPage', () => {
     renderPage();
     const emailInput = screen.getByLabelText('Email');
     await user.type(emailInput, 'alice@acme.io');
-    emailInput.blur();
+    await user.tab();  // act-aware blur (advances focus off the input)
     expect(await screen.findByText(/邮箱已存在/)).toBeInTheDocument();
   });
 });
