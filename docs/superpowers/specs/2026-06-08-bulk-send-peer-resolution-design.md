@@ -6,7 +6,9 @@
 
 ## 背景与问题
 
-客户需求：采集 5 个大群（按「尝试群发条数 = 30 万」口径规划号池）→ 对名单群发 → 回复者拉群 → 客户自助后台。代码审查结论：采集 / 群发 / 拉群 / 客户后台四条链路均已实现，**唯一缺口是群发的 peer 解析**。
+客户需求：**客户可自行登录业务后台，完成 群采集 / 群发 / 群拉 三个自助动作**。（「采集 5 个大群、30 万人」只是业务场景示例，非硬性指标；号池数量为运营参数，不影响本技术设计。）
+
+代码审查结论：群采集（`/customer/scrape/*` + Scrape.tsx）、群拉（`/customer/invite/*` + Invite.tsx）、群发（`/customer/bulk/*` + Bulk.tsx）的页面与接口均已实现，客户可自助操作。**唯一阻塞「自助群发」真正跑通的缺口是 peer 解析**——真实发送目前只支持裸 `tg_user_id`，号池冷发发不出。
 
 现状 `_do_send`（[backend/app/tasks/bulk_send_tasks.py](../../../backend/app/tasks/bulk_send_tasks.py) 第 283 行）对没有 `tg_user_id` 的目标直接返回 `real_send_needs_tg_user_id_in_mvp`，username / phone 名单发不出。
 
@@ -72,7 +74,7 @@ async def resolve_and_send_with_client(account, *, tg_user_id, tg_username, phon
 
 把 `resolve_and_send_with_client` 的返回错误归两类，`_do_send` / worker 据此分流：
 
-**目标级永久失败**（标记 target `failed` + `failed_reason`，不重试、**不冷却账号、不计入连续失败熔断**）：
+**目标级永久失败**（标记 target `skipped`〔terminal，dispatcher 不会重拾重试，避免白烧解析配额〕 + `failed_reason` 记录具体码，计入 `skipped_count`，**不重试、不冷却账号、不计入连续失败熔断、不计 failed_count**）：
 - `USERNAME_NOT_OCCUPIED` / `USERNAME_INVALID`
 - `phone_not_on_telegram`（import_contacts 未命中）
 - `USER_PRIVACY_RESTRICTED` / `PRIVACY_RESTRICTED`
@@ -99,8 +101,8 @@ CSV/采集名单 → parse_targets_csv → 落库(无句柄→skipped:no_handle)
        ├─ phone: import_contacts → send → delete_contacts
        └─ user_id: send_message(id)  (多半 PEER_ID_INVALID)
   → 成功: target=sent, 扣费
-  → 目标级永久失败: target=failed(reason), 账号无惩罚
-  → 账号级失败: 账号 cooldown, target 回 pending, 计熔断
+  → 目标级永久失败(perm:): target=skipped(reason), 账号无惩罚, 不计熔断
+  → 账号级/瞬时失败: target=failed(reason), 计 failed_count + 连续失败(触发熔断), dispatcher 可重拾重试
 ```
 
 ## 测试策略（TDD）
