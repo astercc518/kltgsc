@@ -62,6 +62,19 @@ def _perm_code(error_str: str) -> Optional[str]:
     return None
 
 
+async def _send_with_typing(client, peer, message: str,
+                            min_pre: float = 1.0, max_pre: float = 3.0,
+                            min_type: float = 2.0, max_type: float = 5.0):
+    """发送前模拟「在线→输入中→发送」，typing 动作失败不影响发送。"""
+    await asyncio.sleep(random.uniform(min_pre, max_pre))
+    try:
+        await client.send_chat_action(peer, enums.ChatAction.TYPING)
+        await asyncio.sleep(random.uniform(min_type, max_type))
+    except Exception:
+        pass
+    await client.send_message(peer, message)
+
+
 @contextmanager
 def decrypted_session_file(session_file_path: str):
     """
