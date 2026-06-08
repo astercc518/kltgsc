@@ -229,6 +229,23 @@ def preview_cost_cents(
     spent_cents = wallet.total_spent_cents
     balance_cents = wallet.balance_cents
 
+    # Per-customer flat override bypasses the spend-tier entirely.
+    from app.services.feature_billing import get_customer_price_override_cents
+    override = get_customer_price_override_cents(session, customer_id, "bulk_send_message")
+    if override is not None:
+        total = target_count * override
+        return {
+            "target_count": target_count,
+            "current_tier_unit_cents": override,
+            "total_cost_cents": total,
+            "balance_cents": balance_cents,
+            "balance_sufficient": balance_cents >= total,
+            "shortfall_cents": max(0, total - balance_cents),
+            "breakdown": [
+                {"count": target_count, "unit_cents": override, "subtotal_cents": total}
+            ],
+        }
+
     remaining = target_count
     total_cents = 0
     cursor = spent_cents
