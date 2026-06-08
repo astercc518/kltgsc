@@ -74,3 +74,53 @@ def test_username_not_occupied_is_permanent():
             MagicMock(), tg_user_id=None, tg_username="ghost", phone=None,
             message="hi", db_session=None))
     assert ok is False and err == "perm:username_not_occupied"
+
+
+def _client_with_imported(users):
+    client = MagicMock()
+    client.send_chat_action = AsyncMock()
+    client.send_message = AsyncMock()
+    client.delete_contacts = AsyncMock()
+    imported = MagicMock()
+    imported.users = users
+    client.import_contacts = AsyncMock(return_value=imported)
+    return client
+
+
+def test_phone_hit_sends_and_cleans_contact():
+    user = MagicMock(); user.id = 555
+    client = _client_with_imported([user])
+    async def fake_run(account, op, *a, **kw):
+        return (True, await op(client))
+    with patch("app.services.telegram_client._create_client_and_run", side_effect=fake_run):
+        ok, err = asyncio.run(resolve_and_send_with_client(
+            MagicMock(), tg_user_id=None, tg_username=None, phone="+15551234567",
+            message="hi", db_session=None))
+    assert ok is True and err is None
+    client.send_message.assert_awaited_once_with(555, "hi")
+    client.delete_contacts.assert_awaited_once_with([555])
+
+
+def test_phone_not_on_telegram_is_permanent():
+    client = _client_with_imported([])
+    async def fake_run(account, op, *a, **kw):
+        return (True, await op(client))
+    with patch("app.services.telegram_client._create_client_and_run", side_effect=fake_run):
+        ok, err = asyncio.run(resolve_and_send_with_client(
+            MagicMock(), tg_user_id=None, tg_username=None, phone="+15550000000",
+            message="hi", db_session=None))
+    assert ok is False and err == "perm:phone_not_on_telegram"
+
+
+def test_phone_send_failure_still_cleans_contact():
+    user = MagicMock(); user.id = 777
+    client = _client_with_imported([user])
+    client.send_message = AsyncMock(side_effect=Exception("USER_PRIVACY_RESTRICTED"))
+    async def fake_run(account, op, *a, **kw):
+        return (True, await op(client))
+    with patch("app.services.telegram_client._create_client_and_run", side_effect=fake_run):
+        ok, err = asyncio.run(resolve_and_send_with_client(
+            MagicMock(), tg_user_id=None, tg_username=None, phone="+15557654321",
+            message="hi", db_session=None))
+    assert ok is False and err == "perm:privacy_restricted"
+    client.delete_contacts.assert_awaited_once_with([777])

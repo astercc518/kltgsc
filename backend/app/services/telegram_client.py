@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 from contextlib import contextmanager
 from sqlmodel import Session
 from pyrogram import Client, enums
+from pyrogram.types import InputPhoneContact
 from pyrogram.errors import (
     FloodWait,
     PeerFlood,
@@ -284,9 +285,29 @@ async def send_message_with_client(account: Account, username: str, message: str
             
         return False, f"Error: {error_str}"
 
-async def _send_via_phone(client, phone, message):
-    # Task 4 will implement real phone-contact lookup; for now treat as permanent failure
-    return ("perm", "phone_not_on_telegram")
+async def _send_via_phone(client, phone: str, message: str):
+    """import_contacts 解析手机号→发→delete_contacts 清理。返回 ('ok',None)|('perm',code)。"""
+    imported = await client.import_contacts(
+        [InputPhoneContact(phone=str(phone), first_name="Contact")]
+    )
+    users = getattr(imported, "users", None) or []
+    if not users:
+        return ("perm", "phone_not_on_telegram")
+    uid = users[0].id
+    try:
+        try:
+            await _send_with_typing(client, uid, message)
+            return ("ok", None)
+        except Exception as e:
+            code = _perm_code(str(e))
+            if code:
+                return ("perm", code)
+            raise
+    finally:
+        try:
+            await client.delete_contacts([uid])
+        except Exception:
+            pass
 
 
 async def resolve_and_send_with_client(
