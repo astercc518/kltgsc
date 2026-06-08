@@ -45,3 +45,32 @@ def test_send_with_typing_survives_typing_action_failure():
     client.send_message = AsyncMock()
     asyncio.run(_send_with_typing(client, 123, "hi", min_pre=0, max_pre=0, min_type=0, max_type=0))
     client.send_message.assert_awaited_once_with(123, "hi")
+
+
+from app.services.telegram_client import resolve_and_send_with_client
+
+
+def test_username_send_success():
+    async def fake_run(account, op, *a, **kw):
+        client = MagicMock()
+        client.send_chat_action = AsyncMock()
+        client.send_message = AsyncMock()
+        return (True, await op(client))
+    with patch("app.services.telegram_client._create_client_and_run", side_effect=fake_run):
+        ok, err = asyncio.run(resolve_and_send_with_client(
+            MagicMock(), tg_user_id=None, tg_username="bob", phone=None,
+            message="hi", db_session=None))
+    assert ok is True and err is None
+
+
+def test_username_not_occupied_is_permanent():
+    async def fake_run(account, op, *a, **kw):
+        client = MagicMock()
+        client.send_chat_action = AsyncMock()
+        client.send_message = AsyncMock(side_effect=Exception("[400 USERNAME_NOT_OCCUPIED]"))
+        return (True, await op(client))
+    with patch("app.services.telegram_client._create_client_and_run", side_effect=fake_run):
+        ok, err = asyncio.run(resolve_and_send_with_client(
+            MagicMock(), tg_user_id=None, tg_username="ghost", phone=None,
+            message="hi", db_session=None))
+    assert ok is False and err == "perm:username_not_occupied"

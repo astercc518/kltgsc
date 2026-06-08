@@ -284,6 +284,58 @@ async def send_message_with_client(account: Account, username: str, message: str
             
         return False, f"Error: {error_str}"
 
+async def _send_via_phone(client, phone, message):
+    # Task 4 will implement real phone-contact lookup; for now treat as permanent failure
+    return ("perm", "phone_not_on_telegram")
+
+
+async def resolve_and_send_with_client(
+    account: Account, *, tg_user_id, tg_username, phone,
+    message: str, db_session: Optional[Session] = None,
+) -> Tuple[bool, Optional[str]]:
+    """按 username > phone > user_id 优先级解析并发送。
+    返回 (ok, err)。err 以 'perm:' 开头表示目标级永久失败（不应惩罚账号/重试）。
+    """
+    async def op(client):
+        # 1) username：Pyrogram 实时解析
+        if tg_username:
+            peer = tg_username if str(tg_username).startswith("@") else "@" + str(tg_username)
+            try:
+                await _send_with_typing(client, peer, message)
+                return ("ok", None)
+            except Exception as e:
+                code = _perm_code(str(e))
+                if code:
+                    return ("perm", code)
+                raise
+        # 2) phone：Task 4 实现
+        if phone:
+            return await _send_via_phone(client, phone, message)
+        # 3) 裸 user_id 兜底（号池冷发多半 PEER_ID_INVALID）
+        if tg_user_id:
+            try:
+                await _send_with_typing(client, int(tg_user_id), message)
+                return ("ok", None)
+            except Exception as e:
+                code = _perm_code(str(e))
+                if code:
+                    return ("perm", code)
+                raise
+        return ("perm", "no_handle")
+
+    try:
+        ok, result = await _create_client_and_run(account, op, db_session=db_session)
+    except AccountException as e:
+        # 账号级（flood/banned）：cooldown 已在 _create_client_and_run 内设置
+        return False, str(e)[:200]
+    if not ok:
+        return False, str(result)[:200]
+    kind, code = result
+    if kind == "ok":
+        return True, None
+    return False, f"perm:{code}"
+
+
 async def _create_client_and_run(account: Account, operation, *args, db_session: Optional[Session] = None, **kwargs) -> Tuple[bool, Any]:
     """通用客户端执行帮助函数"""
     async def try_op(use_ipv6: bool = False):
