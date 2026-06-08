@@ -25,7 +25,7 @@ from app.models.account import Account
 from app.models.bulk_send import (
     BulkBatch, BulkTarget, BulkTemplateVariant,
     BATCH_PENDING, BATCH_RUNNING, BATCH_PAUSED, BATCH_COMPLETED, BATCH_FAILED,
-    TARGET_PENDING, TARGET_SENDING, TARGET_SENT, TARGET_FAILED,
+    TARGET_PENDING, TARGET_SENDING, TARGET_SENT, TARGET_FAILED, TARGET_SKIPPED,
 )
 from app.services.bulk_dispatch_service import (
     select_accounts_for_batch, shard_targets, pick_variant,
@@ -194,17 +194,28 @@ def bulk_worker_task(self, account_id: int, batch_id: int, target_ids: List[int]
                 succeeded += 1
                 consecutive_failures = 0
             else:
-                target.status = TARGET_FAILED
-                target.failed_reason = (send_err or "send_failed")[:200]
-                s.add(target)
-
-                batch.failed_count = (batch.failed_count or 0) + 1
-                batch.updated_at = datetime.utcnow()
-                s.add(batch)
-
-                s.commit()
-                failed += 1
-                consecutive_failures += 1
+                is_permanent = bool(send_err) and send_err.startswith("perm:")
+                if is_permanent:
+                    # 目标级永久失败：落 skipped（terminal，dispatcher 不重拾），
+                    # 不计 failed_count、不增连续失败（不惩罚账号、不触发熔断）。
+                    target.status = TARGET_SKIPPED
+                    target.failed_reason = send_err[:200]
+                    s.add(target)
+                    batch.skipped_count = (batch.skipped_count or 0) + 1
+                    batch.updated_at = datetime.utcnow()
+                    s.add(batch)
+                    s.commit()
+                    failed += 1  # 仍计入本 shard processed 统计（非熔断计数）
+                else:
+                    target.status = TARGET_FAILED
+                    target.failed_reason = (send_err or "send_failed")[:200]
+                    s.add(target)
+                    batch.failed_count = (batch.failed_count or 0) + 1
+                    batch.updated_at = datetime.utcnow()
+                    s.add(batch)
+                    s.commit()
+                    failed += 1
+                    consecutive_failures += 1
 
             processed += 1
 
