@@ -124,3 +124,40 @@ def test_phone_send_failure_still_cleans_contact():
             message="hi", db_session=None))
     assert ok is False and err == "perm:privacy_restricted"
     client.delete_contacts.assert_awaited_once_with([777])
+
+
+from app.tasks.bulk_send_tasks import _do_send
+from app.models.bulk_send import BulkTarget, BulkTemplateVariant
+
+
+def test_do_send_prefers_username_over_userid(monkeypatch):
+    captured = {}
+
+    async def fake_resolve(account, *, tg_user_id, tg_username, phone, message, db_session):
+        captured.update(tg_user_id=tg_user_id, tg_username=tg_username, phone=phone)
+        return True, None
+
+    monkeypatch.setattr(
+        "app.services.telegram_client.resolve_and_send_with_client", fake_resolve
+    )
+    fake_session = MagicMock()
+    fake_session.get.return_value = MagicMock()  # account
+    target = BulkTarget(batch_id=1, customer_id=1, tg_user_id=999, tg_username="bob")
+    variant = BulkTemplateVariant(batch_id=1, content="hi")
+    ok, err = _do_send(fake_session, account_id=5, target=target, variant=variant, mock=False)
+    assert ok is True and err is None
+    assert captured["tg_username"] == "bob" and captured["tg_user_id"] == 999
+
+
+def test_do_send_passes_perm_error_through(monkeypatch):
+    async def fake_resolve(account, **kw):
+        return False, "perm:privacy_restricted"
+    monkeypatch.setattr(
+        "app.services.telegram_client.resolve_and_send_with_client", fake_resolve
+    )
+    fake_session = MagicMock()
+    fake_session.get.return_value = MagicMock()
+    target = BulkTarget(batch_id=1, customer_id=1, tg_username="bob")
+    variant = BulkTemplateVariant(batch_id=1, content="hi")
+    ok, err = _do_send(fake_session, account_id=5, target=target, variant=variant, mock=False)
+    assert ok is False and err == "perm:privacy_restricted"

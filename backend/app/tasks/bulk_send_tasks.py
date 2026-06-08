@@ -269,19 +269,20 @@ def _do_send(
 ) -> tuple[bool, str | None]:
     """Send a single message. Returns (success, error_string_or_None).
 
-    Real send path requires resolving target → tg user. tg_user_id is direct;
-    tg_username and phone need client.resolve_username / import_contacts which
-    burn ResolveUsername quota and can hit FloodWait (24h). Real sending is
-    enabled by setting BULK_SEND_MOCK=0 once the account pool is ready.
+    Resolves the target by username > phone > user_id priority via the peer
+    resolution layer. A ``perm:``-prefixed error string denotes a target-level
+    permanent failure (e.g. unknown username, privacy restriction) — the caller
+    should mark the target permanently failed rather than retrying. Real sending
+    is enabled by setting BULK_SEND_MOCK=0 once the account pool is ready.
     """
     if mock:
         # 90% success simulation, no I/O
         ok = random.random() < 0.9
         return ok, None if ok else "mock_failure"
 
-    # Real send (W3 minimal — only supports tg_user_id targets to dodge ResolveUsername)
-    if not target.tg_user_id:
-        return False, "real_send_needs_tg_user_id_in_mvp"
+    # Real send: 解析层按 username > phone > user_id 优先级发送
+    if not (target.tg_user_id or target.tg_username or target.phone):
+        return False, "no_handle"
 
     account = session.get(Account, account_id)
     if not account:
@@ -289,13 +290,17 @@ def _do_send(
 
     try:
         import asyncio
-        from app.services.telegram_client import send_message_with_client
+        from app.services.telegram_client import resolve_and_send_with_client
         ok, err = asyncio.run(
-            send_message_with_client(
-                account, str(target.tg_user_id), variant.content,
+            resolve_and_send_with_client(
+                account,
+                tg_user_id=target.tg_user_id,
+                tg_username=target.tg_username,
+                phone=target.phone,
+                message=variant.content,
                 db_session=session,
             )
         )
-        return bool(ok), None if ok else err
+        return bool(ok), (None if ok else err)
     except Exception as e:  # broad — Pyrogram raises many exception types
         return False, str(e)[:200]
