@@ -43,6 +43,24 @@ from app.services.client_pool import client_pool
 
 logger = logging.getLogger(__name__)
 
+# 目标级永久失败错误码映射：这些错误是「目标本身」的问题，不应惩罚账号或重试。
+_PERM_ERROR_MAP = (
+    ("USERNAME_NOT_OCCUPIED", "username_not_occupied"),
+    ("USERNAME_INVALID", "username_invalid"),
+    ("USER_PRIVACY_RESTRICTED", "privacy_restricted"),
+    ("PRIVACY_RESTRICTED", "privacy_restricted"),
+    ("PEER_ID_INVALID", "peer_id_invalid"),
+)
+
+
+def _perm_code(error_str: str) -> Optional[str]:
+    """把 Telegram 错误字符串映射为目标级永久失败码；瞬时/账号级返回 None。"""
+    s = error_str or ""
+    for needle, code in _PERM_ERROR_MAP:
+        if needle in s:
+            return code
+    return None
+
 
 @contextmanager
 def decrypted_session_file(session_file_path: str):
