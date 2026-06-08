@@ -64,10 +64,27 @@ export type QuickProvisionPayload =
     }
   | {
       customer_id: number;
-      plan: Plan;
+      plan?: Plan;            // optional: omit for a pure wallet top-up
       wallet_credit_cents?: number;
       note?: string;
     };
+
+// quick-provision returns a summary (not a Customer). Only the fields we use.
+export interface QuickProvisionResult {
+  ok: boolean;
+  customer_id: number;
+  customer_email: string;
+  plan_activated: string | null;
+  wallet_balance_cents: number;
+  wallet_credit_txn_id: number | null;
+}
+
+export interface CustomerWallet {
+  customer_id: number;
+  balance_cents: number;
+  total_topup_cents: number;
+  total_spent_cents: number;
+}
 
 // Mirrors backend/app/models/feature.py FeatureRegistryRead
 export interface AdminFeatureEntry {
@@ -159,6 +176,33 @@ export async function getCustomerById(id: number): Promise<Customer | null> {
 export async function quickProvision(payload: QuickProvisionPayload): Promise<Customer> {
   try {
     const res = await api.post<Customer>('/admin/billing/quick-provision', payload);
+    return res.data;
+  } catch (e) {
+    normalize(e, 'POST', '/admin/billing/quick-provision');
+  }
+}
+
+export async function getCustomerWallet(customerId: number): Promise<CustomerWallet> {
+  try {
+    const res = await api.get<CustomerWallet>(`/admin/billing/customers/${customerId}/wallet`);
+    return res.data;
+  } catch (e) {
+    normalize(e, 'GET', `/admin/billing/customers/${customerId}/wallet`);
+  }
+}
+
+/** Top up an existing customer's wallet by `cents` (no plan change). */
+export async function creditWallet(
+  customerId: number,
+  cents: number,
+  note?: string,
+): Promise<QuickProvisionResult> {
+  try {
+    const res = await api.post<QuickProvisionResult>('/admin/billing/quick-provision', {
+      customer_id: customerId,
+      wallet_credit_cents: cents,
+      note: note ?? 'admin wallet top-up',
+    });
     return res.data;
   } catch (e) {
     normalize(e, 'POST', '/admin/billing/quick-provision');

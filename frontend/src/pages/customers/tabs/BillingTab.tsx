@@ -1,9 +1,11 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, Descriptions, Table, Tag, Space, Button, Modal, Form, Select, Input, message } from 'antd';
+import { Card, Descriptions, Table, Tag, Space, Button, Modal, Form, Select, Input, InputNumber, Statistic, message } from 'antd';
 import dayjs from 'dayjs';
 import {
   getCustomerById,
+  getCustomerWallet,
+  creditWallet,
   listInvoices,
   quickProvision,
   AdminApiError,
@@ -21,6 +23,8 @@ const BillingTab: React.FC<{ customerId: number }> = ({ customerId }) => {
   const queryClient = useQueryClient();
   const [renewModal, setRenewModal] = React.useState(false);
   const [renewForm] = Form.useForm<{ plan: Plan; note?: string }>();
+  const [topupModal, setTopupModal] = React.useState(false);
+  const [topupForm] = Form.useForm<{ amount_usd: number; note?: string }>();
 
   const { data: customer } = useQuery({
     queryKey: ['admin-customer', customerId],
@@ -29,6 +33,24 @@ const BillingTab: React.FC<{ customerId: number }> = ({ customerId }) => {
   const { data: invoices } = useQuery({
     queryKey: ['admin-customer', customerId, 'invoices'],
     queryFn: () => listInvoices(customerId),
+  });
+  const { data: wallet } = useQuery({
+    queryKey: ['admin-customer', customerId, 'wallet'],
+    queryFn: () => getCustomerWallet(customerId),
+  });
+
+  const topupMutation = useMutation({
+    mutationFn: (vals: { amount_usd: number; note?: string }) =>
+      creditWallet(customerId, Math.round(vals.amount_usd * 100), vals.note),
+    onSuccess: (res) => {
+      message.success(`充值成功，当前余额 $${(res.wallet_balance_cents / 100).toFixed(2)}`);
+      setTopupModal(false);
+      topupForm.resetFields();
+      queryClient.invalidateQueries({ queryKey: ['admin-customer', customerId, 'wallet'] });
+    },
+    onError: (err: unknown) => {
+      message.error(err instanceof AdminApiError ? err.message : '充值失败');
+    },
   });
 
   const renewMutation = useMutation({
@@ -119,6 +141,37 @@ const BillingTab: React.FC<{ customerId: number }> = ({ customerId }) => {
         </Descriptions>
       </Card>
 
+      <Card
+        size="small"
+        title="钱包余额"
+        extra={
+          <Button type="primary" onClick={() => setTopupModal(true)}>
+            钱包充值
+          </Button>
+        }
+      >
+        <Space size="large">
+          <Statistic
+            title="可用余额"
+            value={(wallet?.balance_cents ?? 0) / 100}
+            precision={2}
+            prefix="$"
+          />
+          <Statistic
+            title="累计充值"
+            value={(wallet?.total_topup_cents ?? 0) / 100}
+            precision={2}
+            prefix="$"
+          />
+          <Statistic
+            title="累计消费"
+            value={(wallet?.total_spent_cents ?? 0) / 100}
+            precision={2}
+            prefix="$"
+          />
+        </Space>
+      </Card>
+
       <Card size="small" title="账单历史">
         <Table<AdminInvoice>
           rowKey="id"
@@ -151,6 +204,30 @@ const BillingTab: React.FC<{ customerId: number }> = ({ customerId }) => {
           </Form.Item>
           <Form.Item label="备注" name="note">
             <Input placeholder="选填，将写入 invoice note" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="钱包充值"
+        open={topupModal}
+        onCancel={() => {
+          topupForm.resetFields();
+          setTopupModal(false);
+        }}
+        onOk={() => topupForm.submit()}
+        confirmLoading={topupMutation.isPending}
+      >
+        <Form form={topupForm} layout="vertical" onFinish={(v) => topupMutation.mutate(v)}>
+          <Form.Item
+            label="充值金额 (USD)"
+            name="amount_usd"
+            rules={[{ required: true, type: 'number', min: 0.01, message: '请输入正数金额' }]}
+          >
+            <InputNumber min={0.01} step={10} precision={2} prefix="$" style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item label="备注" name="note">
+            <Input placeholder="选填，将写入钱包流水说明" />
           </Form.Item>
         </Form>
       </Modal>

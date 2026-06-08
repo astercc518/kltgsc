@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Card, Form, Input, Select, Radio, Button, Modal, message, Space, Typography } from 'antd';
+import { Card, Form, Input, InputNumber, Select, Radio, Button, Modal, message, Space, Typography } from 'antd';
 import { ReloadOutlined, CopyOutlined } from '@ant-design/icons';
 import {
   quickProvision,
@@ -22,6 +22,7 @@ interface FormValues {
   name?: string;
   industry: string;
   plan: Plan;
+  wallet_credit_usd?: number;
   note?: string;
 }
 
@@ -45,6 +46,9 @@ const NewCustomerPage: React.FC = () => {
         new_customer_name: vals.name,
         new_customer_industry: vals.industry,
         plan: vals.plan,
+        wallet_credit_cents: vals.wallet_credit_usd
+          ? Math.round(vals.wallet_credit_usd * 100)
+          : undefined,
         note: vals.note,
       }),
     onSuccess: (customer, vars) => {
@@ -152,6 +156,13 @@ const NewCustomerPage: React.FC = () => {
               ))}
             </Space>
           </Radio.Group>
+        </Form.Item>
+        <Form.Item
+          label="初始充值 (USD)"
+          name="wallet_credit_usd"
+          extra="选填。开户时直接给钱包充值，群发/采集/拉群按量从余额扣费。"
+        >
+          <InputNumber min={0} step={50} precision={2} prefix="$" style={{ width: '100%' }} placeholder="留空则不充值" />
         </Form.Item>
         <Form.Item label="备注" name="note">
           <Input.TextArea rows={2} placeholder="线下付款/试用/内部 QA 等" maxLength={200} showCount />
