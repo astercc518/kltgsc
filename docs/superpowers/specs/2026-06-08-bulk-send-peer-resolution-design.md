@@ -131,5 +131,5 @@ mock pyrogram `Client`，先写测试后写实现：
 
 - **风控**：phone 路径的 `import_contacts` 风控信号更重，且会短暂写入联系人；`delete_contacts` 必须在 `finally` 保证清理。
 - **配额**：username/phone 解析消耗 ResolveUsername/import 配额，可能触发 24h FloodWait——已归入账号级失败由 cooldown 吸收。
-- **可达性预期**：大量目标因隐私设置（`USER_PRIVACY_RESTRICTED`）天然收不到，属正常，计入 failed 不惩罚账号；这会让「发 30 万」的实际送达显著低于尝试数，运营侧需以 pilot 实测率为准。
+- **可达性预期**：大量目标因隐私设置（`USER_PRIVACY_RESTRICTED`）天然收不到，属正常，按 §3 归为目标级永久失败→落 `skipped`（不惩罚账号、不触发熔断、不重试）；这会让「发 30 万」的实际送达显著低于尝试数，运营侧需以 pilot 实测率为准。
 - **内容风控**：群发文案需先过 L0/L1 内容过滤（见 LLM 安全架构记忆），避免触发 Vertex/账号封禁——本期不在范围内，但上线前置依赖。
