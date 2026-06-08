@@ -352,9 +352,19 @@ export interface BulkVariant {
   created_at: string;
 }
 
+export interface BulkParseSummary {
+  raw_count?: number;
+  parsed_count?: number;
+  invalid_count?: number;
+  dedup_in_csv?: number;
+  skipped_dedup_cross_batch?: number;
+  skipped_no_handle?: number;
+}
+
 export interface BulkBatchDetail extends BulkBatch {
   variants: BulkVariant[];
   targets_preview: BulkTarget[];
+  parse_summary?: BulkParseSummary | null;
 }
 
 export interface CostPreview {

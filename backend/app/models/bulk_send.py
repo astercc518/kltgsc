@@ -185,6 +185,9 @@ class BulkTemplateVariantRead(SQLModel):
 class BulkBatchDetail(BulkBatchRead):
     variants: list[BulkTemplateVariantRead] = []
     targets_preview: list[BulkTargetRead] = []  # 前 N 条便于客户校验
+    # 创建批次时的解析摘要（含 skipped_no_handle / skipped_dedup_cross_batch / cost），
+    # 仅创建响应填充；列表/详情接口为 None。
+    parse_summary: Optional[dict] = None
 
 
 # ── Write schemas (API input) ──────────────────────────────────────────

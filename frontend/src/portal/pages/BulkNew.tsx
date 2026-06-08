@@ -49,6 +49,13 @@ const BulkNewPage: React.FC = () => {
     mutationFn: bulkApi.createBatch,
     onSuccess: (b) => {
       message.success(`Draft batch #${b.id} created with ${b.total_targets} targets`);
+      const noHandle = b.parse_summary?.skipped_no_handle ?? 0;
+      if (noHandle > 0) {
+        message.warning(
+          `${noHandle} target(s) had only a user_id (no username/phone) — pool cold-send can't reach them, so they were skipped and won't be charged.`,
+          8,
+        );
+      }
       nav(`/portal/bulk/${b.id}`);
     },
     onError: (e: any) => message.error(e?.response?.data?.detail || 'Create failed'),

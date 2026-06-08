@@ -346,8 +346,6 @@ def _build_batch_detail(
         **batch.model_dump(),
         variants=[BulkTemplateVariantRead.model_validate(v.model_dump()) for v in variants],
         targets_preview=[BulkTargetRead.model_validate(t.model_dump()) for t in targets_preview],
+        parse_summary=parse_summary,
     )
-    # parse_summary is observability info only — we attach it via response model
-    # by widening through a dict cast in callers that need it. For now the
-    # detail object is enough.
     return detail
