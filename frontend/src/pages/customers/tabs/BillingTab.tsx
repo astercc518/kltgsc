@@ -1,6 +1,8 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, Descriptions, Table, Tag, Space, Button, Modal, Form, Select, Input, InputNumber, Statistic, message } from 'antd';
+import { Card, Descriptions, Table, Tag, Space, Button, Modal, Form, Select, Input, InputNumber, Statistic, Typography, message } from 'antd';
+
+const { Text } = Typography;
 import dayjs from 'dayjs';
 import {
   getCustomerById,
@@ -34,9 +36,12 @@ const BillingTab: React.FC<{ customerId: number }> = ({ customerId }) => {
     queryKey: ['admin-customer', customerId, 'invoices'],
     queryFn: () => listInvoices(customerId),
   });
-  const { data: wallet } = useQuery({
+  // Wallet endpoint may be absent on older backends — degrade gracefully (no retry,
+  // hide the wallet/top-up UI) instead of surfacing a 404.
+  const { data: wallet, isError: walletUnavailable } = useQuery({
     queryKey: ['admin-customer', customerId, 'wallet'],
     queryFn: () => getCustomerWallet(customerId),
+    retry: false,
   });
 
   const topupMutation = useMutation({
@@ -141,6 +146,11 @@ const BillingTab: React.FC<{ customerId: number }> = ({ customerId }) => {
         </Descriptions>
       </Card>
 
+      {walletUnavailable ? (
+        <Card size="small" title="钱包余额">
+          <Text type="secondary">钱包 / 充值功能待发布（当前后端未提供该接口）。</Text>
+        </Card>
+      ) : (
       <Card
         size="small"
         title="钱包余额"
@@ -171,6 +181,7 @@ const BillingTab: React.FC<{ customerId: number }> = ({ customerId }) => {
           />
         </Space>
       </Card>
+      )}
 
       <Card size="small" title="账单历史">
         <Table<AdminInvoice>
