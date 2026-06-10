@@ -229,6 +229,23 @@ def preview_cost_cents(
     spent_cents = wallet.total_spent_cents
     balance_cents = wallet.balance_cents
 
+    # Per-customer flat override bypasses the spend-tier entirely.
+    from app.services.feature_billing import get_customer_price_override_cents
+    override = get_customer_price_override_cents(session, customer_id, "bulk_send_message")
+    if override is not None:
+        total = target_count * override
+        return {
+            "target_count": target_count,
+            "current_tier_unit_cents": override,
+            "total_cost_cents": total,
+            "balance_cents": balance_cents,
+            "balance_sufficient": balance_cents >= total,
+            "shortfall_cents": max(0, total - balance_cents),
+            "breakdown": [
+                {"count": target_count, "unit_cents": override, "subtotal_cents": total}
+            ],
+        }
+
     remaining = target_count
     total_cents = 0
     cursor = spent_cents
@@ -276,6 +293,20 @@ def preview_cost_cents(
 
 
 # ── Batch create ──────────────────────────────────────────────────────
+
+
+def classify_target_status(row: dict, existing_uids: set) -> tuple[str, Optional[str]]:
+    """决定单个目标落库状态。
+    - 跨批次已存在 user_id → skipped:dedup_cross_batch（优先级最高）
+    - 只有 user_id、无 username 无 phone → skipped:no_handle（号池冷发不可达）
+    - 否则 → pending
+    """
+    uid = row.get("tg_user_id")
+    if uid and uid in existing_uids:
+        return TARGET_SKIPPED, "dedup_cross_batch"
+    if uid and not row.get("tg_username") and not row.get("phone"):
+        return TARGET_SKIPPED, "no_handle"
+    return TARGET_PENDING, None
 
 
 def create_batch_draft(
@@ -331,7 +362,6 @@ def create_batch_draft(
         session.add(BulkTemplateVariant(batch_id=batch.id, content=content))
 
     # 5) Insert targets, treating cross-batch dedup as skip
-    skipped_dedup = 0
     existing_uids = set()
     if parsed:
         candidate_uids = [r["tg_user_id"] for r in parsed if r.get("tg_user_id")]
@@ -345,13 +375,14 @@ def create_batch_draft(
                 ).all()
             )
 
+    skipped_dedup = 0
+    skipped_no_handle = 0
     for row in parsed:
-        status = TARGET_PENDING
-        reason = None
-        if row.get("tg_user_id") and row["tg_user_id"] in existing_uids:
-            status = TARGET_SKIPPED
-            reason = "dedup_cross_batch"
+        status, reason = classify_target_status(row, existing_uids)
+        if reason == "dedup_cross_batch":
             skipped_dedup += 1
+        elif reason == "no_handle":
+            skipped_no_handle += 1
         session.add(BulkTarget(
             batch_id=batch.id,
             customer_id=customer.id,
@@ -365,11 +396,12 @@ def create_batch_draft(
             failed_reason=reason,
         ))
 
-    batch.skipped_count = skipped_dedup
+    batch.skipped_count = skipped_dedup + skipped_no_handle
     session.add(batch)
     session.commit()
     session.refresh(batch)
 
     parse_summary["skipped_dedup_cross_batch"] = skipped_dedup
+    parse_summary["skipped_no_handle"] = skipped_no_handle
     parse_summary["cost"] = cost
     return batch, parse_summary

@@ -25,7 +25,7 @@ from app.models.account import Account
 from app.models.bulk_send import (
     BulkBatch, BulkTarget, BulkTemplateVariant,
     BATCH_PENDING, BATCH_RUNNING, BATCH_PAUSED, BATCH_COMPLETED, BATCH_FAILED,
-    TARGET_PENDING, TARGET_SENDING, TARGET_SENT, TARGET_FAILED,
+    TARGET_PENDING, TARGET_SENDING, TARGET_SENT, TARGET_FAILED, TARGET_SKIPPED,
 )
 from app.services.bulk_dispatch_service import (
     select_accounts_for_batch, shard_targets, pick_variant,
@@ -194,17 +194,28 @@ def bulk_worker_task(self, account_id: int, batch_id: int, target_ids: List[int]
                 succeeded += 1
                 consecutive_failures = 0
             else:
-                target.status = TARGET_FAILED
-                target.failed_reason = (send_err or "send_failed")[:200]
-                s.add(target)
-
-                batch.failed_count = (batch.failed_count or 0) + 1
-                batch.updated_at = datetime.utcnow()
-                s.add(batch)
-
-                s.commit()
-                failed += 1
-                consecutive_failures += 1
+                is_permanent = bool(send_err) and send_err.startswith("perm:")
+                if is_permanent:
+                    # 目标级永久失败：落 skipped（terminal，dispatcher 不重拾），
+                    # 不计 failed_count、不增连续失败（不惩罚账号、不触发熔断）。
+                    target.status = TARGET_SKIPPED
+                    target.failed_reason = send_err[:200]
+                    s.add(target)
+                    batch.skipped_count = (batch.skipped_count or 0) + 1
+                    batch.updated_at = datetime.utcnow()
+                    s.add(batch)
+                    s.commit()
+                    failed += 1  # 仍计入本 shard processed 统计（非熔断计数）
+                else:
+                    target.status = TARGET_FAILED
+                    target.failed_reason = (send_err or "send_failed")[:200]
+                    s.add(target)
+                    batch.failed_count = (batch.failed_count or 0) + 1
+                    batch.updated_at = datetime.utcnow()
+                    s.add(batch)
+                    s.commit()
+                    failed += 1
+                    consecutive_failures += 1
 
             processed += 1
 
@@ -269,19 +280,20 @@ def _do_send(
 ) -> tuple[bool, str | None]:
     """Send a single message. Returns (success, error_string_or_None).
 
-    Real send path requires resolving target → tg user. tg_user_id is direct;
-    tg_username and phone need client.resolve_username / import_contacts which
-    burn ResolveUsername quota and can hit FloodWait (24h). Real sending is
-    enabled by setting BULK_SEND_MOCK=0 once the account pool is ready.
+    Resolves the target by username > phone > user_id priority via the peer
+    resolution layer. A ``perm:``-prefixed error string denotes a target-level
+    permanent failure (e.g. unknown username, privacy restriction) — the caller
+    should mark the target permanently failed rather than retrying. Real sending
+    is enabled by setting BULK_SEND_MOCK=0 once the account pool is ready.
     """
     if mock:
         # 90% success simulation, no I/O
         ok = random.random() < 0.9
         return ok, None if ok else "mock_failure"
 
-    # Real send (W3 minimal — only supports tg_user_id targets to dodge ResolveUsername)
-    if not target.tg_user_id:
-        return False, "real_send_needs_tg_user_id_in_mvp"
+    # Real send: 解析层按 username > phone > user_id 优先级发送
+    if not (target.tg_user_id or target.tg_username or target.phone):
+        return False, "no_handle"
 
     account = session.get(Account, account_id)
     if not account:
@@ -289,13 +301,17 @@ def _do_send(
 
     try:
         import asyncio
-        from app.services.telegram_client import send_message_with_client
+        from app.services.telegram_client import resolve_and_send_with_client
         ok, err = asyncio.run(
-            send_message_with_client(
-                account, str(target.tg_user_id), variant.content,
+            resolve_and_send_with_client(
+                account,
+                tg_user_id=target.tg_user_id,
+                tg_username=target.tg_username,
+                phone=target.phone,
+                message=variant.content,
                 db_session=session,
             )
         )
-        return bool(ok), None if ok else err
+        return bool(ok), (None if ok else err)
     except Exception as e:  # broad — Pyrogram raises many exception types
         return False, str(e)[:200]

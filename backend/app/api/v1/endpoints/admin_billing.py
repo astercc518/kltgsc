@@ -191,6 +191,25 @@ def regenerate_kb(
     }
 
 
+@router.get("/customers/{customer_id}/wallet")
+def admin_get_customer_wallet(
+    customer_id: int,
+    _admin: User = Depends(get_current_admin),
+    session: Session = Depends(get_session),
+) -> Any:
+    """客户钱包余额（admin 视角，供充值前后展示）。"""
+    if not session.get(Customer, customer_id):
+        raise HTTPException(status_code=404, detail="Customer not found")
+    from app.services.wallet_service import get_or_create_wallet
+    w = get_or_create_wallet(session, customer_id)
+    return {
+        "customer_id": customer_id,
+        "balance_cents": w.balance_cents,
+        "total_topup_cents": w.total_topup_cents,
+        "total_spent_cents": w.total_spent_cents,
+    }
+
+
 # ──────────────────────────────────────────────────────────────────────────
 # Quick-provision (admin one-click setup)
 # ──────────────────────────────────────────────────────────────────────────

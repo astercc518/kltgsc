@@ -111,9 +111,9 @@ def start_batch(session: Session, batch: BulkBatch) -> BulkBatch:
     if n_pending == 0:
         raise BulkDispatchError("No pending targets to send to")
 
-    # Wallet balance pre-check using current tier
+    # Wallet balance pre-check using current per-message price (custom override > tier)
     balance_cents = get_balance_cents(session, batch.customer_id)
-    unit = calculate_tier_unit_price_cents(_total_spent_cents(session, batch.customer_id))
+    unit = resolve_bulk_unit_price_cents(session, batch.customer_id)
     needed_cents = n_pending * unit
     if balance_cents < unit:
         raise BulkDispatchError(
@@ -252,6 +252,24 @@ def _total_spent_cents(session: Session, customer_id: int) -> int:
     return w.total_spent_cents
 
 
+# 群发计费 feature slug；用于查客户自定义单价覆盖。
+BULK_SEND_FEATURE_SLUG = "bulk_send_message"
+
+
+def resolve_bulk_unit_price_cents(session: Session, customer_id: int) -> int:
+    """群发单条单价：客户自定义覆盖价优先；未设置则回退累计阶梯价。
+
+    设了 custom_price_cents = 扁平价（绕过阶梯）；没设 = 与改造前完全一致。
+    """
+    from app.services.feature_billing import get_customer_price_override_cents
+    override = get_customer_price_override_cents(
+        session, customer_id, BULK_SEND_FEATURE_SLUG
+    )
+    if override is not None:
+        return override
+    return calculate_tier_unit_price_cents(_total_spent_cents(session, customer_id))
+
+
 def charge_for_target(
     session: Session, batch: BulkBatch, target: BulkTarget,
 ) -> bool:
@@ -260,8 +278,7 @@ def charge_for_target(
     Returns True on success, False on insufficient balance (caller pauses batch).
     Idempotent: same target_id will not double-charge.
     """
-    spent = _total_spent_cents(session, batch.customer_id)
-    unit = calculate_tier_unit_price_cents(spent)
+    unit = resolve_bulk_unit_price_cents(session, batch.customer_id)
     try:
         charge_wallet(
             session,

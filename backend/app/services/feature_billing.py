@@ -104,6 +104,20 @@ def get_unit_price_cents(session: Session, customer_id: int, slug: str) -> int:
     return reg.default_price_cents
 
 
+def get_customer_price_override_cents(
+    session: Session, customer_id: int, slug: str,
+) -> Optional[int]:
+    """该客户该 feature 的自定义单价覆盖；未设置返回 None。
+
+    与 get_unit_price_cents 不同：这里**不回退** registry 默认价，专供
+    「有自定义价才覆盖、否则沿用既有定价逻辑」的场景（如群发阶梯价）。
+    """
+    override = _get_customer_override(session, customer_id, slug)
+    if override is not None and override.custom_price_cents is not None:
+        return override.custom_price_cents
+    return None
+
+
 def estimate_cost_cents(
     session: Session, customer_id: int, slug: str, units: int,
 ) -> int:
