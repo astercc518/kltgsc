@@ -22,7 +22,8 @@ def client():
     # /admin/safety/* routes are admin-restricted, so stub both deps.
     app.dependency_overrides[get_current_user] = lambda: {"is_admin": True}
     app.dependency_overrides[get_current_admin] = lambda: {"is_admin": True}
-    yield TestClient(app)
+    with TestClient(app) as test_client:
+        yield test_client
     app.dependency_overrides.clear()
 
 

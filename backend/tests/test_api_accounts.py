@@ -181,7 +181,7 @@ class TestUploadPathSafety:
 
     @patch("app.api.v1.endpoints.accounts.parse_session_file", return_value=("+5555555555", {}))
     @patch("app.api.v1.endpoints.accounts.auto_assign_proxy")
-    @patch("app.api.v1.endpoints.accounts.encrypt_new_session_file", side_effect=Exception("skip"))
+    @patch("app.services.session_encryption_service.encrypt_new_session_file", side_effect=Exception("skip"))
     def test_traversal_stripped(self, _enc, _proxy, _parse, client):
         """A filename like '../../etc/passwd' should be stripped to 'passwd'."""
         import io
@@ -194,7 +194,7 @@ class TestUploadPathSafety:
 
     @patch("app.api.v1.endpoints.accounts.parse_session_file", return_value=("+6666666666", {}))
     @patch("app.api.v1.endpoints.accounts.auto_assign_proxy")
-    @patch("app.api.v1.endpoints.accounts.encrypt_new_session_file", side_effect=Exception("skip"))
+    @patch("app.services.session_encryption_service.encrypt_new_session_file", side_effect=Exception("skip"))
     def test_dotfile_rejected(self, _enc, _proxy, _parse, client):
         """Filenames starting with '.' should be rejected."""
         import io

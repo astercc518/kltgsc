@@ -1,7 +1,7 @@
 """Verify llm_usage has the 3 safety columns from migration c7d8e9f0a1b2."""
-from sqlmodel import Session, select, text
+from sqlalchemy import inspect
+from sqlmodel import Session
 
-from app.core.db import engine
 from app.models.llm_usage import LLMUsage
 
 
@@ -13,19 +13,13 @@ def test_model_has_safety_fields():
     assert "routed_provider" in fields
 
 
-def test_safety_columns_exist_in_db():
-    """Migration applied — DB columns are queryable."""
-    with Session(engine) as s:
-        result = s.exec(text(
-            "SELECT column_name FROM information_schema.columns "
-            "WHERE table_name='llm_usage' "
-            "AND column_name IN ('moderation_score','block_layer','routed_provider')"
-        )).all()
-        names = {row[0] for row in result}
-        assert names == {"moderation_score", "block_layer", "routed_provider"}
+def test_safety_columns_exist_in_db(engine):
+    """The active database schema exposes all safety columns."""
+    names = {column["name"] for column in inspect(engine).get_columns("llm_usage")}
+    assert {"moderation_score", "block_layer", "routed_provider"} <= names
 
 
-def test_insert_row_with_safety_fields():
+def test_insert_row_with_safety_fields(engine):
     """Round-trip a row with all 3 safety fields populated."""
     with Session(engine) as s:
         row = LLMUsage(

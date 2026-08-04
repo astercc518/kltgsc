@@ -1,4 +1,5 @@
 from sqlmodel import SQLModel, create_engine, Session
+from sqlalchemy.pool import StaticPool
 from app.core.config import settings
 
 # 根据数据库类型配置连接参数
@@ -6,7 +7,12 @@ connect_args = {}
 if settings.DATABASE_URL.startswith("sqlite"):
     # SQLite 需要特殊处理多线程
     connect_args = {"check_same_thread": False}
-    engine = create_engine(settings.DATABASE_URL, echo=False, connect_args=connect_args)
+    engine_options = {"echo": False, "connect_args": connect_args}
+    if settings.DATABASE_URL in {"sqlite://", "sqlite:///:memory:"}:
+        # In-memory SQLite databases are scoped to a connection. Tests and
+        # FastAPI's thread pool must therefore share one connection.
+        engine_options["poolclass"] = StaticPool
+    engine = create_engine(settings.DATABASE_URL, **engine_options)
 else:
     # PostgreSQL - 使用连接池
     # 1000+ 账号规模下，进程数 ≈ 14 (4 gunicorn + 8 celery worker + 1 beat + 1 listener)。
