@@ -2,19 +2,18 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
     Table, Button, Modal, Form, Input, Select, InputNumber, Tag, message, Card, 
     Steps, Row, Col, Statistic, Progress, Switch, Slider, Space, Tooltip, 
-    Collapse, Badge, Divider, Alert, Tabs, List, Typography, Descriptions
+    Badge, Divider, Alert, Tabs, List, Typography, Descriptions
 } from 'antd';
 import { 
     PlusOutlined, ReloadOutlined, PlayCircleOutlined, PauseCircleOutlined,
     DeleteOutlined, EyeOutlined, UserOutlined, RocketOutlined,
-    SettingOutlined, FilterOutlined, TeamOutlined, ClockCircleOutlined,
-    CheckCircleOutlined, CloseCircleOutlined, WarningOutlined, StopOutlined
+    SettingOutlined, FilterOutlined, TeamOutlined,
+    CheckCircleOutlined, WarningOutlined, StopOutlined
 } from '@ant-design/icons';
 import api from '../services/api';
 
 const { Option } = Select;
-const { Text, Title } = Typography;
-const { Panel } = Collapse;
+const { Text } = Typography;
 
 // ==================== 类型定义 ====================
 

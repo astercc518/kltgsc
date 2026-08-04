@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Table, Tag, Button, Tabs, message, Popconfirm } from 'antd';
+import { Table, Tag, Button, Tabs, message, Popconfirm } from 'antd';
 import type { TabsProps } from 'antd';
 import { ReloadOutlined, StopOutlined } from '@ant-design/icons';
 import { getActiveTasks, revokeTask } from '../services/api';

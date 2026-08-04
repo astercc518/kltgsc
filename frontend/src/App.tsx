@@ -1,18 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { Layout, Menu, Breadcrumb, Spin } from 'antd';
 import type { MenuProps, BreadcrumbProps } from 'antd';
 import {
   DashboardOutlined,
   UserOutlined,
-  GlobalOutlined,
   RocketOutlined,
   RobotOutlined,
-  MessageOutlined,
   SettingOutlined,
   FileTextOutlined,
-  ScheduleOutlined,
-  CoffeeOutlined,
   TeamOutlined,
   LogoutOutlined,
   RadarChartOutlined,
@@ -53,7 +49,6 @@ import CustomerDetailPage from './pages/customers/CustomerDetailPage';
 
 // ── TG1.AI Customer Portal (Epic 1.5) ─────────────────────────────
 import PortalLayout from './portal/Layout';
-import PortalLogin from './portal/pages/Login';
 import PortalRegister from './portal/pages/Register';
 import PortalDashboard from './portal/pages/Dashboard';
 import PortalBilling from './portal/pages/Billing';

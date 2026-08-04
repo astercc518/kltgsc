@@ -1,15 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Typography, Space, Spin, Alert, Button, Row, Col, Statistic, Table, Tag, Progress, Tabs } from 'antd';
+import { Card, Typography, Space, Alert, Button, Row, Col, Statistic, Table, Tag, Progress } from 'antd';
 import { 
     CheckCircleOutlined, 
-    CloseCircleOutlined, 
     ReloadOutlined,
     UserOutlined,
     MessageOutlined,
     TeamOutlined,
-    ClockCircleOutlined,
     ThunderboltOutlined,
-    AimOutlined,
     RocketOutlined,
     RadarChartOutlined
 } from '@ant-design/icons';
@@ -22,26 +19,18 @@ import {
     CartesianGrid, 
     Tooltip, 
     Legend, 
-    ResponsiveContainer,
-    LineChart,
-    Line
+    ResponsiveContainer
 } from 'recharts';
-import { useQueryClient } from '@tanstack/react-query';
 import { 
     useHealthCheck, 
     useOverviewStats, 
     useDailyTrend, 
-    useOperationLogs,
-    OverviewStats,
-    DailyTrendData
+    useOperationLogs
 } from '../hooks';
-import { queryKeys } from '../lib/queryClient';
 
-const { Title, Paragraph, Text } = Typography;
+const { Title, Text } = Typography;
 
 const Dashboard: React.FC = () => {
-  const queryClient = useQueryClient();
-  
   // 战略数据状态
   const [roleStats, setRoleStats] = useState<any>({});
   const [campaignStats, setCampaignStats] = useState<any[]>([]);
@@ -73,8 +62,6 @@ const Dashboard: React.FC = () => {
   } = useOperationLogs(0, 10);
   
   const loading = healthLoading || statsLoading || trendLoading || logsLoading;
-  const error = !healthStatus && !healthLoading ? '无法连接到后端服务' : null;
-
   // 获取战略数据
   const fetchStrategicData = async () => {
     try {

@@ -9,7 +9,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
-import { bulkApi, BulkBatchDetail, BulkVariant } from '../api';
+import { bulkApi, BulkVariant } from '../api';
 
 const { TextArea } = Input;
 const { Title, Text, Paragraph } = Typography;

@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
-    Card, Row, Col, Statistic, Segmented, Select, Table, Tag, Spin, Alert, Space, Typography,
+    Card, Row, Col, Statistic, Segmented, Select, Table, Spin, Alert, Space, Typography,
 } from 'antd';
 import {
-    DollarCircleOutlined, ThunderboltOutlined, ApiOutlined,
+    DollarCircleOutlined, ApiOutlined,
 } from '@ant-design/icons';
 import {
     ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip as RTooltip, CartesianGrid,

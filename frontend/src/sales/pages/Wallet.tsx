@@ -4,7 +4,7 @@ import {
   Select, Typography, Empty, Alert, Space, message, Result,
 } from 'antd';
 import { PlusOutlined, ReloadOutlined, DollarOutlined } from '@ant-design/icons';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { decodeJwtPayload, SalesWalletTxn, walletApi } from '../api';
 import { useT } from '../i18n';
 
@@ -13,7 +13,6 @@ const { Title, Text } = Typography;
 const fmtUsd = (cents: number) => `$${(cents/100).toFixed(2)}`;
 
 const SalesWalletPage: React.FC = () => {
-  const qc = useQueryClient();
   const t = useT();
   const profile = decodeJwtPayload();
   const [topupOpen, setTopupOpen] = React.useState(false);

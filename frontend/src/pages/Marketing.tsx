@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Form, Input, Button, Select, message, Tabs, Table, Tag, InputNumber, Row, Col, Statistic, Modal, Slider, Divider, Space, Tooltip, Progress } from 'antd';
+import { Card, Form, Input, Button, message, Tabs, Table, Tag, InputNumber, Row, Col, Statistic, Slider, Divider, Space, Tooltip, Progress } from 'antd';
 import type { TabsProps } from 'antd';
 import { SendOutlined, SettingOutlined, InfoCircleOutlined, ThunderboltOutlined, PauseCircleOutlined, StopOutlined } from '@ant-design/icons';
 import api, { getAccounts, getTargetUsers, createSendTask, getMarketingTasks, Account, TargetUser } from '../services/api';
@@ -44,7 +44,7 @@ const Marketing: React.FC = () => {
     const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
     
     // Config modal
-    const [configModalVisible, setConfigModalVisible] = useState(false);
+    const [, setConfigModalVisible] = useState(false);
     const [config, setConfig] = useState<SafeSendConfig | null>(null);
     const [configLoading, setConfigLoading] = useState(false);
     
@@ -368,7 +368,7 @@ const Marketing: React.FC = () => {
                 <Card title="安全发送配置" extra={<Button type="primary" onClick={saveConfig} loading={configLoading}>保存配置</Button>}>
                     <Row gutter={[24, 24]}>
                         <Col span={24}>
-                            <Divider orientation="left">每日发送限额</Divider>
+                            <Divider titlePlacement="start">每日发送限额</Divider>
                         </Col>
                         <Col span={8}>
                             <Card size="small" title="新账号 (<7天)">
@@ -414,7 +414,7 @@ const Marketing: React.FC = () => {
                         </Col>
 
                         <Col span={24}>
-                            <Divider orientation="left">发送间隔</Divider>
+                            <Divider titlePlacement="start">发送间隔</Divider>
                         </Col>
                         <Col span={12}>
                             <Card size="small" title="最小间隔 (秒)">
@@ -446,7 +446,7 @@ const Marketing: React.FC = () => {
                         </Col>
 
                         <Col span={24}>
-                            <Divider orientation="left">休息机制</Divider>
+                            <Divider titlePlacement="start">休息机制</Divider>
                         </Col>
                         <Col span={8}>
                             <Card size="small" title="连续发送后休息">
@@ -494,7 +494,7 @@ const Marketing: React.FC = () => {
                         </Col>
 
                         <Col span={24}>
-                            <Divider orientation="left">风险控制</Divider>
+                            <Divider titlePlacement="start">风险控制</Divider>
                         </Col>
                         <Col span={12}>
                             <Card size="small" title="每日 FloodWait 上限">

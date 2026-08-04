@@ -34,7 +34,7 @@ const AutoRegister: React.FC = () => {
       try {
         const config = await getSystemConfigByKey('sms_activate_api_key');
         if (config) {
-          setApiKey(config.value);
+          setApiKey(config.value ?? '');
         }
       } catch (error) {
         // Ignore 404

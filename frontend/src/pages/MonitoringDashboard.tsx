@@ -30,14 +30,6 @@ const { Title, Text } = Typography;
 
 const REFRESH_INTERVAL = 30_000; // 30 秒自动刷新
 
-const statusColor: Record<string, string> = {
-    active: '#52c41a',
-    banned: '#ff4d4f',
-    spam_block: '#fa8c16',
-    stale: '#d9d9d9',
-    error: '#ff4d4f',
-};
-
 const MonitoringDashboard: React.FC = () => {
     const [stats, setStats] = useState<MonitoringStats | null>(null);
     const [loading, setLoading] = useState(false);

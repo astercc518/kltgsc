@@ -509,7 +509,7 @@ const Scraping: React.FC = () => {
             key: 'history',
             label: <span><HistoryOutlined /> 任务历史</span>,
             children: (
-                <Card extra={<Button icon={<ReloadOutlined />} onClick={fetchScrapingTasks}>刷新</Button>}>
+                <Card extra={<Button icon={<ReloadOutlined />} onClick={() => void fetchScrapingTasks()}>刷新</Button>}>
                     <Table
                         dataSource={scrapingTasks}
                         columns={taskColumns}
@@ -524,7 +524,7 @@ const Scraping: React.FC = () => {
             key: 'users',
             label: '目标用户库',
             children: (
-                <Card extra={<Button icon={<ReloadOutlined />} onClick={fetchUsers}>刷新</Button>}>
+                <Card extra={<Button icon={<ReloadOutlined />} onClick={() => void fetchUsers()}>刷新</Button>}>
                     <Table
                         dataSource={targetUsers}
                         columns={userColumns}

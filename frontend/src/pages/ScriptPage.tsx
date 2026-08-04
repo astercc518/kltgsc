@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Form, Input, Button, Table, Space, message, Modal, List, Tag, Select, Steps, Divider } from 'antd';
-import { PlayCircleOutlined, PlusOutlined, RobotOutlined, UserOutlined, MinusOutlined } from '@ant-design/icons';
+import { Card, Form, Input, Button, Table, Space, message, Modal, List, Tag, Select, Divider } from 'antd';
+import { PlayCircleOutlined, PlusOutlined, RobotOutlined, MinusOutlined } from '@ant-design/icons';
 import { AISelector } from '../components';
 import {
     createScript,

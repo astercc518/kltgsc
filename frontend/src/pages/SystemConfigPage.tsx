@@ -3,7 +3,7 @@ import { Card, Table, Button, Modal, Form, Input, message, Row, Col, Typography,
 import { getSystemConfig, setSystemConfig, SystemConfig, changePassword, getCurrentUser, UserInfo } from '../services/api';
 import { EditOutlined, PlusOutlined, LockOutlined, UserOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 const SystemConfigPage: React.FC = () => {
     const [configs, setConfigs] = useState<SystemConfig[]>([]);

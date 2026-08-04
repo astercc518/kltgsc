@@ -13,9 +13,6 @@ import {
   message,
   Drawer,
   Descriptions,
-  Timeline,
-  Badge,
-  Tabs,
   Row,
   Col,
   Statistic,
@@ -26,18 +23,15 @@ import {
   MessageOutlined,
   EditOutlined,
   ReloadOutlined,
-  SendOutlined,
-  PhoneOutlined,
-  ClockCircleOutlined,
   CheckCircleOutlined,
   StarOutlined,
   FireOutlined
 } from '@ant-design/icons';
-import { getLeads, getLead, updateLead, sendLeadMessage, claimLead, Lead, LeadInteraction } from '../services/api';
+import { getLeads, updateLead, sendLeadMessage, claimLead, Lead } from '../services/api';
 
 const { Option } = Select;
 const { TextArea } = Input;
-const { Text, Title } = Typography;
+const { Title } = Typography;
 
 const CRM: React.FC = () => {
   const navigate = useNavigate();

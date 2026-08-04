@@ -13,7 +13,6 @@ import {
   checkAccountsBatch,
   updateAccountRole,
   updateAccountsRoleBatch,
-  Account,
 } from '../services/api';
 
 interface AccountListParams {

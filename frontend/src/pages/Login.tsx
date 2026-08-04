@@ -5,7 +5,7 @@ import { UserOutlined, LockOutlined, SafetyCertificateOutlined, ReloadOutlined }
 import { login } from '../services/api';
 import { setCustomerToken } from '../portal/auth';
 import { setSalesToken } from '../sales/auth';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 const { Title, Text } = Typography;
 
@@ -40,7 +40,6 @@ const generateCaptcha = () => {
 const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [captcha, setCaptcha] = useState({ question: '', answer: '' });
-  const navigate = useNavigate();
   const [form] = Form.useForm();
 
   // 刷新验证码

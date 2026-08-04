@@ -133,9 +133,11 @@ export interface SendTask {
 
 export interface SystemConfig {
     key: string;
-    value: string;
+    value: string | null;
     description?: string;
     updated_at?: string;
+    is_sensitive: boolean;
+    is_configured: boolean;
 }
 
 export interface Lead {
@@ -156,6 +158,7 @@ export interface Lead {
     ai_enabled?: boolean;
     ai_draft?: string | null;
     claimed_at?: string | null;
+    interactions?: LeadInteraction[];
 }
 
 export interface LeadInteraction {
@@ -171,8 +174,9 @@ export interface Script {
     id: number;
     name: string;
     description?: string;
-    roles: any[];
-    lines: Line[];
+    topic: string;
+    roles_json: string;
+    lines_json?: string | null;
     created_at: string;
 }
 
@@ -186,7 +190,11 @@ export interface ScriptTask {
     id: number;
     script_id: number;
     status: string;
-    group_link: string;
+    target_group: string;
+    account_mapping_json: string;
+    current_step: number;
+    min_delay: number;
+    max_delay: number;
     created_at: string;
 }
 
@@ -194,6 +202,10 @@ export interface WarmupTask {
     id: number;
     status: string;
     account_count: number;
+    account_ids: number[];
+    success_count: number;
+    fail_count: number;
+    duration_minutes: number;
     created_at: string;
     completed_at?: string;
 }
@@ -1074,7 +1086,7 @@ export const getScripts = async (): Promise<Script[]> => {
     return response.data;
 };
 
-export const createScript = async (data: { name: string; description?: string; roles: any[]; topic: string; line_count?: number }): Promise<Script> => {
+export const createScript = async (data: { name: string; description?: string; roles_json: string; topic: string }): Promise<Script> => {
     const response = await api.post('/scripts', data);
     return response.data;
 };
@@ -1148,7 +1160,13 @@ export const getScriptTasks = async (): Promise<ScriptTask[]> => {
     return response.data;
 };
 
-export const createScriptTask = async (data: { script_id: number; account_ids: number[]; group_link: string }): Promise<ScriptTask> => {
+export const createScriptTask = async (data: {
+    script_id: number;
+    target_group: string;
+    account_mapping_json: string;
+    min_delay?: number;
+    max_delay?: number;
+}): Promise<ScriptTask> => {
     const response = await api.post('/scripts/tasks', data);
     return response.data;
 };
@@ -1629,5 +1647,4 @@ export const triggerFreeChat = async (params: {
 };
 
 export default api;
-
 

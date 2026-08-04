@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Table, Tag, Form, Select, Button, DatePicker } from 'antd';
+import { Card, Table, Tag, Form, Select, Button } from 'antd';
 import { getOperationLogs } from '../services/api';
 import { ReloadOutlined } from '@ant-design/icons';
 
-const { RangePicker } = DatePicker;
 const { Option } = Select;
 
 const LogsPage: React.FC = () => {

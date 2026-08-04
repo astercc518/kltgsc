@@ -24,6 +24,7 @@ import {
   ClockCircleOutlined,
   LoadingOutlined,
 } from '@ant-design/icons';
+import type { RcFile } from 'antd/es/upload/interface';
 import {
   createAccount,
   uploadAccountSession,
@@ -65,7 +66,7 @@ const AccountUploader: React.FC<AccountUploaderProps> = ({
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [tdataFileList, setTdataFileList] = useState<UploadFile[]>([]);
   const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set(['manual']));
-  const [autoRegLoading, setAutoRegLoading] = useState(false);
+  const [, setAutoRegLoading] = useState(false);
   // 上传时为新账号指定的使用等级（适用于所有 tab 内创建的账号）
   const [defaultUsageLevel, setDefaultUsageLevel] = useState<UsageLevel>(1);
 
@@ -75,7 +76,7 @@ const AccountUploader: React.FC<AccountUploaderProps> = ({
   const [tdataForm] = Form.useForm();
   const [autoRegForm] = Form.useForm();
 
-  const pollingInterval = useRef<NodeJS.Timeout | null>(null);
+  const pollingInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const importTasksRef = useRef(importTasks);
 
   useEffect(() => {
@@ -208,7 +209,7 @@ const AccountUploader: React.FC<AccountUploaderProps> = ({
         }
         const files = tdataFileList
           .map(f => f.originFileObj)
-          .filter((f): f is File => f instanceof File);
+          .filter((f): f is RcFile => f instanceof File);
         if (files.length === 0) {
           message.error('无法读取所选文件，请重新选择');
           return;

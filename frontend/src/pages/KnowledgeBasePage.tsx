@@ -339,7 +339,7 @@ const KnowledgeBasePage: React.FC = () => {
     }
   };
 
-  const handleTestRAG = async (kbId: number) => {
+  const handleTestRAG = async () => {
     const question = prompt('输入测试问题:');
     if (!question) return;
     
@@ -426,7 +426,7 @@ const KnowledgeBasePage: React.FC = () => {
           <Button
             type="link"
             icon={<RobotOutlined />}
-            onClick={() => handleTestRAG(record.id)}
+            onClick={() => handleTestRAG()}
           >
             测试RAG
           </Button>

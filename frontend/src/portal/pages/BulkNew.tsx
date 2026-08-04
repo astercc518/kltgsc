@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import {
   Card, Input, Button, Space, Typography, Alert, Row, Col, Statistic,
-  Upload, message, Form, InputNumber, Divider, Tag, Tooltip,
+  Upload, message, Form, InputNumber, Divider, Tag,
 } from 'antd';
-import { UploadOutlined, SendOutlined, EyeOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { UploadOutlined, EyeOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { bulkApi, walletApi } from '../api';
+import { bulkApi } from '../api';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -26,11 +26,6 @@ const BulkNewPage: React.FC = () => {
     const lines = csvText.split(/\r?\n/).filter(l => l.trim());
     setPreviewCount(lines.length);
   }, [csvText]);
-
-  const { data: wallet } = useQuery({
-    queryKey: ['portal', 'wallet'],
-    queryFn: walletApi.get,
-  });
 
   const previewMut = useMutation({
     mutationFn: (count: number) => bulkApi.previewCost(count),

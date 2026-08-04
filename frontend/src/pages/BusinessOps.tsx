@@ -478,7 +478,7 @@ const SalesPerformancePanel: React.FC = () => {
   const [creditOpen, setCreditOpen] = React.useState(false);
   const [creditForm] = Form.useForm();
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['ops', 'sales-performance'],
     queryFn: () => opsApi.salesPerformance(30),
   });
