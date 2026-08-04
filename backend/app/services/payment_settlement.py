@@ -56,6 +56,7 @@ def settle_wallet_invoice(
             select(Invoice)
             .where(Invoice.id == invoice_id)
             .with_for_update()
+            .execution_options(populate_existing=True)
         ).first()
         if not invoice:
             raise PaymentSettlementError(f"Invoice {invoice_id} not found")

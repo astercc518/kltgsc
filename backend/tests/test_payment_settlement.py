@@ -4,6 +4,7 @@ import json
 from datetime import datetime, timedelta
 
 import pytest
+from sqlalchemy import update
 from sqlmodel import select
 
 from app.models.customer import Customer
@@ -182,6 +183,23 @@ def test_paid_invoice_without_receipt_is_an_invariant_error(session, customer) -
     invoice.status = INV_PAID
     session.add(invoice)
     session.commit()
+
+    with pytest.raises(PaymentSettlementError, match="missing wallet transaction"):
+        _settle(session, invoice.id)
+
+
+def test_locked_invoice_refreshes_stale_identity_map_state(session, customer) -> None:
+    from app.services.payment_settlement import PaymentSettlementError
+
+    invoice = _invoice(session, customer, plan=WALLET_TOPUP_PLAN)
+    cached_invoice = session.get(Invoice, invoice.id)
+    session.execute(
+        update(Invoice)
+        .where(Invoice.id == invoice.id)
+        .values(status=INV_PAID)
+        .execution_options(synchronize_session=False)
+    )
+    assert cached_invoice.status == INV_PENDING
 
     with pytest.raises(PaymentSettlementError, match="missing wallet transaction"):
         _settle(session, invoice.id)
