@@ -30,9 +30,19 @@ def test_backend_ci_collects_tests_and_checks_release_inputs() -> None:
         "pytest --collect-only -q",
         "pytest -q",
         "alembic heads",
+        "alembic upgrade head",
         "scripts/check_tracked_secrets.sh",
     ):
         assert required in commands
+
+    postgres = jobs["backend"]["services"]["postgres"]
+    assert postgres["image"].startswith("pgvector/pgvector:pg16")
+    migration_step = next(
+        step
+        for step in jobs["backend"]["steps"]
+        if "alembic upgrade head" in step.get("run", "")
+    )
+    assert migration_step["env"]["DATABASE_URL"].startswith("postgresql://")
 
 
 def test_web_ci_uses_locked_installs_and_separate_gates() -> None:

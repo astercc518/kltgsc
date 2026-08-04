@@ -10,6 +10,20 @@ permissions:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: tgsc_ci
+          POSTGRES_PASSWORD: tgsc_ci_password
+          POSTGRES_DB: tgsc_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tgsc_ci -d tgsc_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
       ENVIRONMENT: test
       DATABASE_URL: sqlite://
@@ -37,6 +51,11 @@ jobs:
       - name: Require one Alembic head
         working-directory: backend
         run: test "$(alembic heads | grep -c '(head)$')" -eq 1
+      - name: Upgrade a clean PostgreSQL database
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://tgsc_ci:tgsc_ci_password@localhost:5432/tgsc_ci
+        run: alembic upgrade head
       - name: Scan tracked files for credentials
         run: scripts/check_tracked_secrets.sh
 
