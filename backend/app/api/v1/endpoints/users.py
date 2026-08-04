@@ -90,7 +90,7 @@ def read_user_me(
 def read_users(
     skip: int = 0,
     limit: int = 100,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_admin),
     session: Session = Depends(get_session),
 ):
     """

@@ -37,6 +37,11 @@ def _decode_token(token: str) -> TokenPayload:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid token subject",
         )
+    if token_data.type not in {None, "access"}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not a platform access token",
+        )
     return token_data
 
 

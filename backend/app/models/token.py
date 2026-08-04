@@ -11,3 +11,4 @@ class TokenPayload(BaseModel):
     sub: Optional[str] = None
     jti: Optional[str] = None
     iat: Optional[int] = None
+    type: Optional[str] = None

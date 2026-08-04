@@ -14,7 +14,7 @@ from app.api.v1.endpoints import (
     sales_leads, sales_monitors, sales_accounts,
     admin_safety,
 )
-from app.api.deps import get_current_user
+from app.api.deps import get_current_admin, get_current_user
 from app.core.config import settings
 
 router = APIRouter()
@@ -26,10 +26,17 @@ def read_root():
 
 
 # 根据安全模式配置认证依赖
-def get_auth_dependencies():
-    """根据配置返回认证依赖"""
+def get_platform_dependencies():
+    """Return platform authentication dependencies for self-service routes."""
     if settings.SECURITY_ENABLED:
         return [Depends(get_current_user)]
+    return []
+
+
+def get_admin_dependencies():
+    """Return admin authorization dependencies for management routes."""
+    if settings.SECURITY_ENABLED:
+        return [Depends(get_current_admin)]
     return []
 
 
@@ -39,79 +46,80 @@ router.include_router(auth.admin_router, tags=["auth-admin"])
 router.include_router(auth.unified_router, prefix="/auth", tags=["auth-unified"])
 
 # 受保护路由 (需要认证)
-auth_deps = get_auth_dependencies()
+platform_deps = get_platform_dependencies()
+admin_deps = get_admin_dependencies()
 
 router.include_router(
     users.router, 
     prefix="/users", 
     tags=["users"],
-    dependencies=auth_deps
+    dependencies=platform_deps
 )
 router.include_router(
     accounts.router, 
     prefix="/accounts", 
     tags=["accounts"],
-    dependencies=auth_deps
+    dependencies=admin_deps
 )
 router.include_router(
     proxies.router, 
     prefix="/proxies", 
     tags=["proxies"],
-    dependencies=auth_deps
+    dependencies=admin_deps
 )
 router.include_router(
     registration.router, 
     prefix="/registration", 
     tags=["registration"],
-    dependencies=auth_deps
+    dependencies=admin_deps
 )
 router.include_router(
     system.router, 
     prefix="/system", 
     tags=["system"],
-    dependencies=auth_deps
+    dependencies=admin_deps
 )
 router.include_router(
     tasks.router, 
     prefix="/tasks", 
     tags=["tasks"],
-    dependencies=auth_deps
+    dependencies=admin_deps
 )
 router.include_router(
     scraping.router, 
     prefix="/scraping", 
     tags=["scraping"],
-    dependencies=auth_deps
+    dependencies=admin_deps
 )
 router.include_router(
     marketing.router, 
     prefix="/marketing", 
     tags=["marketing"],
-    dependencies=auth_deps
+    dependencies=admin_deps
 )
 router.include_router(
     warmup.router, 
     prefix="/warmup", 
     tags=["warmup"],
-    dependencies=auth_deps
+    dependencies=admin_deps
 )
 router.include_router(
     ai.router,
     prefix="/ai",
     tags=["ai"],
-    dependencies=auth_deps
+    dependencies=admin_deps
 )
 router.include_router(
     ai_usage.router,
     prefix="/ai/usage",
     tags=["ai-usage"],
-    dependencies=auth_deps,
+    dependencies=admin_deps,
 )
 router.include_router(
     script.router, 
     prefix="/scripts", 
     tags=["scripts"],
-    dependencies=auth_deps
+    dependencies=admin_deps
 )
 router.include_router(
     ws.router, 
@@ -121,25 +129,25 @@ router.include_router(
     crm.router, 
     prefix="/crm", 
     tags=["crm"],
-    dependencies=auth_deps
+    dependencies=admin_deps
 )
 router.include_router(
     logs.router, 
     prefix="/logs", 
     tags=["logs"],
-    dependencies=auth_deps
+    dependencies=admin_deps
 )
 router.include_router(
     monitor.router, 
     prefix="/monitors", 
     tags=["monitors"],
-    dependencies=auth_deps
+    dependencies=admin_deps
 )
 router.include_router(
     invite.router, 
     prefix="/invites", 
     tags=["invites"],
-    dependencies=auth_deps
+    dependencies=admin_deps
 )
 
 # 战略升级模块
@@ -147,46 +155,46 @@ router.include_router(
     campaigns.router, 
     prefix="/campaigns", 
     tags=["campaigns"],
-    dependencies=auth_deps
+    dependencies=admin_deps
 )
 router.include_router(
     source_groups.router, 
     prefix="/source-groups", 
     tags=["source-groups"],
-    dependencies=auth_deps
+    dependencies=admin_deps
 )
 router.include_router(
     funnel_groups.router, 
     prefix="/funnel-groups", 
     tags=["funnel-groups"],
-    dependencies=auth_deps
+    dependencies=admin_deps
 )
 router.include_router(
     personas.router, 
     prefix="/personas", 
     tags=["personas"],
-    dependencies=auth_deps
+    dependencies=admin_deps
 )
 router.include_router(
     knowledge_bases.router, 
     prefix="/knowledge-bases", 
     tags=["knowledge-bases"],
-    dependencies=auth_deps
+    dependencies=admin_deps
 )
 router.include_router(
     workflow.router,
     prefix="/workflow",
     tags=["workflow"],
-    dependencies=auth_deps
+    dependencies=admin_deps
 )
 router.include_router(
     monitoring.router,
     prefix="/monitoring",
     tags=["monitoring"],
-    dependencies=auth_deps
+    dependencies=admin_deps
 )
 
-# ── TG1.AI 客户租户接口（独立鉴权，不走 admin auth_deps）──────────────────
+# ── TG1.AI 客户租户接口（独立鉴权，不走平台管理员依赖）───────────────────
 # auth.customer_router: 注册 / 登录(legacy) / me（公开，自身处理鉴权）
 # customer_resources: 客户视角的资源列表（依赖 get_current_customer）
 router.include_router(
@@ -292,14 +300,14 @@ router.include_router(
     admin_sales_wallet.router,
     prefix="/admin/sales-wallet",
     tags=["admin-sales-wallet"],
-    dependencies=auth_deps,
+    dependencies=admin_deps,
 )
 # Epic 6.0 — admin business-ops dashboard
 router.include_router(
     admin_dashboard.router,
     prefix="/admin/dashboard",
     tags=["admin-dashboard"],
-    dependencies=auth_deps,
+    dependencies=admin_deps,
 )
 
 # ── Admin-facing billing (Epic 2 MVP, requires admin auth) ───────────────
@@ -307,21 +315,21 @@ router.include_router(
     admin_billing.router,
     prefix="/admin/billing",
     tags=["admin-billing"],
-    dependencies=auth_deps,  # also require admin via get_current_admin
+    dependencies=admin_deps,  # also require admin via get_current_admin
 )
 # Feature Pack W2 — admin feature management
 router.include_router(
     admin_features.router,
     prefix="/admin",
     tags=["admin-features"],
-    dependencies=auth_deps,
+    dependencies=admin_deps,
 )
 # Task 4.2 — admin LLM safety monitoring (stats / recent-blocks / by-source)
 router.include_router(
     admin_safety.router,
     prefix="/admin/safety",
     tags=["admin-safety"],
-    dependencies=auth_deps,
+    dependencies=admin_deps,
 )
 
 # ── Payment gateway webhooks (Epic 2.5, public, signature-verified) ──────

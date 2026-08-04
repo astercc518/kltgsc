@@ -159,9 +159,12 @@ git commit -m "fix: enforce production configuration policy"
 **Files:**
 
 - Modify: `backend/app/api/v1/__init__.py`
+- Modify: `backend/app/api/deps.py`
 - Modify: `backend/app/api/v1/endpoints/users.py`
 - Modify: `backend/app/api/v1/endpoints/system.py`
 - Modify: `backend/app/models/system_config.py`
+- Modify: `backend/app/models/token.py`
+- Modify: `backend/conftest.py`
 - Create: `backend/tests/test_admin_authorization_boundary.py`
 - Create: `backend/tests/test_system_config_redaction.py`
 
@@ -200,6 +203,9 @@ Expected: FAIL because the current legacy dependency accepts every authenticated
 **Step 4: Implement router boundaries**
 
 - Replace the shared `auth_deps` with `admin_deps = [Depends(get_current_admin)]` for the management routers.
+- Extend `TokenPayload` with the optional `type` claim and make the platform
+  dependency accept only a legacy missing type or `access`; reject `customer`
+  and `customer_sales` before resolving a `User`.
 - Keep customer/sales/admin-specific routers on their existing dependencies.
 - Do not put a router-wide admin dependency on `users.router`; instead change `read_users` to `Depends(get_current_admin)` and keep self-service endpoints authenticated.
 - Ensure `/users` create/update/delete/reset routes remain admin-only.
@@ -217,7 +223,7 @@ Expected: PASS.
 **Step 7: Commit**
 
 ```bash
-git add backend/app/api/v1/__init__.py backend/app/api/v1/endpoints/users.py backend/app/api/v1/endpoints/system.py backend/app/models/system_config.py backend/tests/test_admin_authorization_boundary.py backend/tests/test_system_config_redaction.py
+git add backend/app/api/v1/__init__.py backend/app/api/deps.py backend/app/api/v1/endpoints/users.py backend/app/api/v1/endpoints/system.py backend/app/models/system_config.py backend/app/models/token.py backend/conftest.py backend/tests/test_admin_authorization_boundary.py backend/tests/test_system_config_redaction.py
 git commit -m "fix: restrict management API to admins"
 ```
 

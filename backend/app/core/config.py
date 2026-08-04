@@ -91,6 +91,8 @@ class Settings(BaseSettings):
             raise ValueError(
                 "SESSION_ENCRYPTION_KEY must be at least 32 characters in production"
             )
+        if not self.SECURITY_ENABLED:
+            raise ValueError("SECURITY_ENABLED must be true in production")
 
         normalized_password = self.ADMIN_PASSWORD.strip().lower()
         if (

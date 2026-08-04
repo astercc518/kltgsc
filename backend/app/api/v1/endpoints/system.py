@@ -4,7 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from sqlmodel import Session, select, func
 from datetime import datetime, timedelta
 from app.core.db import get_session
-from app.models.system_config import SystemConfig
+from app.models.system_config import (
+    SystemConfig,
+    SystemConfigRead,
+    redact_system_config,
+)
 from app.models.account import Account
 from app.models.send_task import SendTask, SendRecord
 from app.models.lead import Lead
@@ -14,18 +18,21 @@ router = APIRouter()
 
 # --- System Config ---
 
-@router.get("/config", response_model=List[SystemConfig])
+@router.get("/config", response_model=List[SystemConfigRead])
 def get_system_config(session: Session = Depends(get_session)):
-    return session.exec(select(SystemConfig)).all()
+    return [
+        redact_system_config(config)
+        for config in session.exec(select(SystemConfig)).all()
+    ]
 
-@router.get("/config/{key}", response_model=SystemConfig)
+@router.get("/config/{key}", response_model=SystemConfigRead)
 def get_config_by_key(key: str, session: Session = Depends(get_session)):
     config = session.get(SystemConfig, key)
     if not config:
         raise HTTPException(status_code=404, detail="Config not found")
-    return config
+    return redact_system_config(config)
 
-@router.post("/config", response_model=SystemConfig)
+@router.post("/config", response_model=SystemConfigRead)
 def set_system_config(
     key: str = Body(...),
     value: str = Body(...),
@@ -44,7 +51,7 @@ def set_system_config(
     
     session.commit()
     session.refresh(config)
-    return config
+    return redact_system_config(config)
 
 # --- Statistics ---
 

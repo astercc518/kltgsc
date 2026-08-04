@@ -19,7 +19,9 @@ os.environ.setdefault("ADMIN_USERNAME", "admin")
 os.environ.setdefault("ADMIN_PASSWORD", "testpassword1234")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault("DATABASE_URL", "sqlite://")
-os.environ.setdefault("SECURITY_ENABLED", "false")
+os.environ.setdefault("ENVIRONMENT", "test")
+os.environ.setdefault("LLM_SAFETY_WARMUP", "false")
+os.environ.setdefault("SECURITY_ENABLED", "true")
 
 # ---------------------------------------------------------------------------
 # Stub out celery + kombu so the test environment doesn't need them installed.
@@ -191,14 +193,27 @@ def client(session):
     to use the in-memory test database.
     """
     from app.main import app
+    from app.api.deps import get_current_admin, get_current_user
     from app.core.db import get_session
+    from app.models.user import User, USER_ROLE_ADMIN
 
     def _override_get_session():
         yield session
 
+    test_admin = User(
+        id=1,
+        username="test-admin",
+        hashed_password="unused-in-test",
+        role=USER_ROLE_ADMIN,
+        is_active=True,
+        is_superuser=True,
+    )
+
     app.dependency_overrides[get_session] = _override_get_session
-    with TestClient(app) as c:
-        yield c
+    app.dependency_overrides[get_current_user] = lambda: test_admin
+    app.dependency_overrides[get_current_admin] = lambda: test_admin
+    with TestClient(app, raise_server_exceptions=False) as test_client:
+        yield test_client
     app.dependency_overrides.clear()
 
 

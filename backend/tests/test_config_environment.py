@@ -38,6 +38,7 @@ def test_environment_rejects_unknown_modes(environment: str) -> None:
         ("ADMIN_PASSWORD", ""),
         ("ADMIN_PASSWORD", "admin123"),
         ("ADMIN_PASSWORD", "Short1"),
+        ("SECURITY_ENABLED", False),
         ("DATABASE_URL", "sqlite:///./tgsc.db"),
         ("REDIS_URL", ""),
         ("REDIS_URL", "redis://redis:6379/0"),
@@ -77,8 +78,13 @@ def test_development_generated_values_are_never_printed(capsys: pytest.CaptureFi
     assert all(value not in combined_output for value in generated_values)
 
 
-def test_example_environment_cannot_be_used_as_production_credentials() -> None:
+def test_example_environment_cannot_be_used_as_production_credentials(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     example = Path(__file__).parents[1] / ".env.example"
+    for field in VALID_PRODUCTION:
+        monkeypatch.delenv(field, raising=False)
+    monkeypatch.delenv("SECURITY_ENABLED", raising=False)
 
     with pytest.raises(ValidationError):
         Settings(_env_file=example)
