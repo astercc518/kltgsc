@@ -12,9 +12,9 @@
 
 | 项目 | 旧服务器 | 新服务器 |
 | :--- | :--- | :--- |
-| **IP 地址** | (开发环境) | 104.233.205.1 |
-| **SSH 端口** | 22 | 12649 |
-| **用户名** | root | root |
+| **IP 地址** | (开发环境) | `<APP_HOST>` |
+| **SSH 端口** | 22 | `<SSH_PORT>` |
+| **用户名** | `<LOCAL_USER>` | `<SSH_USER>` |
 | **操作系统** | Ubuntu 22.04 | Ubuntu 22.04 |
 | **CPU** | - | Intel Xeon Gold 5122 x 2 (8核16线程) |
 | **内存** | - | 64GB DDR4 ECC |
@@ -94,26 +94,26 @@
 ### 3.2 数据库连接
 
 ```
-postgresql://tgsc_user:TgSc_Pr0d_2026!@db:5432/tgsc_prod
+postgresql://<DB_USER>:<DB_PASSWORD>@<DB_HOST>:5432/<DB_NAME>
 ```
 
 **连接参数**:
-- 主机: `db` (Docker 内部) 或 `localhost` (主机)
+- 主机: `<DB_HOST>`
 - 端口: `5432`
-- 用户: `tgsc_user`
-- 密码: `TgSc_Pr0d_2026!`
-- 数据库: `tgsc_prod`
+- 用户: `<DB_USER>`
+- 密码: `<DB_PASSWORD>`
+- 数据库: `<DB_NAME>`
 
 ### 3.3 Redis 连接
 
 ```
-redis://:7z0RvmWuSTPJvJcS4-A4BA@redis:6379/0
+redis://:<REDIS_PASSWORD>@<REDIS_HOST>:6379/0
 ```
 
 **连接参数**:
-- 主机: `redis` (Docker 内部)
+- 主机: `<REDIS_HOST>`
 - 端口: `6379`
-- 密码: `7z0RvmWuSTPJvJcS4-A4BA`
+- 密码: `<REDIS_PASSWORD>`
 
 ---
 
@@ -123,20 +123,20 @@ redis://:7z0RvmWuSTPJvJcS4-A4BA@redis:6379/0
 
 | 协议 | 地址 | 说明 |
 | :--- | :--- | :--- |
-| HTTP | http://104.233.205.1 | 标准 HTTP 访问 |
-| HTTPS | https://104.233.205.1 | HTTPS (自签名证书) |
+| HTTP | `http://<APP_HOST>` | 标准 HTTP 访问 |
+| HTTPS | `https://<APP_HOST>` | HTTPS 访问 |
 
 ### 4.2 管理员账户
 
 | 项目 | 值 |
 | :--- | :--- |
-| 用户名 | `admin` |
-| 密码 | `Admin@Tgsc2026` |
+| 用户名 | `<ADMIN_USERNAME>` |
+| 密码 | `<ADMIN_PASSWORD>` |
 
 ### 4.3 SSH 访问
 
 ```bash
-ssh -p 12649 root@104.233.205.1
+ssh -p <SSH_PORT> <SSH_USER>@<APP_HOST>
 ```
 
 ---
@@ -186,13 +186,13 @@ docker compose -f docker-compose.prod.yml logs --tail 100 backend
 
 ```bash
 # 进入 PostgreSQL 命令行
-docker compose -f docker-compose.prod.yml exec db psql -U tgsc_user -d tgsc_prod
+docker compose -f docker-compose.prod.yml exec db psql -U <DB_USER> -d <DB_NAME>
 
 # 备份数据库
-docker compose -f docker-compose.prod.yml exec db pg_dump -U tgsc_user tgsc_prod > backup_$(date +%Y%m%d).sql
+docker compose -f docker-compose.prod.yml exec db pg_dump -U <DB_USER> <DB_NAME> > backup_$(date +%Y%m%d).sql
 
 # 恢复数据库
-cat backup.sql | docker compose -f docker-compose.prod.yml exec -T db psql -U tgsc_user -d tgsc_prod
+cat backup.sql | docker compose -f docker-compose.prod.yml exec -T db psql -U <DB_USER> -d <DB_NAME>
 ```
 
 #### 代码更新
@@ -216,10 +216,10 @@ curl http://localhost/api/v1/health
 # {"status":"ok","message":"Backend is running"}
 
 # 数据库连接测试
-docker compose -f docker-compose.prod.yml exec db pg_isready -U tgsc_user -d tgsc_prod
+docker compose -f docker-compose.prod.yml exec db pg_isready -U <DB_USER> -d <DB_NAME>
 
 # Redis 连接测试
-docker compose -f docker-compose.prod.yml exec redis redis-cli -a 7z0RvmWuSTPJvJcS4-A4BA ping
+docker compose -f docker-compose.prod.yml exec redis redis-cli -a '<REDIS_PASSWORD>' ping
 ```
 
 ### 5.3 性能监控
@@ -249,7 +249,7 @@ htop
    - 配置 SSH 自动化访问
 
 2. ✅ **代码部署**
-   - 从 GitHub 克隆代码: `https://github.com/astercc518/kltgsc.git`
+   - 从代码托管平台克隆: `<REPOSITORY_URL>`
    - 路径: `/var/tgsc`
 
 3. ✅ **配置文件创建**
