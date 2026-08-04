@@ -5,7 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session
-from app.core.config import settings
+from app.core.config import Environment, settings
 from app.api.v1 import router as api_router
 from app.core.db import init_db as init_tables, engine
 from app.db.init_db import init_db as seed_db
@@ -19,23 +19,35 @@ init_logging()
 logger = logging.getLogger(__name__)
 
 
+def should_create_tables() -> bool:
+    """Local development may bootstrap tables; production uses Alembic only."""
+    return settings.ENVIRONMENT != Environment.PRODUCTION
+
+
+def should_warmup_moderator() -> bool:
+    """Allow tests and constrained processes to skip loading the ONNX model."""
+    return settings.LLM_SAFETY_WARMUP
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Create DB tables
     logger.info("Starting TGSC Backend...")
-    init_tables()
+    if should_create_tables():
+        init_tables()
     # Seed initial admin user
     with Session(engine) as session:
         seed_db(session)
     # Warm up L1 moderation (ONNX model load) — otherwise first request blocks
     # for several seconds. Fail-open: if model unavailable, _safety_check
     # falls back to L0-only and logs a warning per request.
-    try:
-        from app.services.safety.moderation import Moderator
-        Moderator.warmup()
-        logger.info("L1 moderation model warmed up")
-    except Exception as e:
-        logger.warning(f"L1 moderation warmup failed (fail-open, L0-only): {e}")
+    if should_warmup_moderator():
+        try:
+            from app.services.safety.moderation import Moderator
+            Moderator.warmup()
+            logger.info("L1 moderation model warmed up")
+        except Exception as e:
+            logger.warning(f"L1 moderation warmup failed (fail-open, L0-only): {e}")
     logger.info(f"TGSC Backend started. Security enabled: {settings.SECURITY_ENABLED}")
     yield
     # Shutdown events

@@ -1,28 +1,37 @@
-import os
 import secrets
+from enum import Enum
 from typing import List, Union
+from urllib.parse import urlparse
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field, field_validator
+from pydantic import Field, model_validator
 
 
-def generate_secret_key() -> str:
-    """生成安全的 SECRET_KEY，优先从环境变量读取"""
-    env_key = os.environ.get("SECRET_KEY")
-    if env_key and len(env_key) >= 32:
-        return env_key
-    # 生成新的密钥并警告
-    new_key = secrets.token_hex(32)
-    print(f"⚠️ WARNING: SECRET_KEY not set in environment! Using generated key.")
-    print(f"⚠️ For production, set SECRET_KEY={new_key} in .env file")
-    return new_key
+class Environment(str, Enum):
+    DEVELOPMENT = "development"
+    TEST = "test"
+    PRODUCTION = "production"
+
+
+_KNOWN_DEFAULT_PASSWORDS = {
+    "123456",
+    "admin123",
+    "changeme",
+    "change_me",
+    "password",
+    "password123!",
+}
 
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Telegram SC Platform"
     API_V1_STR: str = "/api/v1"
+    ENVIRONMENT: Environment = Environment.DEVELOPMENT
+    COMPOSE_DEPLOYMENT: bool = False
+    LLM_SAFETY_WARMUP: bool = True
     
-    # 安全配置 - SECRET_KEY 必须从环境变量设置
-    SECRET_KEY: str = Field(default_factory=generate_secret_key)
+    # 安全配置 - production 必须显式设置
+    SECRET_KEY: str = ""
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
     
@@ -64,32 +73,45 @@ class Settings(BaseSettings):
     # NowPayments IPN secret (Epic 2.5)；为空 = webhook 关闭，仍走 admin 手动激活
     NOWPAYMENTS_IPN_SECRET: str = ""
     
-    @field_validator("ADMIN_PASSWORD", mode="before")
-    @classmethod
-    def validate_admin_password(cls, v: str) -> str:
-        """验证管理员密码安全性"""
-        if not v or v in ["", "admin123", "password", "123456"]:
-            # 生成安全的随机密码
-            new_password = secrets.token_urlsafe(16)
-            print(f"⚠️ WARNING: ADMIN_PASSWORD not set or too weak!")
-            print(f"⚠️ Generated secure password: {new_password}")
-            print(f"⚠️ Set ADMIN_PASSWORD={new_password} in .env file")
-            return new_password
-        if len(v) < 12:
-            print(f"⚠️ WARNING: ADMIN_PASSWORD should be at least 12 characters!")
-        return v
-    
-    @field_validator("SESSION_ENCRYPTION_KEY", mode="before")
-    @classmethod
-    def validate_session_key(cls, v: str) -> str:
-        """确保 Session 加密密钥存在"""
-        if not v or len(v) < 32:
-            # 生成 32 字节的加密密钥 (256-bit AES)
-            new_key = secrets.token_hex(16)  # 32 hex chars = 16 bytes = 128-bit
-            print(f"⚠️ WARNING: SESSION_ENCRYPTION_KEY not set!")
-            print(f"⚠️ Set SESSION_ENCRYPTION_KEY={new_key} in .env file")
-            return new_key
-        return v
+    @model_validator(mode="after")
+    def validate_runtime_security(self) -> "Settings":
+        """Generate silent local credentials or fail closed in production."""
+        if self.ENVIRONMENT != Environment.PRODUCTION:
+            if len(self.SECRET_KEY) < 32:
+                self.SECRET_KEY = secrets.token_hex(32)
+            if len(self.SESSION_ENCRYPTION_KEY) < 32:
+                self.SESSION_ENCRYPTION_KEY = secrets.token_hex(32)
+            if len(self.ADMIN_PASSWORD) < 12:
+                self.ADMIN_PASSWORD = secrets.token_urlsafe(18)
+            return self
+
+        if len(self.SECRET_KEY) < 32:
+            raise ValueError("SECRET_KEY must be at least 32 characters in production")
+        if len(self.SESSION_ENCRYPTION_KEY) < 32:
+            raise ValueError(
+                "SESSION_ENCRYPTION_KEY must be at least 32 characters in production"
+            )
+
+        normalized_password = self.ADMIN_PASSWORD.strip().lower()
+        if (
+            len(self.ADMIN_PASSWORD) < 12
+            or normalized_password in _KNOWN_DEFAULT_PASSWORDS
+            or "change_me" in normalized_password
+            or "replace" in normalized_password
+            or normalized_password.startswith("<")
+        ):
+            raise ValueError("ADMIN_PASSWORD is missing, weak, or a known default")
+
+        database_scheme = urlparse(self.DATABASE_URL).scheme.lower()
+        if not database_scheme.startswith("postgresql"):
+            raise ValueError("DATABASE_URL must use PostgreSQL in production")
+
+        redis_url = urlparse(self.REDIS_URL)
+        if redis_url.scheme.lower() not in {"redis", "rediss"} or not redis_url.hostname:
+            raise ValueError("REDIS_URL must be a valid Redis URL in production")
+        if self.COMPOSE_DEPLOYMENT and not redis_url.password:
+            raise ValueError("REDIS_URL must include authentication for Compose production")
+        return self
 
     # ── RAG Reranker (cross-encoder post-step for kb_retrieval) ──────
     # Default OFF; flip to true after staging validation. See
