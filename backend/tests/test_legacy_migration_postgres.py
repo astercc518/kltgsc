@@ -79,6 +79,45 @@ def test_unversioned_complete_legacy_schema_is_adopted(
     engine.dispose()
 
 
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "ALTER TABLE ai_config DROP COLUMN api_key",
+        "ALTER TABLE ai_config ALTER COLUMN name TYPE TEXT",
+        "ALTER TABLE account DROP CONSTRAINT account_proxy_id_fkey",
+        "ALTER TABLE ai_config ADD COLUMN future_flag BOOLEAN",
+        "CREATE TABLE unexpected_future_table (id INTEGER PRIMARY KEY)",
+    ],
+    ids=[
+        "missing-unchecked-column",
+        "wrong-column-type",
+        "missing-foreign-key",
+        "unexpected-column",
+        "unexpected-table",
+    ],
+)
+def test_modified_unversioned_legacy_schema_is_rejected(
+    migration_database_url: URL,
+    monkeypatch: pytest.MonkeyPatch,
+    mutation: str,
+) -> None:
+    monkeypatch.setenv(
+        "DATABASE_URL",
+        migration_database_url.render_as_string(hide_password=False),
+    )
+    config = _alembic_config(migration_database_url)
+    command.upgrade(config, "000000000001")
+
+    engine = create_engine(migration_database_url)
+    with engine.begin() as connection:
+        connection.exec_driver_sql("DROP TABLE alembic_version")
+        connection.exec_driver_sql(mutation)
+    engine.dispose()
+
+    with pytest.raises(RuntimeError, match="partial or unknown unversioned schema"):
+        command.upgrade(config, "000000000001")
+
+
 def test_partial_unversioned_schema_is_rejected(
     migration_database_url: URL,
     monkeypatch: pytest.MonkeyPatch,

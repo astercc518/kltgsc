@@ -3,6 +3,8 @@
 Revision ID: 000000000001
 Revises:
 """
+import json
+from pathlib import Path
 from typing import Sequence, Union
 
 from alembic import op
@@ -15,94 +17,124 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-_LEGACY_TABLES = {
-    "account",
-    "accountsendstats",
-    "ai_config",
-    "ai_knowledge_base",
-    "ai_persona",
-    "campaign",
-    "campaign_knowledge_link",
-    "chathistory",
-    "funnel_group",
-    "funnelgroup",
-    "invitelog",
-    "invitetask",
-    "keywordhit",
-    "keywordmonitor",
-    "lead",
-    "leadinteraction",
-    "operationlog",
-    "proxy",
-    "scrapingtask",
-    "script",
-    "scripttask",
-    "sendrecord",
-    "sendtask",
-    "source_group",
-    "sourcegroup",
-    "systemconfig",
-    "targetuser",
-    "user",
-    "warmuptask",
-    "warmuptemplate",
-}
+_LEGACY_MANIFEST_PATH = Path(__file__).resolve().parents[1] / "legacy_schema_manifest.json"
 
-_LEGACY_REQUIRED_COLUMNS = {
-    "account": {
-        "auto_reply", "combat_role", "cooldown_until", "created_at",
-        "daily_action_count", "health_score", "last_active", "proxy_id", "status",
-    },
-    "accountsendstats": {"account_id", "stat_date"},
-    "ai_knowledge_base": {"name"},
-    "ai_persona": {
-        "avg_reply_rate", "created_at", "description", "forbidden_topics",
-        "language", "name", "required_keywords", "system_prompt", "tone",
-        "usage_count",
-    },
-    "campaign": {
-        "allowed_roles", "created_at", "daily_account_limit", "daily_budget",
-        "description", "name", "status", "total_conversions",
-        "total_messages_sent", "total_replies_received", "updated_at",
-    },
-    "funnel_group": {"campaign_id", "type"},
-    "invitetask": {
-        "concurrent_accounts", "exclude_failed_recently", "exclude_invited",
-        "failed_cooldown_hours", "filter_funnel_stages", "filter_tags",
-        "flood_wait_count", "is_recurring", "max_invites_per_task",
-        "pending_count", "privacy_restricted_count", "recurring_batch_size",
-        "recurring_interval_hours", "stop_on_flood", "total_count",
-    },
-    "proxy": {
-        "category", "country", "created_at", "expire_time", "last_checked",
-        "provider_type", "status",
-    },
-    "sendrecord": {"account_id", "sent_at", "status", "target_user_id", "task_id"},
-    "sendtask": {"created_at", "status"},
-    "source_group": {"status", "type"},
-    "targetuser": {
-        "ai_score", "ai_summary", "ai_tags", "created_at", "engagement_score",
-        "funnel_stage", "invite_attempt_count", "invite_status", "last_hit_at",
-        "marketing_stage", "source_group", "source_group_id", "status",
-        "telegram_id", "username",
-    },
-    "user": {"totp_enabled"},
-}
 
-_LEGACY_REQUIRED_INDEXES = {
-    "account": {"idx_account_combat_role", "idx_account_health_score"},
-    "accountsendstats": {
-        "idx_accountsendstats_account_id", "idx_accountsendstats_stat_date",
-    },
-    "ai_knowledge_base": {"idx_kb_name"},
-    "campaign": {"idx_campaign_status"},
-    "funnel_group": {"idx_funnel_group_campaign", "idx_funnel_group_type"},
-    "source_group": {"idx_source_group_status", "idx_source_group_type"},
-    "targetuser": {
-        "idx_targetuser_ai_score", "idx_targetuser_funnel_stage",
-        "ix_targetuser_telegram_id",
-    },
-}
+def _normalize_sql(value: object) -> str | None:
+    if value is None:
+        return None
+    return " ".join(str(value).split())
+
+
+def _normalize_options(options: dict | None) -> dict:
+    return {
+        str(key): options[key]
+        for key in sorted(options or {})
+        if options[key] not in (None, [], {})
+    }
+
+
+def _legacy_catalog_manifest(inspector: sa.Inspector) -> dict:
+    """Build a stable, complete structural signature for the public schema."""
+    dialect = inspector.bind.dialect
+    table_names = sorted(
+        set(inspector.get_table_names()) - {"alembic_version"}
+    )
+    tables: dict[str, dict] = {}
+
+    for table in table_names:
+        columns = sorted(
+            (
+                {
+                    "name": column["name"],
+                    "type": column["type"].compile(dialect=dialect).lower(),
+                    "nullable": bool(column["nullable"]),
+                    "default": _normalize_sql(column.get("default")),
+                    "identity": _normalize_options(column.get("identity")),
+                    "computed": _normalize_options(column.get("computed")),
+                }
+                for column in inspector.get_columns(table)
+            ),
+            key=lambda column: column["name"],
+        )
+        primary_key = inspector.get_pk_constraint(table)
+        foreign_keys = sorted(
+            (
+                {
+                    "name": foreign_key.get("name"),
+                    "columns": foreign_key.get("constrained_columns") or [],
+                    "referred_schema": foreign_key.get("referred_schema"),
+                    "referred_table": foreign_key.get("referred_table"),
+                    "referred_columns": foreign_key.get("referred_columns") or [],
+                    "options": _normalize_options(foreign_key.get("options")),
+                }
+                for foreign_key in inspector.get_foreign_keys(table)
+            ),
+            key=lambda foreign_key: (
+                foreign_key["name"] or "",
+                foreign_key["columns"],
+            ),
+        )
+        unique_constraints = sorted(
+            (
+                {
+                    "name": constraint.get("name"),
+                    "columns": constraint.get("column_names") or [],
+                }
+                for constraint in inspector.get_unique_constraints(table)
+            ),
+            key=lambda constraint: (
+                constraint["name"] or "",
+                constraint["columns"],
+            ),
+        )
+        check_constraints = sorted(
+            (
+                {
+                    "name": constraint.get("name"),
+                    "sqltext": _normalize_sql(constraint.get("sqltext")),
+                }
+                for constraint in inspector.get_check_constraints(table)
+            ),
+            key=lambda constraint: (
+                constraint["name"] or "",
+                constraint["sqltext"] or "",
+            ),
+        )
+        indexes = sorted(
+            (
+                {
+                    "name": index.get("name"),
+                    "columns": index.get("column_names") or [],
+                    "expressions": [
+                        _normalize_sql(expression)
+                        for expression in index.get("expressions") or []
+                    ],
+                    "unique": bool(index.get("unique")),
+                    "include_columns": index.get("include_columns") or [],
+                    "duplicates_constraint": index.get("duplicates_constraint"),
+                }
+                for index in inspector.get_indexes(table)
+            ),
+            key=lambda index: index["name"] or "",
+        )
+        tables[table] = {
+            "columns": columns,
+            "primary_key": {
+                "name": primary_key.get("name"),
+                "columns": primary_key.get("constrained_columns") or [],
+            },
+            "foreign_keys": foreign_keys,
+            "unique_constraints": unique_constraints,
+            "check_constraints": check_constraints,
+            "indexes": indexes,
+        }
+
+    return {
+        "tables": tables,
+        "views": sorted(inspector.get_view_names()),
+        "sequences": sorted(inspector.get_sequence_names()),
+    }
 
 
 def _adopt_complete_unversioned_legacy_schema() -> bool:
@@ -112,25 +144,29 @@ def _adopt_complete_unversioned_legacy_schema() -> bool:
     if not existing_tables:
         return False
 
-    missing_tables = _LEGACY_TABLES - existing_tables
-    unexpected_tables = existing_tables - _LEGACY_TABLES
-    missing_columns = {
-        table: sorted(required - {column["name"] for column in inspector.get_columns(table)})
-        for table, required in _LEGACY_REQUIRED_COLUMNS.items()
-        if required - {column["name"] for column in inspector.get_columns(table)}
-    } if not missing_tables else {}
-    missing_indexes = {
-        table: sorted(required - {index["name"] for index in inspector.get_indexes(table)})
-        for table, required in _LEGACY_REQUIRED_INDEXES.items()
-        if required - {index["name"] for index in inspector.get_indexes(table)}
-    } if not missing_tables else {}
-
-    if missing_tables or unexpected_tables or missing_columns or missing_indexes:
+    if inspector.bind.dialect.name != "postgresql":
         raise RuntimeError(
             "Refusing to adopt partial or unknown unversioned schema; "
-            f"missing_tables={sorted(missing_tables)}, "
-            f"unexpected_tables={sorted(unexpected_tables)}, "
-            f"missing_columns={missing_columns}, missing_indexes={missing_indexes}"
+            "legacy adoption is supported only on PostgreSQL"
+        )
+
+    expected = json.loads(_LEGACY_MANIFEST_PATH.read_text())
+    actual = _legacy_catalog_manifest(inspector)
+    if actual != expected:
+        expected_tables = set(expected["tables"])
+        actual_tables = set(actual["tables"])
+        changed_tables = sorted(
+            table
+            for table in expected_tables & actual_tables
+            if expected["tables"][table] != actual["tables"][table]
+        )
+        raise RuntimeError(
+            "Refusing to adopt partial or unknown unversioned schema; "
+            f"missing_tables={sorted(expected_tables - actual_tables)}, "
+            f"unexpected_tables={sorted(actual_tables - expected_tables)}, "
+            f"changed_tables={changed_tables}, "
+            f"views_match={actual['views'] == expected['views']}, "
+            f"sequences_match={actual['sequences'] == expected['sequences']}"
         )
     return True
 

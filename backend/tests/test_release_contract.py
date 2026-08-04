@@ -36,6 +36,7 @@ def test_production_nginx_receives_built_landing_assets() -> None:
 
 
 def test_load_bearing_release_files_exist() -> None:
+    assert (ROOT / "backend/alembic/legacy_schema_manifest.json").is_file()
     assert (ROOT / "backend/alembic/versions/000000000001_legacy_schema.py").is_file()
     assert list((ROOT / "backend/alembic/versions").glob("41f948211e5f_*.py"))
     assert (ROOT / "frontend/src/lib/queryClient.ts").is_file()

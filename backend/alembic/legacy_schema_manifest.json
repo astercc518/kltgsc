@@ -1,0 +1,3956 @@
+{
+  "sequences": [
+    "account_id_seq",
+    "accountsendstats_id_seq",
+    "ai_config_id_seq",
+    "ai_knowledge_base_id_seq",
+    "ai_persona_id_seq",
+    "campaign_id_seq",
+    "chathistory_id_seq",
+    "funnel_group_id_seq",
+    "funnelgroup_id_seq",
+    "invitelog_id_seq",
+    "invitetask_id_seq",
+    "keywordhit_id_seq",
+    "keywordmonitor_id_seq",
+    "lead_id_seq",
+    "leadinteraction_id_seq",
+    "operationlog_id_seq",
+    "proxy_id_seq",
+    "scrapingtask_id_seq",
+    "script_id_seq",
+    "scripttask_id_seq",
+    "sendrecord_id_seq",
+    "sendtask_id_seq",
+    "source_group_id_seq",
+    "sourcegroup_id_seq",
+    "targetuser_id_seq",
+    "user_id_seq",
+    "warmuptask_id_seq",
+    "warmuptemplate_id_seq"
+  ],
+  "tables": {
+    "account": {
+      "check_constraints": [],
+      "columns": [
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "api_hash",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "api_id",
+          "nullable": true,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "app_version",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "auto_reply",
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "combat_role",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "cooldown_until",
+          "nullable": true,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "created_at",
+          "nullable": false,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "daily_action_count",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "device_model",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "health_score",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": "nextval('account_id_seq'::regclass)",
+          "identity": {},
+          "name": "id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "last_active",
+          "nullable": true,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "last_error_type",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "persona_prompt",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "phone_number",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "proxy_id",
+          "nullable": true,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "role",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "session_file_path",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "session_string",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "status",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "system_version",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "tags",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "tier",
+          "nullable": true,
+          "type": "varchar"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "proxy_id"
+          ],
+          "name": "account_proxy_id_fkey",
+          "options": {},
+          "referred_columns": [
+            "id"
+          ],
+          "referred_schema": null,
+          "referred_table": "proxy"
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "combat_role"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "idx_account_combat_role",
+          "unique": false
+        },
+        {
+          "columns": [
+            "health_score"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "idx_account_health_score",
+          "unique": false
+        },
+        {
+          "columns": [
+            "phone_number"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_account_phone_number",
+          "unique": true
+        },
+        {
+          "columns": [
+            "role"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_account_role",
+          "unique": false
+        },
+        {
+          "columns": [
+            "tier"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_account_tier",
+          "unique": false
+        }
+      ],
+      "primary_key": {
+        "columns": [
+          "id"
+        ],
+        "name": "account_pkey"
+      },
+      "unique_constraints": []
+    },
+    "accountsendstats": {
+      "check_constraints": [],
+      "columns": [
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "account_id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "consecutive_sends",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "error_count",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "fail_count",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "first_send_at",
+          "nullable": true,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "flood_wait_count",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": "nextval('accountsendstats_id_seq'::regclass)",
+          "identity": {},
+          "name": "id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "last_rest_at",
+          "nullable": true,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "last_send_at",
+          "nullable": true,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "send_count",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "stat_date",
+          "nullable": false,
+          "type": "date"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "success_count",
+          "nullable": false,
+          "type": "integer"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "account_id"
+          ],
+          "name": "accountsendstats_account_id_fkey",
+          "options": {},
+          "referred_columns": [
+            "id"
+          ],
+          "referred_schema": null,
+          "referred_table": "account"
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "account_id"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "idx_accountsendstats_account_id",
+          "unique": false
+        },
+        {
+          "columns": [
+            "stat_date"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "idx_accountsendstats_stat_date",
+          "unique": false
+        },
+        {
+          "columns": [
+            "account_id"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_accountsendstats_account_id",
+          "unique": false
+        },
+        {
+          "columns": [
+            "stat_date"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_accountsendstats_stat_date",
+          "unique": false
+        }
+      ],
+      "primary_key": {
+        "columns": [
+          "id"
+        ],
+        "name": "accountsendstats_pkey"
+      },
+      "unique_constraints": []
+    },
+    "ai_config": {
+      "check_constraints": [],
+      "columns": [
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "api_key",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "base_url",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "created_at",
+          "nullable": false,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": "nextval('ai_config_id_seq'::regclass)",
+          "identity": {},
+          "name": "id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "is_active",
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "is_default",
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "model",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "name",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "provider",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "updated_at",
+          "nullable": false,
+          "type": "timestamp without time zone"
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "columns": [
+            "is_default"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_ai_config_is_default",
+          "unique": false
+        },
+        {
+          "columns": [
+            "name"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_ai_config_name",
+          "unique": false
+        }
+      ],
+      "primary_key": {
+        "columns": [
+          "id"
+        ],
+        "name": "ai_config_pkey"
+      },
+      "unique_constraints": []
+    },
+    "ai_knowledge_base": {
+      "check_constraints": [],
+      "columns": [
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "auto_update",
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "content",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "created_at",
+          "nullable": false,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "description",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": "nextval('ai_knowledge_base_id_seq'::regclass)",
+          "identity": {},
+          "name": "id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "name",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "source_url",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "updated_at",
+          "nullable": false,
+          "type": "timestamp without time zone"
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "columns": [
+            "name"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "idx_kb_name",
+          "unique": false
+        },
+        {
+          "columns": [
+            "name"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_ai_knowledge_base_name",
+          "unique": false
+        }
+      ],
+      "primary_key": {
+        "columns": [
+          "id"
+        ],
+        "name": "ai_knowledge_base_pkey"
+      },
+      "unique_constraints": []
+    },
+    "ai_persona": {
+      "check_constraints": [],
+      "columns": [
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "avg_reply_rate",
+          "nullable": true,
+          "type": "double precision"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "created_at",
+          "nullable": false,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "description",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "forbidden_topics",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": "nextval('ai_persona_id_seq'::regclass)",
+          "identity": {},
+          "name": "id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "language",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "name",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "required_keywords",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "system_prompt",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "tone",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "usage_count",
+          "nullable": false,
+          "type": "integer"
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [],
+      "primary_key": {
+        "columns": [
+          "id"
+        ],
+        "name": "ai_persona_pkey"
+      },
+      "unique_constraints": []
+    },
+    "campaign": {
+      "check_constraints": [],
+      "columns": [
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "ai_persona_id",
+          "nullable": true,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "allowed_roles",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "created_at",
+          "nullable": false,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "daily_account_limit",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "daily_budget",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "description",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": "nextval('campaign_id_seq'::regclass)",
+          "identity": {},
+          "name": "id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "name",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "status",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "total_conversions",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "total_messages_sent",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "total_replies_received",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "updated_at",
+          "nullable": false,
+          "type": "timestamp without time zone"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "ai_persona_id"
+          ],
+          "name": "campaign_ai_persona_id_fkey",
+          "options": {},
+          "referred_columns": [
+            "id"
+          ],
+          "referred_schema": null,
+          "referred_table": "ai_persona"
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "status"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "idx_campaign_status",
+          "unique": false
+        }
+      ],
+      "primary_key": {
+        "columns": [
+          "id"
+        ],
+        "name": "campaign_pkey"
+      },
+      "unique_constraints": []
+    },
+    "campaign_knowledge_link": {
+      "check_constraints": [],
+      "columns": [
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "campaign_id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "knowledge_base_id",
+          "nullable": false,
+          "type": "integer"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "campaign_id"
+          ],
+          "name": "campaign_knowledge_link_campaign_id_fkey",
+          "options": {},
+          "referred_columns": [
+            "id"
+          ],
+          "referred_schema": null,
+          "referred_table": "campaign"
+        },
+        {
+          "columns": [
+            "knowledge_base_id"
+          ],
+          "name": "campaign_knowledge_link_knowledge_base_id_fkey",
+          "options": {},
+          "referred_columns": [
+            "id"
+          ],
+          "referred_schema": null,
+          "referred_table": "ai_knowledge_base"
+        }
+      ],
+      "indexes": [],
+      "primary_key": {
+        "columns": [
+          "campaign_id",
+          "knowledge_base_id"
+        ],
+        "name": "campaign_knowledge_link_pkey"
+      },
+      "unique_constraints": []
+    },
+    "chathistory": {
+      "check_constraints": [],
+      "columns": [
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "account_id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "content",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "created_at",
+          "nullable": false,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": "nextval('chathistory_id_seq'::regclass)",
+          "identity": {},
+          "name": "id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "role",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "target_user_id",
+          "nullable": true,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "target_username",
+          "nullable": true,
+          "type": "varchar"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "account_id"
+          ],
+          "name": "chathistory_account_id_fkey",
+          "options": {},
+          "referred_columns": [
+            "id"
+          ],
+          "referred_schema": null,
+          "referred_table": "account"
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "account_id"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_chathistory_account_id",
+          "unique": false
+        },
+        {
+          "columns": [
+            "target_user_id"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_chathistory_target_user_id",
+          "unique": false
+        }
+      ],
+      "primary_key": {
+        "columns": [
+          "id"
+        ],
+        "name": "chathistory_pkey"
+      },
+      "unique_constraints": []
+    },
+    "funnel_group": {
+      "check_constraints": [],
+      "columns": [
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "campaign_id",
+          "nullable": true,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": "nextval('funnel_group_id_seq'::regclass)",
+          "identity": {},
+          "name": "id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "type",
+          "nullable": false,
+          "type": "varchar(20)"
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "columns": [
+            "campaign_id"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "idx_funnel_group_campaign",
+          "unique": false
+        },
+        {
+          "columns": [
+            "type"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "idx_funnel_group_type",
+          "unique": false
+        }
+      ],
+      "primary_key": {
+        "columns": [
+          "id"
+        ],
+        "name": "funnel_group_pkey"
+      },
+      "unique_constraints": []
+    },
+    "funnelgroup": {
+      "check_constraints": [],
+      "columns": [
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "auto_kick_ads",
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "campaign_id",
+          "nullable": true,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "created_at",
+          "nullable": false,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": "nextval('funnelgroup_id_seq'::regclass)",
+          "identity": {},
+          "name": "id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "link",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "member_count",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "name",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "today_joined",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "today_left",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "type",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "welcome_message",
+          "nullable": true,
+          "type": "varchar"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "campaign_id"
+          ],
+          "name": "funnelgroup_campaign_id_fkey",
+          "options": {},
+          "referred_columns": [
+            "id"
+          ],
+          "referred_schema": null,
+          "referred_table": "campaign"
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "campaign_id"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_funnelgroup_campaign_id",
+          "unique": false
+        },
+        {
+          "columns": [
+            "link"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_funnelgroup_link",
+          "unique": false
+        },
+        {
+          "columns": [
+            "type"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_funnelgroup_type",
+          "unique": false
+        }
+      ],
+      "primary_key": {
+        "columns": [
+          "id"
+        ],
+        "name": "funnelgroup_pkey"
+      },
+      "unique_constraints": []
+    },
+    "invitelog": {
+      "check_constraints": [],
+      "columns": [
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "account_id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "account_username",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "created_at",
+          "nullable": false,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "duration_ms",
+          "nullable": true,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "error_code",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "error_message",
+          "nullable": true,
+          "type": "text"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "flood_wait_seconds",
+          "nullable": true,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": "nextval('invitelog_id_seq'::regclass)",
+          "identity": {},
+          "name": "id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "retry_count",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "status",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "target_channel",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "target_channel_id",
+          "nullable": true,
+          "type": "bigint"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "target_telegram_id",
+          "nullable": true,
+          "type": "bigint"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "target_user_id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "target_username",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "task_id",
+          "nullable": false,
+          "type": "integer"
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "columns": [
+            "account_id"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_invitelog_account_id",
+          "unique": false
+        },
+        {
+          "columns": [
+            "created_at"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_invitelog_created_at",
+          "unique": false
+        },
+        {
+          "columns": [
+            "error_code"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_invitelog_error_code",
+          "unique": false
+        },
+        {
+          "columns": [
+            "status"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_invitelog_status",
+          "unique": false
+        },
+        {
+          "columns": [
+            "target_telegram_id"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_invitelog_target_telegram_id",
+          "unique": false
+        },
+        {
+          "columns": [
+            "target_user_id"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_invitelog_target_user_id",
+          "unique": false
+        },
+        {
+          "columns": [
+            "task_id"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_invitelog_task_id",
+          "unique": false
+        }
+      ],
+      "primary_key": {
+        "columns": [
+          "id"
+        ],
+        "name": "invitelog_pkey"
+      },
+      "unique_constraints": []
+    },
+    "invitetask": {
+      "check_constraints": [],
+      "columns": [
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "account_group",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "account_ids_json",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "completed_at",
+          "nullable": true,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "concurrent_accounts",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "created_at",
+          "nullable": false,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "exclude_failed_recently",
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "exclude_invited",
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "fail_count",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "failed_cooldown_hours",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "filter_funnel_stages",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "filter_min_score",
+          "nullable": true,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "filter_tags",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "flood_wait_count",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": "nextval('invitetask_id_seq'::regclass)",
+          "identity": {},
+          "name": "id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "is_recurring",
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "last_error",
+          "nullable": true,
+          "type": "text"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "max_delay",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "max_invites_per_account",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "max_invites_per_task",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "min_delay",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "name",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "pending_count",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "privacy_restricted_count",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "recurring_batch_size",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "recurring_interval_hours",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "scheduled_at",
+          "nullable": true,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "source_group",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "started_at",
+          "nullable": true,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "status",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "stop_on_flood",
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "success_count",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "target_channel",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "target_user_ids_json",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "total_count",
+          "nullable": false,
+          "type": "integer"
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "columns": [
+            "account_group"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_invitetask_account_group",
+          "unique": false
+        },
+        {
+          "columns": [
+            "status"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_invitetask_status",
+          "unique": false
+        }
+      ],
+      "primary_key": {
+        "columns": [
+          "id"
+        ],
+        "name": "invitetask_pkey"
+      },
+      "unique_constraints": []
+    },
+    "keywordhit": {
+      "check_constraints": [],
+      "columns": [
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "detected_at",
+          "nullable": false,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": "nextval('keywordhit_id_seq'::regclass)",
+          "identity": {},
+          "name": "id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "keyword_monitor_id",
+          "nullable": true,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "message_content",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "message_id",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "source_group_id",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "source_group_name",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "source_user_id",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "source_user_name",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "status",
+          "nullable": false,
+          "type": "varchar"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "keyword_monitor_id"
+          ],
+          "name": "keywordhit_keyword_monitor_id_fkey",
+          "options": {},
+          "referred_columns": [
+            "id"
+          ],
+          "referred_schema": null,
+          "referred_table": "keywordmonitor"
+        }
+      ],
+      "indexes": [],
+      "primary_key": {
+        "columns": [
+          "id"
+        ],
+        "name": "keywordhit_pkey"
+      },
+      "unique_constraints": []
+    },
+    "keywordmonitor": {
+      "check_constraints": [],
+      "columns": [
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "action_type",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "ai_persona",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "ai_persona_id",
+          "nullable": true,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "ai_reply_prompt",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "auto_capture_lead",
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "auto_keywords",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "campaign_id",
+          "nullable": true,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "cooldown_seconds",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "created_at",
+          "nullable": false,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "daily_reply_count",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "delay_max_seconds",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "delay_min_seconds",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "description",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "enable_account_rotation",
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "forward_target",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": "nextval('keywordmonitor_id_seq'::regclass)",
+          "identity": {},
+          "name": "id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "is_active",
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "keyword",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "last_reply_date",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "marketing_mode",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "match_type",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "max_replies_per_day",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "reply_mode",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "reply_script_id",
+          "nullable": true,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "scenario_description",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "score_weight",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "similarity_threshold",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "target_groups",
+          "nullable": true,
+          "type": "varchar"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "ai_persona_id"
+          ],
+          "name": "keywordmonitor_ai_persona_id_fkey",
+          "options": {},
+          "referred_columns": [
+            "id"
+          ],
+          "referred_schema": null,
+          "referred_table": "ai_persona"
+        },
+        {
+          "columns": [
+            "campaign_id"
+          ],
+          "name": "keywordmonitor_campaign_id_fkey",
+          "options": {},
+          "referred_columns": [
+            "id"
+          ],
+          "referred_schema": null,
+          "referred_table": "campaign"
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "keyword"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_keywordmonitor_keyword",
+          "unique": false
+        }
+      ],
+      "primary_key": {
+        "columns": [
+          "id"
+        ],
+        "name": "keywordmonitor_pkey"
+      },
+      "unique_constraints": []
+    },
+    "lead": {
+      "check_constraints": [],
+      "columns": [
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "account_id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "created_at",
+          "nullable": false,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "first_name",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": "nextval('lead_id_seq'::regclass)",
+          "identity": {},
+          "name": "id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "last_interaction_at",
+          "nullable": false,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "last_name",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "notes",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "phone",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "status",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "tags_json",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "telegram_user_id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "username",
+          "nullable": true,
+          "type": "varchar"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "account_id"
+          ],
+          "name": "lead_account_id_fkey",
+          "options": {},
+          "referred_columns": [
+            "id"
+          ],
+          "referred_schema": null,
+          "referred_table": "account"
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "account_id"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_lead_account_id",
+          "unique": false
+        },
+        {
+          "columns": [
+            "telegram_user_id"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_lead_telegram_user_id",
+          "unique": false
+        }
+      ],
+      "primary_key": {
+        "columns": [
+          "id"
+        ],
+        "name": "lead_pkey"
+      },
+      "unique_constraints": []
+    },
+    "leadinteraction": {
+      "check_constraints": [],
+      "columns": [
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "content",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "created_at",
+          "nullable": false,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "direction",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": "nextval('leadinteraction_id_seq'::regclass)",
+          "identity": {},
+          "name": "id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "lead_id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "message_type",
+          "nullable": false,
+          "type": "varchar"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "lead_id"
+          ],
+          "name": "leadinteraction_lead_id_fkey",
+          "options": {},
+          "referred_columns": [
+            "id"
+          ],
+          "referred_schema": null,
+          "referred_table": "lead"
+        }
+      ],
+      "indexes": [],
+      "primary_key": {
+        "columns": [
+          "id"
+        ],
+        "name": "leadinteraction_pkey"
+      },
+      "unique_constraints": []
+    },
+    "operationlog": {
+      "check_constraints": [],
+      "columns": [
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "action",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "created_at",
+          "nullable": false,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "details",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": "nextval('operationlog_id_seq'::regclass)",
+          "identity": {},
+          "name": "id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "ip_address",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "status",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "username",
+          "nullable": false,
+          "type": "varchar"
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [],
+      "primary_key": {
+        "columns": [
+          "id"
+        ],
+        "name": "operationlog_pkey"
+      },
+      "unique_constraints": []
+    },
+    "proxy": {
+      "check_constraints": [],
+      "columns": [
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "category",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "country",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "created_at",
+          "nullable": true,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "expire_time",
+          "nullable": true,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "fail_count",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": "nextval('proxy_id_seq'::regclass)",
+          "identity": {},
+          "name": "id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "ip",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "last_checked",
+          "nullable": true,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "password",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "port",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "protocol",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "provider_type",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "status",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "username",
+          "nullable": true,
+          "type": "varchar"
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "columns": [
+            "ip"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_proxy_ip",
+          "unique": false
+        }
+      ],
+      "primary_key": {
+        "columns": [
+          "id"
+        ],
+        "name": "proxy_pkey"
+      },
+      "unique_constraints": []
+    },
+    "scrapingtask": {
+      "check_constraints": [],
+      "columns": [
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "account_ids_json",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "celery_task_id",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "completed_at",
+          "nullable": true,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "created_at",
+          "nullable": false,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "error_message",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "fail_count",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "group_links_json",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": "nextval('scrapingtask_id_seq'::regclass)",
+          "identity": {},
+          "name": "id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "result_json",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "status",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "success_count",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "task_type",
+          "nullable": false,
+          "type": "varchar"
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [],
+      "primary_key": {
+        "columns": [
+          "id"
+        ],
+        "name": "scrapingtask_pkey"
+      },
+      "unique_constraints": []
+    },
+    "script": {
+      "check_constraints": [],
+      "columns": [
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "created_at",
+          "nullable": false,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "description",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": "nextval('script_id_seq'::regclass)",
+          "identity": {},
+          "name": "id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "lines_json",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "name",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "roles_json",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "topic",
+          "nullable": false,
+          "type": "varchar"
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [],
+      "primary_key": {
+        "columns": [
+          "id"
+        ],
+        "name": "script_pkey"
+      },
+      "unique_constraints": []
+    },
+    "scripttask": {
+      "check_constraints": [],
+      "columns": [
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "account_mapping_json",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "created_at",
+          "nullable": false,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "current_step",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": "nextval('scripttask_id_seq'::regclass)",
+          "identity": {},
+          "name": "id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "max_delay",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "min_delay",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "script_id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "status",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "target_group",
+          "nullable": false,
+          "type": "varchar"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "script_id"
+          ],
+          "name": "scripttask_script_id_fkey",
+          "options": {},
+          "referred_columns": [
+            "id"
+          ],
+          "referred_schema": null,
+          "referred_table": "script"
+        }
+      ],
+      "indexes": [],
+      "primary_key": {
+        "columns": [
+          "id"
+        ],
+        "name": "scripttask_pkey"
+      },
+      "unique_constraints": []
+    },
+    "sendrecord": {
+      "check_constraints": [],
+      "columns": [
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "account_id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "error_message",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": "nextval('sendrecord_id_seq'::regclass)",
+          "identity": {},
+          "name": "id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "sent_at",
+          "nullable": false,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "status",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "target_user_id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "task_id",
+          "nullable": false,
+          "type": "integer"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "account_id"
+          ],
+          "name": "sendrecord_account_id_fkey",
+          "options": {},
+          "referred_columns": [
+            "id"
+          ],
+          "referred_schema": null,
+          "referred_table": "account"
+        },
+        {
+          "columns": [
+            "target_user_id"
+          ],
+          "name": "sendrecord_target_user_id_fkey",
+          "options": {},
+          "referred_columns": [
+            "id"
+          ],
+          "referred_schema": null,
+          "referred_table": "targetuser"
+        },
+        {
+          "columns": [
+            "task_id"
+          ],
+          "name": "sendrecord_task_id_fkey",
+          "options": {},
+          "referred_columns": [
+            "id"
+          ],
+          "referred_schema": null,
+          "referred_table": "sendtask"
+        }
+      ],
+      "indexes": [],
+      "primary_key": {
+        "columns": [
+          "id"
+        ],
+        "name": "sendrecord_pkey"
+      },
+      "unique_constraints": []
+    },
+    "sendtask": {
+      "check_constraints": [],
+      "columns": [
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "created_at",
+          "nullable": false,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "fail_count",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": "nextval('sendtask_id_seq'::regclass)",
+          "identity": {},
+          "name": "id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "max_delay",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "message_content",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "min_delay",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "name",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "status",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "success_count",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "total_count",
+          "nullable": false,
+          "type": "integer"
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [],
+      "primary_key": {
+        "columns": [
+          "id"
+        ],
+        "name": "sendtask_pkey"
+      },
+      "unique_constraints": []
+    },
+    "source_group": {
+      "check_constraints": [],
+      "columns": [
+        {
+          "computed": {},
+          "default": "nextval('source_group_id_seq'::regclass)",
+          "identity": {},
+          "name": "id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "status",
+          "nullable": false,
+          "type": "varchar(20)"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "type",
+          "nullable": false,
+          "type": "varchar(20)"
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "columns": [
+            "status"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "idx_source_group_status",
+          "unique": false
+        },
+        {
+          "columns": [
+            "type"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "idx_source_group_type",
+          "unique": false
+        }
+      ],
+      "primary_key": {
+        "columns": [
+          "id"
+        ],
+        "name": "source_group_pkey"
+      },
+      "unique_constraints": []
+    },
+    "sourcegroup": {
+      "check_constraints": [],
+      "columns": [
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "ai_analysis",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "ai_score",
+          "nullable": true,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "created_at",
+          "nullable": false,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "high_value_count",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": "nextval('sourcegroup_id_seq'::regclass)",
+          "identity": {},
+          "name": "id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "last_scraped_at",
+          "nullable": true,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "link",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "member_count",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "name",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "risk_level",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "status",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "total_scraped",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "type",
+          "nullable": false,
+          "type": "varchar"
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "columns": [
+            "link"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_sourcegroup_link",
+          "unique": false
+        },
+        {
+          "columns": [
+            "status"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_sourcegroup_status",
+          "unique": false
+        },
+        {
+          "columns": [
+            "type"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_sourcegroup_type",
+          "unique": false
+        }
+      ],
+      "primary_key": {
+        "columns": [
+          "id"
+        ],
+        "name": "sourcegroup_pkey"
+      },
+      "unique_constraints": []
+    },
+    "systemconfig": {
+      "check_constraints": [],
+      "columns": [
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "description",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "key",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "updated_at",
+          "nullable": false,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "value",
+          "nullable": false,
+          "type": "varchar"
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [],
+      "primary_key": {
+        "columns": [
+          "key"
+        ],
+        "name": "systemconfig_pkey"
+      },
+      "unique_constraints": []
+    },
+    "targetuser": {
+      "check_constraints": [],
+      "columns": [
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "ai_score",
+          "nullable": true,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "ai_summary",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "ai_tags",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "created_at",
+          "nullable": false,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "engagement_score",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "first_name",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "funnel_stage",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": "nextval('targetuser_id_seq'::regclass)",
+          "identity": {},
+          "name": "id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "invite_account_id",
+          "nullable": true,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "invite_attempt_count",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "invite_attempted_at",
+          "nullable": true,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "invite_error_code",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "invite_error_message",
+          "nullable": true,
+          "type": "text"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "invite_status",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "invite_success_at",
+          "nullable": true,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "invite_target_group",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "last_active",
+          "nullable": true,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "last_hit_at",
+          "nullable": true,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "last_hit_keyword",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "last_name",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "marketing_stage",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "phone",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "source_group",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "source_group_id",
+          "nullable": true,
+          "type": "bigint"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "status",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "tags",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "telegram_id",
+          "nullable": true,
+          "type": "bigint"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "username",
+          "nullable": true,
+          "type": "varchar"
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "columns": [
+            "ai_score"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "idx_targetuser_ai_score",
+          "unique": false
+        },
+        {
+          "columns": [
+            "funnel_stage"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "idx_targetuser_funnel_stage",
+          "unique": false
+        },
+        {
+          "columns": [
+            "invite_account_id"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_targetuser_invite_account_id",
+          "unique": false
+        },
+        {
+          "columns": [
+            "invite_attempted_at"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_targetuser_invite_attempted_at",
+          "unique": false
+        },
+        {
+          "columns": [
+            "invite_status"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_targetuser_invite_status",
+          "unique": false
+        },
+        {
+          "columns": [
+            "telegram_id"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_targetuser_telegram_id",
+          "unique": true
+        }
+      ],
+      "primary_key": {
+        "columns": [
+          "id"
+        ],
+        "name": "targetuser_pkey"
+      },
+      "unique_constraints": []
+    },
+    "user": {
+      "check_constraints": [],
+      "columns": [
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "hashed_password",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": "nextval('user_id_seq'::regclass)",
+          "identity": {},
+          "name": "id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "is_active",
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "is_superuser",
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "totp_enabled",
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "totp_secret",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "username",
+          "nullable": false,
+          "type": "varchar"
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "columns": [
+            "username"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_user_username",
+          "unique": true
+        }
+      ],
+      "primary_key": {
+        "columns": [
+          "id"
+        ],
+        "name": "user_pkey"
+      },
+      "unique_constraints": []
+    },
+    "warmuptask": {
+      "check_constraints": [],
+      "columns": [
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "account_ids_json",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "action_type",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "created_at",
+          "nullable": false,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "duration_minutes",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "error_message",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "fail_count",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": "nextval('warmuptask_id_seq'::regclass)",
+          "identity": {},
+          "name": "id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "max_delay",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "min_delay",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "name",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "status",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "success_count",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "target_channels",
+          "nullable": false,
+          "type": "varchar"
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [],
+      "primary_key": {
+        "columns": [
+          "id"
+        ],
+        "name": "warmuptask_pkey"
+      },
+      "unique_constraints": []
+    },
+    "warmuptemplate": {
+      "check_constraints": [],
+      "columns": [
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "action_type",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "created_at",
+          "nullable": false,
+          "type": "timestamp without time zone"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "description",
+          "nullable": true,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "duration_minutes",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": "nextval('warmuptemplate_id_seq'::regclass)",
+          "identity": {},
+          "name": "id",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "is_default",
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "max_delay",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "min_delay",
+          "nullable": false,
+          "type": "integer"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "name",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "target_channels",
+          "nullable": false,
+          "type": "varchar"
+        },
+        {
+          "computed": {},
+          "default": null,
+          "identity": {},
+          "name": "updated_at",
+          "nullable": false,
+          "type": "timestamp without time zone"
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "columns": [
+            "name"
+          ],
+          "duplicates_constraint": null,
+          "expressions": [],
+          "include_columns": [],
+          "name": "ix_warmuptemplate_name",
+          "unique": false
+        }
+      ],
+      "primary_key": {
+        "columns": [
+          "id"
+        ],
+        "name": "warmuptemplate_pkey"
+      },
+      "unique_constraints": []
+    }
+  },
+  "views": []
+}
