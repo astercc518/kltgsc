@@ -158,7 +158,6 @@ export interface Lead {
     ai_enabled?: boolean;
     ai_draft?: string | null;
     claimed_at?: string | null;
-    interactions?: LeadInteraction[];
 }
 
 export interface LeadInteraction {
@@ -168,6 +167,10 @@ export interface LeadInteraction {
     message_type: string;
     content: string;
     created_at: string;
+}
+
+export interface LeadDetail extends Lead {
+    interactions: LeadInteraction[];
 }
 
 export interface Script {
@@ -874,7 +877,7 @@ export const getLeads = async (skip: number = 0, limit: number = 20, status?: st
     return response.data;
 };
 
-export const getLead = async (id: number): Promise<Lead> => {
+export const getLead = async (id: number): Promise<LeadDetail> => {
     const response = await api.get(`/crm/leads/${id}`);
     return response.data;
 };
@@ -1647,4 +1650,3 @@ export const triggerFreeChat = async (params: {
 };
 
 export default api;
-

@@ -71,3 +71,7 @@ class LeadInteractionCreate(LeadInteractionBase):
 
 class LeadInteractionRead(LeadInteractionBase):
     id: int
+
+
+class LeadDetail(LeadRead):
+    interactions: List[LeadInteractionRead] = Field(default_factory=list)

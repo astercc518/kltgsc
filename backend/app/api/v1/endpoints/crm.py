@@ -5,7 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel
 from app.core.db import get_session
 from app.api.deps import get_current_user, get_current_sales_or_admin
-from app.models.lead import Lead, LeadCreate, LeadRead, LeadInteraction, LeadInteractionCreate, LeadInteractionRead
+from app.models.lead import Lead, LeadCreate, LeadRead, LeadDetail, LeadInteraction, LeadInteractionCreate, LeadInteractionRead
 from app.models.account import Account
 from app.models.user import User
 from app.services.telegram_client import send_message_with_client
@@ -41,7 +41,7 @@ def get_leads(
     query = query.offset(skip).limit(limit).order_by(Lead.last_interaction_at.desc())
     return session.exec(query).all()
 
-@router.get("/leads/{lead_id}", response_model=LeadRead)
+@router.get("/leads/{lead_id}", response_model=LeadDetail)
 def get_lead(
     lead_id: int,
     session: Session = Depends(get_session)
@@ -50,7 +50,18 @@ def get_lead(
     lead = session.get(Lead, lead_id)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
-    return lead
+    interactions = session.exec(
+        select(LeadInteraction)
+        .where(LeadInteraction.lead_id == lead_id)
+        .order_by(LeadInteraction.created_at, LeadInteraction.id)
+    ).all()
+    return LeadDetail(
+        **LeadRead.model_validate(lead, from_attributes=True).model_dump(),
+        interactions=[
+            LeadInteractionRead.model_validate(item, from_attributes=True)
+            for item in interactions
+        ],
+    )
 
 @router.put("/leads/{lead_id}", response_model=LeadRead)
 def update_lead(

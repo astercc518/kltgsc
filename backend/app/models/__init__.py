@@ -8,7 +8,7 @@ from .warmup_task import WarmupTask, WarmupTaskCreate, WarmupTaskRead
 from .warmup_template import WarmupTemplate, WarmupTemplateCreate, WarmupTemplateRead, WarmupTemplateUpdate
 from .chat_history import ChatHistory, ChatHistoryCreate, ChatHistoryRead
 from .script import Script, ScriptCreate, ScriptRead, ScriptTask, ScriptTaskCreate, ScriptTaskRead
-from .lead import Lead, LeadCreate, LeadRead, LeadInteraction, LeadInteractionCreate, LeadInteractionRead
+from .lead import Lead, LeadCreate, LeadRead, LeadDetail, LeadInteraction, LeadInteractionCreate, LeadInteractionRead
 from .operation_log import OperationLog, OperationLogCreate, OperationLogRead
 from .keyword_monitor import KeywordMonitor, KeywordMonitorCreate, KeywordMonitorRead, KeywordMonitorUpdate, KeywordHit, KeywordHitRead
 from .invite_task import InviteTask, InviteTaskCreate, InviteTaskRead, InviteTaskUpdate
