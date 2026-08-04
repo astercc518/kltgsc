@@ -142,7 +142,7 @@ export interface SystemConfig {
 
 export interface Lead {
     id: number;
-    account_id: number;
+    account_id: number | null;
     telegram_user_id: number;
     username?: string;
     first_name?: string;

@@ -206,6 +206,24 @@ git pull
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
+#### Alembic 旧库接管（Phase 0）
+
+发布前必须先把生产备份恢复到隔离的 staging 数据库，并检查当前版本：
+
+```bash
+cd /var/tgsc/backend
+DATABASE_URL='postgresql://<DB_USER>:<DB_PASSWORD>@<DB_HOST>:5432/<DB_NAME>' alembic current
+DATABASE_URL='postgresql://<DB_USER>:<DB_PASSWORD>@<DB_HOST>:5432/<DB_NAME>' alembic upgrade head
+```
+
+迁移基线 `000000000001` 会区分三种状态：
+
+- 空库：创建完整旧版基线，再继续升级到唯一 head；
+- 无 `alembic_version`、但结构与旧版快照完全一致：校验表、必要列和关键索引后接管，再继续升级；
+- 部分初始化或未知结构：立即中止，并在错误中列出缺失/多余对象。
+
+不要用 `alembic stamp` 绕过结构校验，也不要在未备份的生产库直接试跑。若校验中止，应保留现场、恢复 staging 备份并修复结构差异；只有 staging 完整升级、应用冒烟测试和回滚演练均通过后，才能进入生产发布窗口。
+
 ### 5.2 健康检查
 
 ```bash

@@ -49,3 +49,10 @@ def test_migrations_have_one_bootstrap_base_and_one_head() -> None:
 
     assert scripts.get_bases() == ["000000000001"]
     assert scripts.get_heads() == ["c7d8e9f0a1b2"]
+
+
+def test_migration_guide_forbids_bypassing_legacy_validation() -> None:
+    guide = (ROOT / "docs/architecture/MIGRATION_GUIDE.md").read_text()
+
+    assert "无 `alembic_version`、但结构与旧版快照完全一致" in guide
+    assert "不要用 `alembic stamp` 绕过结构校验" in guide
