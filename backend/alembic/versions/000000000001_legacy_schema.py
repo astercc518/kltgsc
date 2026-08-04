@@ -26,12 +26,18 @@ def _normalize_sql(value: object) -> str | None:
     return " ".join(str(value).split())
 
 
-def _normalize_options(options: dict | None) -> dict:
-    return {
-        str(key): options[key]
-        for key in sorted(options or {})
-        if options[key] not in (None, [], {})
-    }
+def _normalize_value(value: object) -> object:
+    if isinstance(value, dict):
+        return {
+            str(key): _normalize_value(value[key])
+            for key in sorted(value)
+            if value[key] not in (None, [], {})
+        }
+    if isinstance(value, (list, tuple)):
+        return [_normalize_value(item) for item in value]
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
+    return _normalize_sql(value)
 
 
 def _legacy_catalog_manifest(inspector: sa.Inspector) -> dict:
@@ -50,8 +56,8 @@ def _legacy_catalog_manifest(inspector: sa.Inspector) -> dict:
                     "type": column["type"].compile(dialect=dialect).lower(),
                     "nullable": bool(column["nullable"]),
                     "default": _normalize_sql(column.get("default")),
-                    "identity": _normalize_options(column.get("identity")),
-                    "computed": _normalize_options(column.get("computed")),
+                    "identity": _normalize_value(column.get("identity") or {}),
+                    "computed": _normalize_value(column.get("computed") or {}),
                 }
                 for column in inspector.get_columns(table)
             ),
@@ -66,7 +72,7 @@ def _legacy_catalog_manifest(inspector: sa.Inspector) -> dict:
                     "referred_schema": foreign_key.get("referred_schema"),
                     "referred_table": foreign_key.get("referred_table"),
                     "referred_columns": foreign_key.get("referred_columns") or [],
-                    "options": _normalize_options(foreign_key.get("options")),
+                    "options": _normalize_value(foreign_key.get("options") or {}),
                 }
                 for foreign_key in inspector.get_foreign_keys(table)
             ),
@@ -113,6 +119,12 @@ def _legacy_catalog_manifest(inspector: sa.Inspector) -> dict:
                     "unique": bool(index.get("unique")),
                     "include_columns": index.get("include_columns") or [],
                     "duplicates_constraint": index.get("duplicates_constraint"),
+                    "column_sorting": _normalize_value(
+                        index.get("column_sorting") or {}
+                    ),
+                    "dialect_options": _normalize_value(
+                        index.get("dialect_options") or {}
+                    ),
                 }
                 for index in inspector.get_indexes(table)
             ),
@@ -130,10 +142,70 @@ def _legacy_catalog_manifest(inspector: sa.Inspector) -> dict:
             "indexes": indexes,
         }
 
+    bind = inspector.bind
+    owns_connection = isinstance(bind, sa.Engine)
+    connection = bind.connect() if owns_connection else bind
+    try:
+        sequence_rows = list(
+            connection.execute(
+                sa.text(
+                    """
+                    SELECT sequence.relname AS name,
+                   pg_catalog.format_type(definition.seqtypid, NULL) AS data_type,
+                   definition.seqstart AS start_value,
+                   definition.seqincrement AS increment_by,
+                   definition.seqmax AS max_value,
+                   definition.seqmin AS min_value,
+                   definition.seqcache AS cache_size,
+                   definition.seqcycle AS cycle,
+                   owned_table.relname AS owned_by_table,
+                   owned_column.attname AS owned_by_column
+              FROM pg_catalog.pg_class AS sequence
+              JOIN pg_catalog.pg_namespace AS namespace
+                ON namespace.oid = sequence.relnamespace
+              JOIN pg_catalog.pg_sequence AS definition
+                ON definition.seqrelid = sequence.oid
+         LEFT JOIN pg_catalog.pg_depend AS dependency
+                ON dependency.classid = 'pg_catalog.pg_class'::regclass
+               AND dependency.objid = sequence.oid
+               AND dependency.objsubid = 0
+               AND dependency.refclassid = 'pg_catalog.pg_class'::regclass
+               AND dependency.deptype IN ('a', 'i')
+         LEFT JOIN pg_catalog.pg_class AS owned_table
+                ON owned_table.oid = dependency.refobjid
+         LEFT JOIN pg_catalog.pg_attribute AS owned_column
+                ON owned_column.attrelid = dependency.refobjid
+               AND owned_column.attnum = dependency.refobjsubid
+             WHERE namespace.nspname = current_schema()
+               AND sequence.relkind = 'S'
+                  ORDER BY sequence.relname
+                    """
+                )
+            ).mappings()
+        )
+    finally:
+        if owns_connection:
+            connection.close()
+    sequences = [
+        {
+            "name": row["name"],
+            "data_type": row["data_type"],
+            "start_value": row["start_value"],
+            "increment_by": row["increment_by"],
+            "max_value": row["max_value"],
+            "min_value": row["min_value"],
+            "cache_size": row["cache_size"],
+            "cycle": row["cycle"],
+            "owned_by_table": row["owned_by_table"],
+            "owned_by_column": row["owned_by_column"],
+        }
+        for row in sequence_rows
+    ]
+
     return {
         "tables": tables,
         "views": sorted(inspector.get_view_names()),
-        "sequences": sorted(inspector.get_sequence_names()),
+        "sequences": sequences,
     }
 
 

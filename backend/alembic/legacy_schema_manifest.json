@@ -1,33 +1,341 @@
 {
   "sequences": [
-    "account_id_seq",
-    "accountsendstats_id_seq",
-    "ai_config_id_seq",
-    "ai_knowledge_base_id_seq",
-    "ai_persona_id_seq",
-    "campaign_id_seq",
-    "chathistory_id_seq",
-    "funnel_group_id_seq",
-    "funnelgroup_id_seq",
-    "invitelog_id_seq",
-    "invitetask_id_seq",
-    "keywordhit_id_seq",
-    "keywordmonitor_id_seq",
-    "lead_id_seq",
-    "leadinteraction_id_seq",
-    "operationlog_id_seq",
-    "proxy_id_seq",
-    "scrapingtask_id_seq",
-    "script_id_seq",
-    "scripttask_id_seq",
-    "sendrecord_id_seq",
-    "sendtask_id_seq",
-    "source_group_id_seq",
-    "sourcegroup_id_seq",
-    "targetuser_id_seq",
-    "user_id_seq",
-    "warmuptask_id_seq",
-    "warmuptemplate_id_seq"
+    {
+      "cache_size": 1,
+      "cycle": false,
+      "data_type": "integer",
+      "increment_by": 1,
+      "max_value": 2147483647,
+      "min_value": 1,
+      "name": "account_id_seq",
+      "owned_by_column": "id",
+      "owned_by_table": "account",
+      "start_value": 1
+    },
+    {
+      "cache_size": 1,
+      "cycle": false,
+      "data_type": "integer",
+      "increment_by": 1,
+      "max_value": 2147483647,
+      "min_value": 1,
+      "name": "accountsendstats_id_seq",
+      "owned_by_column": "id",
+      "owned_by_table": "accountsendstats",
+      "start_value": 1
+    },
+    {
+      "cache_size": 1,
+      "cycle": false,
+      "data_type": "integer",
+      "increment_by": 1,
+      "max_value": 2147483647,
+      "min_value": 1,
+      "name": "ai_config_id_seq",
+      "owned_by_column": "id",
+      "owned_by_table": "ai_config",
+      "start_value": 1
+    },
+    {
+      "cache_size": 1,
+      "cycle": false,
+      "data_type": "integer",
+      "increment_by": 1,
+      "max_value": 2147483647,
+      "min_value": 1,
+      "name": "ai_knowledge_base_id_seq",
+      "owned_by_column": "id",
+      "owned_by_table": "ai_knowledge_base",
+      "start_value": 1
+    },
+    {
+      "cache_size": 1,
+      "cycle": false,
+      "data_type": "integer",
+      "increment_by": 1,
+      "max_value": 2147483647,
+      "min_value": 1,
+      "name": "ai_persona_id_seq",
+      "owned_by_column": "id",
+      "owned_by_table": "ai_persona",
+      "start_value": 1
+    },
+    {
+      "cache_size": 1,
+      "cycle": false,
+      "data_type": "integer",
+      "increment_by": 1,
+      "max_value": 2147483647,
+      "min_value": 1,
+      "name": "campaign_id_seq",
+      "owned_by_column": "id",
+      "owned_by_table": "campaign",
+      "start_value": 1
+    },
+    {
+      "cache_size": 1,
+      "cycle": false,
+      "data_type": "integer",
+      "increment_by": 1,
+      "max_value": 2147483647,
+      "min_value": 1,
+      "name": "chathistory_id_seq",
+      "owned_by_column": "id",
+      "owned_by_table": "chathistory",
+      "start_value": 1
+    },
+    {
+      "cache_size": 1,
+      "cycle": false,
+      "data_type": "integer",
+      "increment_by": 1,
+      "max_value": 2147483647,
+      "min_value": 1,
+      "name": "funnel_group_id_seq",
+      "owned_by_column": "id",
+      "owned_by_table": "funnel_group",
+      "start_value": 1
+    },
+    {
+      "cache_size": 1,
+      "cycle": false,
+      "data_type": "integer",
+      "increment_by": 1,
+      "max_value": 2147483647,
+      "min_value": 1,
+      "name": "funnelgroup_id_seq",
+      "owned_by_column": "id",
+      "owned_by_table": "funnelgroup",
+      "start_value": 1
+    },
+    {
+      "cache_size": 1,
+      "cycle": false,
+      "data_type": "integer",
+      "increment_by": 1,
+      "max_value": 2147483647,
+      "min_value": 1,
+      "name": "invitelog_id_seq",
+      "owned_by_column": "id",
+      "owned_by_table": "invitelog",
+      "start_value": 1
+    },
+    {
+      "cache_size": 1,
+      "cycle": false,
+      "data_type": "integer",
+      "increment_by": 1,
+      "max_value": 2147483647,
+      "min_value": 1,
+      "name": "invitetask_id_seq",
+      "owned_by_column": "id",
+      "owned_by_table": "invitetask",
+      "start_value": 1
+    },
+    {
+      "cache_size": 1,
+      "cycle": false,
+      "data_type": "integer",
+      "increment_by": 1,
+      "max_value": 2147483647,
+      "min_value": 1,
+      "name": "keywordhit_id_seq",
+      "owned_by_column": "id",
+      "owned_by_table": "keywordhit",
+      "start_value": 1
+    },
+    {
+      "cache_size": 1,
+      "cycle": false,
+      "data_type": "integer",
+      "increment_by": 1,
+      "max_value": 2147483647,
+      "min_value": 1,
+      "name": "keywordmonitor_id_seq",
+      "owned_by_column": "id",
+      "owned_by_table": "keywordmonitor",
+      "start_value": 1
+    },
+    {
+      "cache_size": 1,
+      "cycle": false,
+      "data_type": "integer",
+      "increment_by": 1,
+      "max_value": 2147483647,
+      "min_value": 1,
+      "name": "lead_id_seq",
+      "owned_by_column": "id",
+      "owned_by_table": "lead",
+      "start_value": 1
+    },
+    {
+      "cache_size": 1,
+      "cycle": false,
+      "data_type": "integer",
+      "increment_by": 1,
+      "max_value": 2147483647,
+      "min_value": 1,
+      "name": "leadinteraction_id_seq",
+      "owned_by_column": "id",
+      "owned_by_table": "leadinteraction",
+      "start_value": 1
+    },
+    {
+      "cache_size": 1,
+      "cycle": false,
+      "data_type": "integer",
+      "increment_by": 1,
+      "max_value": 2147483647,
+      "min_value": 1,
+      "name": "operationlog_id_seq",
+      "owned_by_column": "id",
+      "owned_by_table": "operationlog",
+      "start_value": 1
+    },
+    {
+      "cache_size": 1,
+      "cycle": false,
+      "data_type": "integer",
+      "increment_by": 1,
+      "max_value": 2147483647,
+      "min_value": 1,
+      "name": "proxy_id_seq",
+      "owned_by_column": "id",
+      "owned_by_table": "proxy",
+      "start_value": 1
+    },
+    {
+      "cache_size": 1,
+      "cycle": false,
+      "data_type": "integer",
+      "increment_by": 1,
+      "max_value": 2147483647,
+      "min_value": 1,
+      "name": "scrapingtask_id_seq",
+      "owned_by_column": "id",
+      "owned_by_table": "scrapingtask",
+      "start_value": 1
+    },
+    {
+      "cache_size": 1,
+      "cycle": false,
+      "data_type": "integer",
+      "increment_by": 1,
+      "max_value": 2147483647,
+      "min_value": 1,
+      "name": "script_id_seq",
+      "owned_by_column": "id",
+      "owned_by_table": "script",
+      "start_value": 1
+    },
+    {
+      "cache_size": 1,
+      "cycle": false,
+      "data_type": "integer",
+      "increment_by": 1,
+      "max_value": 2147483647,
+      "min_value": 1,
+      "name": "scripttask_id_seq",
+      "owned_by_column": "id",
+      "owned_by_table": "scripttask",
+      "start_value": 1
+    },
+    {
+      "cache_size": 1,
+      "cycle": false,
+      "data_type": "integer",
+      "increment_by": 1,
+      "max_value": 2147483647,
+      "min_value": 1,
+      "name": "sendrecord_id_seq",
+      "owned_by_column": "id",
+      "owned_by_table": "sendrecord",
+      "start_value": 1
+    },
+    {
+      "cache_size": 1,
+      "cycle": false,
+      "data_type": "integer",
+      "increment_by": 1,
+      "max_value": 2147483647,
+      "min_value": 1,
+      "name": "sendtask_id_seq",
+      "owned_by_column": "id",
+      "owned_by_table": "sendtask",
+      "start_value": 1
+    },
+    {
+      "cache_size": 1,
+      "cycle": false,
+      "data_type": "integer",
+      "increment_by": 1,
+      "max_value": 2147483647,
+      "min_value": 1,
+      "name": "source_group_id_seq",
+      "owned_by_column": "id",
+      "owned_by_table": "source_group",
+      "start_value": 1
+    },
+    {
+      "cache_size": 1,
+      "cycle": false,
+      "data_type": "integer",
+      "increment_by": 1,
+      "max_value": 2147483647,
+      "min_value": 1,
+      "name": "sourcegroup_id_seq",
+      "owned_by_column": "id",
+      "owned_by_table": "sourcegroup",
+      "start_value": 1
+    },
+    {
+      "cache_size": 1,
+      "cycle": false,
+      "data_type": "integer",
+      "increment_by": 1,
+      "max_value": 2147483647,
+      "min_value": 1,
+      "name": "targetuser_id_seq",
+      "owned_by_column": "id",
+      "owned_by_table": "targetuser",
+      "start_value": 1
+    },
+    {
+      "cache_size": 1,
+      "cycle": false,
+      "data_type": "integer",
+      "increment_by": 1,
+      "max_value": 2147483647,
+      "min_value": 1,
+      "name": "user_id_seq",
+      "owned_by_column": "id",
+      "owned_by_table": "user",
+      "start_value": 1
+    },
+    {
+      "cache_size": 1,
+      "cycle": false,
+      "data_type": "integer",
+      "increment_by": 1,
+      "max_value": 2147483647,
+      "min_value": 1,
+      "name": "warmuptask_id_seq",
+      "owned_by_column": "id",
+      "owned_by_table": "warmuptask",
+      "start_value": 1
+    },
+    {
+      "cache_size": 1,
+      "cycle": false,
+      "data_type": "integer",
+      "increment_by": 1,
+      "max_value": 2147483647,
+      "min_value": 1,
+      "name": "warmuptemplate_id_seq",
+      "owned_by_column": "id",
+      "owned_by_table": "warmuptemplate",
+      "start_value": 1
+    }
   ],
   "tables": {
     "account": {
@@ -234,9 +542,11 @@
       ],
       "indexes": [
         {
+          "column_sorting": {},
           "columns": [
             "combat_role"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -244,9 +554,11 @@
           "unique": false
         },
         {
+          "column_sorting": {},
           "columns": [
             "health_score"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -254,9 +566,11 @@
           "unique": false
         },
         {
+          "column_sorting": {},
           "columns": [
             "phone_number"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -264,9 +578,11 @@
           "unique": true
         },
         {
+          "column_sorting": {},
           "columns": [
             "role"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -274,9 +590,11 @@
           "unique": false
         },
         {
+          "column_sorting": {},
           "columns": [
             "tier"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -408,9 +726,11 @@
       ],
       "indexes": [
         {
+          "column_sorting": {},
           "columns": [
             "account_id"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -418,9 +738,11 @@
           "unique": false
         },
         {
+          "column_sorting": {},
           "columns": [
             "stat_date"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -428,9 +750,11 @@
           "unique": false
         },
         {
+          "column_sorting": {},
           "columns": [
             "account_id"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -438,9 +762,11 @@
           "unique": false
         },
         {
+          "column_sorting": {},
           "columns": [
             "stat_date"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -543,9 +869,11 @@
       "foreign_keys": [],
       "indexes": [
         {
+          "column_sorting": {},
           "columns": [
             "is_default"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -553,9 +881,11 @@
           "unique": false
         },
         {
+          "column_sorting": {},
           "columns": [
             "name"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -642,9 +972,11 @@
       "foreign_keys": [],
       "indexes": [
         {
+          "column_sorting": {},
           "columns": [
             "name"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -652,9 +984,11 @@
           "unique": false
         },
         {
+          "column_sorting": {},
           "columns": [
             "name"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -896,9 +1230,11 @@
       ],
       "indexes": [
         {
+          "column_sorting": {},
           "columns": [
             "status"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -1046,9 +1382,11 @@
       ],
       "indexes": [
         {
+          "column_sorting": {},
           "columns": [
             "account_id"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -1056,9 +1394,11 @@
           "unique": false
         },
         {
+          "column_sorting": {},
           "columns": [
             "target_user_id"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -1105,9 +1445,11 @@
       "foreign_keys": [],
       "indexes": [
         {
+          "column_sorting": {},
           "columns": [
             "campaign_id"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -1115,9 +1457,11 @@
           "unique": false
         },
         {
+          "column_sorting": {},
           "columns": [
             "type"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -1241,9 +1585,11 @@
       ],
       "indexes": [
         {
+          "column_sorting": {},
           "columns": [
             "campaign_id"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -1251,9 +1597,11 @@
           "unique": false
         },
         {
+          "column_sorting": {},
           "columns": [
             "link"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -1261,9 +1609,11 @@
           "unique": false
         },
         {
+          "column_sorting": {},
           "columns": [
             "type"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -1414,9 +1764,11 @@
       "foreign_keys": [],
       "indexes": [
         {
+          "column_sorting": {},
           "columns": [
             "account_id"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -1424,9 +1776,11 @@
           "unique": false
         },
         {
+          "column_sorting": {},
           "columns": [
             "created_at"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -1434,9 +1788,11 @@
           "unique": false
         },
         {
+          "column_sorting": {},
           "columns": [
             "error_code"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -1444,9 +1800,11 @@
           "unique": false
         },
         {
+          "column_sorting": {},
           "columns": [
             "status"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -1454,9 +1812,11 @@
           "unique": false
         },
         {
+          "column_sorting": {},
           "columns": [
             "target_telegram_id"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -1464,9 +1824,11 @@
           "unique": false
         },
         {
+          "column_sorting": {},
           "columns": [
             "target_user_id"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -1474,9 +1836,11 @@
           "unique": false
         },
         {
+          "column_sorting": {},
           "columns": [
             "task_id"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -1771,9 +2135,11 @@
       "foreign_keys": [],
       "indexes": [
         {
+          "column_sorting": {},
           "columns": [
             "account_group"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -1781,9 +2147,11 @@
           "unique": false
         },
         {
+          "column_sorting": {},
           "columns": [
             "status"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -2162,9 +2530,11 @@
       ],
       "indexes": [
         {
+          "column_sorting": {},
           "columns": [
             "keyword"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -2296,9 +2666,11 @@
       ],
       "indexes": [
         {
+          "column_sorting": {},
           "columns": [
             "account_id"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -2306,9 +2678,11 @@
           "unique": false
         },
         {
+          "column_sorting": {},
           "columns": [
             "telegram_user_id"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -2588,9 +2962,11 @@
       "foreign_keys": [],
       "indexes": [
         {
+          "column_sorting": {},
           "columns": [
             "ip"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -3117,9 +3493,11 @@
       "foreign_keys": [],
       "indexes": [
         {
+          "column_sorting": {},
           "columns": [
             "status"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -3127,9 +3505,11 @@
           "unique": false
         },
         {
+          "column_sorting": {},
           "columns": [
             "type"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -3256,9 +3636,11 @@
       "foreign_keys": [],
       "indexes": [
         {
+          "column_sorting": {},
           "columns": [
             "link"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -3266,9 +3648,11 @@
           "unique": false
         },
         {
+          "column_sorting": {},
           "columns": [
             "status"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -3276,9 +3660,11 @@
           "unique": false
         },
         {
+          "column_sorting": {},
           "columns": [
             "type"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -3571,9 +3957,11 @@
       "foreign_keys": [],
       "indexes": [
         {
+          "column_sorting": {},
           "columns": [
             "ai_score"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -3581,9 +3969,11 @@
           "unique": false
         },
         {
+          "column_sorting": {},
           "columns": [
             "funnel_stage"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -3591,9 +3981,11 @@
           "unique": false
         },
         {
+          "column_sorting": {},
           "columns": [
             "invite_account_id"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -3601,9 +3993,11 @@
           "unique": false
         },
         {
+          "column_sorting": {},
           "columns": [
             "invite_attempted_at"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -3611,9 +4005,11 @@
           "unique": false
         },
         {
+          "column_sorting": {},
           "columns": [
             "invite_status"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -3621,9 +4017,11 @@
           "unique": false
         },
         {
+          "column_sorting": {},
           "columns": [
             "telegram_id"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -3702,9 +4100,11 @@
       "foreign_keys": [],
       "indexes": [
         {
+          "column_sorting": {},
           "columns": [
             "username"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
@@ -3933,9 +4333,11 @@
       "foreign_keys": [],
       "indexes": [
         {
+          "column_sorting": {},
           "columns": [
             "name"
           ],
+          "dialect_options": {},
           "duplicates_constraint": null,
           "expressions": [],
           "include_columns": [],
