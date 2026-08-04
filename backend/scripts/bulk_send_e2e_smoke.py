@@ -41,7 +41,7 @@ BASE = os.environ.get("SMOKE_BASE", "http://localhost:8000")
 CUST_EMAIL = os.environ.get("SMOKE_CUSTOMER_EMAIL", "smoke@tg1.ai")
 CUST_PASS = os.environ.get("SMOKE_CUSTOMER_PASSWORD", "Demo2026!")
 ADMIN_USER = os.environ.get("SMOKE_ADMIN_USER", "admin")
-ADMIN_PASS = os.environ.get("SMOKE_ADMIN_PASSWORD", "Admin@Tgsc2026")
+ADMIN_PASS = os.environ["SMOKE_ADMIN_PASSWORD"]
 
 
 PASSED: list[str] = []

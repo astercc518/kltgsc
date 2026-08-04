@@ -37,6 +37,7 @@ def test_environment_rejects_unknown_modes(environment: str) -> None:
         ("SESSION_ENCRYPTION_KEY", "short"),
         ("ADMIN_PASSWORD", ""),
         ("ADMIN_PASSWORD", "admin123"),
+        ("ADMIN_PASSWORD", "Admin@" + "Tgsc2026"),
         ("ADMIN_PASSWORD", "Short1"),
         ("SECURITY_ENABLED", False),
         ("DATABASE_URL", "sqlite:///./tgsc.db"),

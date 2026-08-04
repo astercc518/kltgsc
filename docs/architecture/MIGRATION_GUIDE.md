@@ -405,7 +405,7 @@ docker compose -f docker-compose.prod.yml exec backend ls -la /app/sessions/
 | `REDIS_URL` | Redis 连接 | `redis://...` |
 | `SECRET_KEY` | JWT 签名密钥 | (64字节随机字符串) |
 | `ADMIN_USERNAME` | 管理员用户名 | `admin` |
-| `ADMIN_PASSWORD` | 管理员密码 | `Admin@Tgsc2026` |
+| `ADMIN_PASSWORD` | 管理员密码 | `<ADMIN_PASSWORD>` |
 | `CELERY_BROKER_URL` | Celery 消息队列 | `redis://...` |
 | `CELERY_RESULT_BACKEND` | Celery 结果存储 | `redis://...` |
 

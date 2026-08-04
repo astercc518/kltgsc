@@ -20,6 +20,9 @@ _KNOWN_DEFAULT_PASSWORDS = {
     "change_me",
     "password",
     "password123!",
+    # Retired production default. Keep the fingerprint split so repository
+    # scanners can reject the literal wherever it is accidentally reintroduced.
+    "admin@" "tgsc2026",
 }
 
 
