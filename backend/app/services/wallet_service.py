@@ -59,14 +59,22 @@ class InsufficientBalanceError(WalletError):
 # ── Wallet provisioning ─────────────────────────────────────────────────
 
 
-def get_or_create_wallet(session: Session, customer_id: int) -> CustomerWallet:
+def get_or_create_wallet(
+    session: Session,
+    customer_id: int,
+    *,
+    commit: bool = True,
+) -> CustomerWallet:
     """Return the customer's wallet, creating an empty one on first access."""
     wallet = session.get(CustomerWallet, customer_id)
     if wallet is None:
         wallet = CustomerWallet(customer_id=customer_id)
         session.add(wallet)
-        session.commit()
-        session.refresh(wallet)
+        if commit:
+            session.commit()
+            session.refresh(wallet)
+        else:
+            session.flush()
     return wallet
 
 
@@ -145,6 +153,8 @@ def create_topup_invoice(
 def credit_wallet_from_invoice(
     session: Session,
     invoice: Invoice,
+    *,
+    commit: bool = True,
 ) -> WalletTransaction:
     """Apply a confirmed topup invoice to the customer's wallet balance.
 
@@ -181,7 +191,11 @@ def credit_wallet_from_invoice(
     credit_cents = base_cents + bonus_cents
 
     # Lock the wallet row, mutate, write txn — all in one transaction
-    wallet = get_or_create_wallet(session, invoice.customer_id)
+    wallet = get_or_create_wallet(
+        session,
+        invoice.customer_id,
+        commit=commit,
+    )
 
     # Re-fetch with row lock to handle concurrent topups
     wallet = session.exec(
@@ -211,8 +225,11 @@ def credit_wallet_from_invoice(
     )
     session.add(wallet)
     session.add(txn)
-    session.commit()
-    session.refresh(txn)
+    if commit:
+        session.commit()
+        session.refresh(txn)
+    else:
+        session.flush()
     return txn
 
 

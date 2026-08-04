@@ -43,7 +43,11 @@ SALES_WALLET_TOPUP_PLAN = "sales_wallet_topup"
 
 
 def get_or_create_wallet(
-    session: Session, owner_type: str, owner_id: int,
+    session: Session,
+    owner_type: str,
+    owner_id: int,
+    *,
+    commit: bool = True,
 ) -> SalesWallet:
     if owner_type not in SALES_OWNER_TYPES:
         raise SalesWalletError(f"Invalid owner_type: {owner_type}")
@@ -56,8 +60,11 @@ def get_or_create_wallet(
     if wallet is None:
         wallet = SalesWallet(owner_type=owner_type, owner_id=owner_id)
         session.add(wallet)
-        session.commit()
-        session.refresh(wallet)
+        if commit:
+            session.commit()
+            session.refresh(wallet)
+        else:
+            session.flush()
     return wallet
 
 
@@ -131,7 +138,10 @@ def create_topup_invoice_for_customer_sales(
 
 
 def credit_sales_wallet_from_invoice(
-    session: Session, invoice: Invoice,
+    session: Session,
+    invoice: Invoice,
+    *,
+    commit: bool = True,
 ) -> SalesWalletTransaction:
     """Apply a paid sales_wallet_topup invoice to the SalesWallet.
 
@@ -161,7 +171,12 @@ def credit_sales_wallet_from_invoice(
     bonus_cents = int(round(base_cents * bonus_pct / 100))
     credit_cents = base_cents + bonus_cents
 
-    get_or_create_wallet(session, invoice.sales_owner_type, invoice.sales_owner_id)
+    get_or_create_wallet(
+        session,
+        invoice.sales_owner_type,
+        invoice.sales_owner_id,
+        commit=commit,
+    )
     wallet = session.exec(
         select(SalesWallet)
         .where(
@@ -191,8 +206,11 @@ def credit_sales_wallet_from_invoice(
     )
     session.add(wallet)
     session.add(txn)
-    session.commit()
-    session.refresh(txn)
+    if commit:
+        session.commit()
+        session.refresh(txn)
+    else:
+        session.flush()
     return txn
 
 

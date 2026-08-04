@@ -35,19 +35,17 @@ from typing import Any
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from sqlmodel import Session
 
-from datetime import datetime
-
 from app.core.config import settings
 from app.core.db import get_session
 from app.models.subscription import INV_PAID, INV_PENDING, Invoice
 from app.services.billing_service import BillingError, activate_invoice
-from app.services.wallet_service import (
-    WALLET_TOPUP_PLAN, WalletError, credit_wallet_from_invoice,
+from app.services.payment_settlement import (
+    PaymentSettlementError,
+    settle_wallet_invoice,
 )
+from app.services.wallet_service import WALLET_TOPUP_PLAN
 from app.services.sales_wallet_service import (
     SALES_WALLET_TOPUP_PLAN,
-    SalesWalletError,
-    credit_sales_wallet_from_invoice,
 )
 
 logger = logging.getLogger(__name__)
@@ -139,36 +137,30 @@ async def nowpayments_webhook(
         )
         return {"status": "noop", "payment_status": payment_status}
 
-    if invoice.status == INV_PAID:
-        # Already activated (e.g. admin already confirmed manually, or webhook
-        # delivered twice). Return 200 so NowPayments stops retrying.
-        return {"status": "already_paid", "invoice_id": invoice.id}
-
-    if invoice.status != INV_PENDING:
-        logger.warning(
-            "nowpayments_webhook: invoice %s in unexpected status %s",
-            invoice.id, invoice.status,
-        )
-        return {"status": "rejected", "invoice_status": invoice.status}
-
     # Route by invoice.plan: wallet topup vs sales topup vs subscription
     if invoice.plan in (WALLET_TOPUP_PLAN, SALES_WALLET_TOPUP_PLAN):
-        # Mark invoice paid, then credit the correct wallet (idempotent on invoice.id).
-        invoice.status = INV_PAID
-        invoice.tx_hash = tx_hash
-        invoice.paid_at = datetime.utcnow()
-        session.add(invoice)
-        session.commit()
-
         try:
-            if invoice.plan == SALES_WALLET_TOPUP_PLAN:
-                txn = credit_sales_wallet_from_invoice(session, invoice)
-            else:
-                txn = credit_wallet_from_invoice(session, invoice)
-        except (WalletError, SalesWalletError) as e:
-            logger.error("nowpayments_webhook: wallet credit failed for invoice %s: %s",
-                         invoice.id, e)
+            txn = settle_wallet_invoice(
+                session,
+                invoice_id=invoice.id,
+                tx_hash=tx_hash,
+            )
+        except PaymentSettlementError as e:
+            logger.error(
+                "nowpayments_webhook: wallet settlement rejected for invoice %s: %s",
+                invoice.id,
+                e,
+            )
             raise HTTPException(status_code=400, detail=str(e))
+        except Exception:
+            logger.exception(
+                "nowpayments_webhook: retryable wallet settlement failure for invoice %s",
+                invoice.id,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Wallet settlement failed; retry notification",
+            )
 
         logger.info(
             "nowpayments_webhook: invoice %s -> %s credited %d cents (txn %s)",
@@ -181,6 +173,18 @@ async def nowpayments_webhook(
             "amount_cents": txn.amount_cents,
             "balance_after_cents": txn.balance_after_cents,
         }
+
+    if invoice.status == INV_PAID:
+        # Already activated (e.g. admin already confirmed manually, or webhook
+        # delivered twice). Return 200 so NowPayments stops retrying.
+        return {"status": "already_paid", "invoice_id": invoice.id}
+
+    if invoice.status != INV_PENDING:
+        logger.warning(
+            "nowpayments_webhook: invoice %s in unexpected status %s",
+            invoice.id, invoice.status,
+        )
+        return {"status": "rejected", "invoice_status": invoice.status}
 
     # Subscription plan — original flow
     try:

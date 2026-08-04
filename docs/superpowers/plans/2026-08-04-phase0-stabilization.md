@@ -295,13 +295,10 @@ Using an in-memory SQLite engine with foreign keys enabled, create customer and 
 - both customer-wallet and sales-wallet routes have the same guarantees;
 - a paid invoice with no matching transaction raises an invariant error rather than reporting success.
 
-Use a keyword-only failure hook scoped to tests:
-
-```python
-settle_wallet_invoice(session, invoice_id, tx_hash, after_wallet_mutation=raise_test_error)
-```
-
-The production caller never supplies the hook.
+Save the real bound `session.commit`, temporarily replace that one method with
+a function that raises `RuntimeError`, call settlement, then restore the real
+method before inspecting and retrying. This exercises real SQLModel mutations
+and rollback while keeping test-only hooks out of production services.
 
 **Step 2: Verify red**
 
@@ -323,9 +320,8 @@ Add `commit: bool = True` to `get_or_create_wallet` and both invoice-credit help
 4. reject non-pending status or a paid invoice missing its transaction;
 5. mark paid and set hash/time in memory;
 6. call the correct credit helper with `commit=False`;
-7. call the test failure hook after mutation;
-8. `session.commit()` once and refresh the transaction;
-9. on every exception, call `session.rollback()` and re-raise.
+7. `session.commit()` once and refresh the transaction;
+8. on every exception, call `session.rollback()` and re-raise.
 
 **Step 5: Route the webhook through settlement**
 
