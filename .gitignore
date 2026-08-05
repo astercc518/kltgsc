@@ -109,3 +109,12 @@ tgid/
 *.pem
 *.key
 *.crt
+
+# ========== Local scratch / caches (2026-08-05) ==========
+# ML model cache (fastembed/ONNX), ~700MB — never commit
+backend/.cache/
+# MCP / agent tooling scratch dirs
+.playwright-mcp/
+.claire/
+# Ad-hoc UI screenshots dumped at repo root
+/*.png
