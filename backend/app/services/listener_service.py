@@ -19,6 +19,7 @@ from app.models.keyword_monitor import KeywordMonitor, KeywordHit
 from app.services.telegram_client import get_proxy_dict, _create_client_and_run
 from app.services.keyword_monitor_service import KeywordMonitorService
 from app.services.score_service import ScoreService
+from app.services import group_reply_pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -215,6 +216,19 @@ class ListenerService:
                     await self._execute_passive_marketing(
                         client, message, session, monitor, hit, user_id, username, first_name
                     )
+
+                # === Phase 1 群内 AI 销售员管线触发 ===
+                # 仅对群/超级群/频道消息触发；私聊 DM 由 ai_reply_service 负责。
+                # 与现有 intercept / keyword auto_reply 并行，不互斥（两者目标不同）。
+                if getattr(message.chat, "type", None) in (
+                    enums.ChatType.GROUP,
+                    enums.ChatType.SUPERGROUP,
+                    enums.ChatType.CHANNEL,
+                ):
+                    try:
+                        await group_reply_pipeline.entrypoint(message, account_obj, monitor)
+                    except Exception:
+                        logger.exception("group_reply_pipeline failed (non-blocking)")
 
     def _check_target_group(self, monitor: KeywordMonitor, message) -> bool:
         """检查消息是否来自目标群组"""
