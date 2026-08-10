@@ -1,4 +1,5 @@
 from typing import Optional, List
+from sqlalchemy import Column, JSON
 from sqlmodel import SQLModel, Field, Relationship
 from datetime import datetime
 
@@ -73,6 +74,12 @@ class KeywordMonitorBase(SQLModel):
     # 上触发，避免跨租户串台。与 created_by_sales_user_id 互斥（同一规则要么是
     # 销售视角、要么是客户视角；listener 两边都校验）。
     customer_id: Optional[int] = Field(default=None, foreign_key="customer.id", index=True)
+
+    # Phase 1 群内 AI 销售员 - 结构化关键词过滤 (include/exclude/mode)
+    # mode: 'any' = include 任一命中即通过; 'all' = include 全部命中
+    keyword_filters: Optional[dict] = Field(
+        default=None, sa_column=Column(JSON, nullable=True)
+    )
 
 class KeywordMonitor(KeywordMonitorBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
