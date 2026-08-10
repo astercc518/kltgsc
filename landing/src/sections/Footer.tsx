@@ -3,20 +3,18 @@
  *
  * No `href="#"` placeholders. Each column groups by intent:
  *   Product   → docs, pricing, changelog, in-page anchors
- *   Company   → about (TODO route), contact, sales TG
- *   Legal     → privacy, tos
- *   Social    → github, x
+ *   Company   → contact, legal
+ *   Social    → two Telegram channels (sales + support)
  */
 import { Link } from 'react-router-dom';
-import { Github, Twitter, Send } from 'lucide-react';
+import { Send } from 'lucide-react';
 import BrandMark from '@/components/BrandMark';
 import { LINKS } from '@/lib/links';
 import { useT } from '@/i18n';
 
 const social = [
-  { icon: Send,    href: LINKS.telegramSales, label: 'Telegram' },
-  { icon: Twitter, href: LINKS.twitter,       label: 'X (Twitter)' },
-  { icon: Github,  href: LINKS.github,        label: 'GitHub' },
+  { icon: Send, href: LINKS.telegramSales,   label: 'Telegram — Sales' },
+  { icon: Send, href: LINKS.telegramSupport, label: 'Telegram — Support' },
 ];
 
 export default function Footer() {
@@ -36,21 +34,21 @@ export default function Footer() {
     {
       title: t.footer.columns.company,
       links: [
-        { label: t.footer.links.talkToSales, href: LINKS.telegramSales, external: true },
-        { label: 'sales@tg1.ai',             href: LINKS.salesEmail,    external: true },
-        { label: t.footer.links.privacy,     href: LINKS.privacy,       external: false },
-        { label: t.footer.links.terms,       href: LINKS.tos,           external: false },
+        { label: t.footer.links.talkToSales, href: LINKS.telegramSales,   external: true },
+        { label: '@klsmsz',                  href: LINKS.telegramSupport, external: true },
+        { label: t.footer.links.privacy,     href: LINKS.privacy,         external: false },
+        { label: t.footer.links.terms,       href: LINKS.tos,             external: false },
       ],
     },
   ];
   return (
-    <footer className="bg-brand-ink-950 border-t border-white/5 text-white/60">
+    <footer className="bg-brand-ink-950 border-t border-line-subtle text-fg-secondary">
       <div className="max-w-container mx-auto px-6 py-16">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10">
           {/* Brand + tagline */}
           <div className="col-span-2 md:col-span-1">
             <BrandMark size="sm" onDark />
-            <p className="mt-4 text-sm text-white/40 leading-relaxed">
+            <p className="mt-4 text-sm text-fg-muted leading-relaxed">
               {t.footer.tagline}
             </p>
             <div className="mt-5 flex gap-3">
@@ -61,7 +59,7 @@ export default function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={s.label}
-                  className="w-9 h-9 rounded-lg bg-white/5 hover:bg-white/10 inline-flex items-center justify-center transition-colors"
+                  className="w-9 h-9 rounded-lg bg-brand-ink-800 hover:bg-brand-ink-700 inline-flex items-center justify-center transition-colors"
                 >
                   <s.icon className="w-4 h-4" />
                 </a>
@@ -72,7 +70,7 @@ export default function Footer() {
           {/* Link columns */}
           {columns.map((col) => (
             <div key={col.title}>
-              <div className="text-eyebrow font-mono text-white/40 uppercase mb-4">
+              <div className="text-eyebrow font-mono text-fg-muted uppercase mb-4">
                 {col.title}
               </div>
               <ul className="space-y-3 text-sm">
@@ -83,20 +81,20 @@ export default function Footer() {
                         href={l.href}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="hover:text-white transition-colors"
+                        className="hover:text-fg-primary transition-colors"
                       >
                         {l.label}
                       </a>
                     </li>
                   ) : l.href.startsWith('#') ? (
                     <li key={l.label}>
-                      <a href={l.href} className="hover:text-white transition-colors">
+                      <a href={l.href} className="hover:text-fg-primary transition-colors">
                         {l.label}
                       </a>
                     </li>
                   ) : (
                     <li key={l.label}>
-                      <Link to={l.href} className="hover:text-white transition-colors">
+                      <Link to={l.href} className="hover:text-fg-primary transition-colors">
                         {l.label}
                       </Link>
                     </li>
@@ -108,12 +106,12 @@ export default function Footer() {
 
           {/* 4th column reserved for newsletter / status, kept airy for now */}
           <div className="hidden md:block">
-            <div className="text-eyebrow font-mono text-white/40 uppercase mb-4">
+            <div className="text-eyebrow font-mono text-fg-muted uppercase mb-4">
               {t.footer.statusLabel}
             </div>
             <a
               href="#"
-              className="inline-flex items-center gap-2 text-sm hover:text-white transition-colors"
+              className="inline-flex items-center gap-2 text-sm hover:text-fg-primary transition-colors"
             >
               <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
               {t.footer.statusValue}
@@ -121,7 +119,7 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-12 pt-6 border-t border-white/5 flex flex-wrap items-center justify-between gap-4 text-xs text-white/30 font-mono">
+        <div className="mt-12 pt-6 border-t border-line-subtle flex flex-wrap items-center justify-between gap-4 text-xs text-fg-muted font-mono">
           <div>{t.footer.copyright.replace('{year}', String(new Date().getFullYear()))}</div>
           <div>{t.footer.notAffiliated}</div>
         </div>

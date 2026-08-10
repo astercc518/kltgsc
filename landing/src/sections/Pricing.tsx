@@ -64,21 +64,21 @@ export default function Pricing() {
     },
   ];
   return (
-    <section id="pricing" className="bg-brand-ink-50 scroll-mt-24">
+    <section id="pricing" className="bg-surface-1 scroll-mt-24">
       <div className="max-w-container mx-auto px-6 py-24 lg:py-32">
         <Reveal>
           <div className="text-center max-w-3xl mx-auto">
-            <div className="inline-flex items-center gap-2 text-eyebrow font-mono text-brand-ink-500 uppercase">
-              <span className="h-px w-8 bg-brand-ink-300" />
+            <div className="inline-flex items-center gap-2 text-eyebrow font-mono text-fg-muted uppercase">
+              <span className="h-px w-8 bg-line-strong" />
               {t.pricing.eyebrow}
-              <span className="h-px w-8 bg-brand-ink-300" />
+              <span className="h-px w-8 bg-line-strong" />
             </div>
-            <h2 className="mt-4 font-display text-display-2 text-brand-ink-900">
+            <h2 className="mt-4 font-display text-display-2 text-fg-primary">
               {t.pricing.titlePart1}
               <br />
-              <span className="text-brand-ink-500">{t.pricing.titlePart2}</span>
+              <span className="text-fg-muted">{t.pricing.titlePart2}</span>
             </h2>
-            <p className="mt-5 text-lg text-brand-ink-600">
+            <p className="mt-5 text-lg text-fg-secondary">
               {t.pricing.subtitle}
             </p>
           </div>
@@ -95,30 +95,30 @@ export default function Pricing() {
 
         {/* Foldable unit-price table */}
         <Reveal delay={200}>
-          <div className="mt-14 max-w-3xl mx-auto rounded-2xl border border-brand-ink-200 bg-white overflow-hidden">
+          <div className="mt-14 max-w-3xl mx-auto rounded-2xl border border-line-subtle bg-brand-ink-900 overflow-hidden">
             <button
               type="button"
-              className="w-full flex items-center justify-between gap-3 px-6 py-4 text-left transition-colors hover:bg-brand-ink-50"
+              className="w-full flex items-center justify-between gap-3 px-6 py-4 text-left transition-colors hover:bg-brand-ink-800"
               onClick={() => setTableOpen((v) => !v)}
               aria-expanded={tableOpen}
             >
               <div>
-                <div className="font-display font-semibold text-brand-ink-900">
+                <div className="font-display font-semibold text-fg-primary">
                   {t.pricing.tableTitle}
                 </div>
-                <div className="text-sm text-brand-ink-500">
+                <div className="text-sm text-fg-muted">
                   {t.pricing.tableSubtitle}
                 </div>
               </div>
               <ChevronDown
-                className={`w-5 h-5 text-brand-ink-500 shrink-0 transition-transform ${tableOpen ? 'rotate-180' : ''}`}
+                className={`w-5 h-5 text-fg-muted shrink-0 transition-transform ${tableOpen ? 'rotate-180' : ''}`}
               />
             </button>
             {tableOpen && (
-              <div className="border-t border-brand-ink-100">
+              <div className="border-t border-line-subtle">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-eyebrow font-mono text-brand-ink-500 uppercase">
+                    <tr className="text-eyebrow font-mono text-fg-muted uppercase">
                       <th className="text-left px-6 py-3 font-semibold">{t.pricing.tableHeaders.product}</th>
                       <th className="text-left px-3 py-3 font-semibold">{t.pricing.tableHeaders.action}</th>
                       <th className="text-left px-3 py-3 font-semibold">{t.pricing.tableHeaders.unit}</th>
@@ -127,16 +127,16 @@ export default function Pricing() {
                   </thead>
                   <tbody>
                     {unitPrices.map((row) => (
-                      <tr key={row.label} className="border-t border-brand-ink-50">
-                        <td className="px-6 py-3 text-brand-ink-500">{row.groupKey === 'self_serve' ? t.hero.selfServe.tag : row.groupKey === 'ai' ? t.hero.aiAssistant.tag : 'KB'}</td>
-                        <td className="px-3 py-3 text-brand-ink-900 font-medium">{row.label}</td>
-                        <td className="px-3 py-3 text-brand-ink-500 font-mono text-[0.85rem]">{row.unit}</td>
-                        <td className="px-6 py-3 text-right font-mono text-brand-ink-900">{row.price}</td>
+                      <tr key={row.label} className="border-t border-line-subtle">
+                        <td className="px-6 py-3 text-fg-muted">{row.groupKey === 'self_serve' ? t.hero.selfServe.tag : row.groupKey === 'ai' ? t.hero.aiAssistant.tag : 'KB'}</td>
+                        <td className="px-3 py-3 text-fg-primary font-medium">{row.label}</td>
+                        <td className="px-3 py-3 text-fg-muted font-mono text-[0.85rem]">{row.unit}</td>
+                        <td className="px-6 py-3 text-right font-mono text-fg-primary">{row.price}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                <div className="px-6 py-3 bg-brand-ink-50 text-xs text-brand-ink-500">
+                <div className="px-6 py-3 bg-brand-ink-950 text-xs text-fg-muted">
                   {t.pricing.tableAdminNote.replace('billing docs', '')}
                   <a href={LINKS.docsBilling} className="text-brand-blue-500 underline underline-offset-2">billing docs</a>.
                 </div>

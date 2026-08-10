@@ -48,7 +48,7 @@ export default function Header() {
     >
       <div className="max-w-container mx-auto px-6 h-16 flex items-center justify-between gap-4">
         <Link to="/" className="shrink-0">
-          <BrandMark size="sm" />
+          <BrandMark size="sm" onDark={!scrolled} />
         </Link>
 
         {/* Desktop nav */}

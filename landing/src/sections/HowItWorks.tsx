@@ -26,7 +26,7 @@ export default function HowItWorks() {
     icon: STEP_ICONS[i],
   }));
   return (
-    <ScrollPin steps={steps.length} className="bg-white relative">
+    <ScrollPin steps={steps.length} className="bg-brand-ink-950 relative">
       {({ step, progress }) => {
         const active = steps[step];
         return (
@@ -36,10 +36,10 @@ export default function HowItWorks() {
               <div className="text-eyebrow font-mono text-brand-blue-500 uppercase mb-3">
                 {t.howItWorks.eyebrowPrefix} {String(step + 1).padStart(2, '0')} / 06
               </div>
-              <h2 className="font-display text-display-2 text-brand-ink-900 mb-6 leading-tight">
+              <h2 className="font-display text-display-2 text-fg-primary mb-6 leading-tight">
                 {t.howItWorks.titleA}
                 <br />
-                <span className="text-brand-ink-500">{t.howItWorks.titleB}</span>
+                <span className="text-fg-muted">{t.howItWorks.titleB}</span>
               </h2>
 
               <div className="space-y-3">
@@ -52,22 +52,22 @@ export default function HowItWorks() {
                       className={[
                         'flex items-start gap-4 p-4 rounded-xl transition-all duration-300',
                         isActive
-                          ? 'bg-brand-blue-50 border border-brand-blue-200'
+                          ? 'bg-brand-blue-500/10 border border-brand-blue-500/40'
                           : 'border border-transparent opacity-50 hover:opacity-80',
                       ].join(' ')}
                     >
                       <div className={[
                         'shrink-0 w-9 h-9 rounded-lg inline-flex items-center justify-center transition-colors',
-                        isActive ? 'bg-brand-blue-500 text-white' : 'bg-brand-ink-100 text-brand-ink-500',
+                        isActive ? 'bg-brand-blue-500 text-white' : 'bg-brand-ink-900 text-fg-muted',
                       ].join(' ')}>
                         <Icon className="w-4 h-4" />
                       </div>
                       <div>
-                        <h3 className="font-display font-semibold text-brand-ink-900 text-base">
+                        <h3 className="font-display font-semibold text-fg-primary text-base">
                           {s.num.toString().padStart(2, '0')} · {s.title}
                         </h3>
                         {isActive && (
-                          <p className="mt-1 text-sm text-brand-ink-600 leading-relaxed">
+                          <p className="mt-1 text-sm text-fg-secondary leading-relaxed">
                             {s.blurb}
                           </p>
                         )}
@@ -80,7 +80,7 @@ export default function HowItWorks() {
 
             {/* Right: schematic stage */}
             <div className="relative">
-              <div className="aspect-square rounded-3xl bg-brand-ink-950 p-8 overflow-hidden border border-brand-ink-200 shadow-card">
+              <div className="aspect-square rounded-3xl bg-brand-ink-900 p-8 overflow-hidden border border-line-subtle shadow-card">
                 {/* Pulse ring behind the icon */}
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="w-48 h-48 rounded-full border border-brand-blue-500/30 animate-pulse-soft" />

@@ -24,31 +24,31 @@ export default function TrustBar() {
   return (
     <section
       aria-label="Trust signals"
-      className="bg-brand-ink-950 border-y border-white/5"
+      className="bg-brand-ink-950 border-y border-line-subtle"
     >
       <div className="max-w-container mx-auto px-6 py-12">
         <Reveal>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-x-8 gap-y-8">
             {stats.map((s, i) => (
               <div key={i} className="text-center md:text-left">
-                <div className="font-mono text-3xl md:text-4xl text-white font-semibold tracking-tight">
+                <div className="font-mono text-3xl md:text-4xl text-fg-primary font-semibold tracking-tight">
                   <AnimatedNumber
                     value={s.value}
                     suffix={s.suffix}
                     format={s.format}
                   />
                 </div>
-                <div className="mt-1 text-xs uppercase tracking-wider text-white/40">
+                <div className="mt-1 text-xs uppercase tracking-wider text-fg-muted">
                   {s.label}
                 </div>
               </div>
             ))}
             {/* Fifth slot doubles as the "billing" callout — non-numeric */}
             <div className="text-center md:text-left col-span-2 md:col-span-1">
-              <div className="font-mono text-3xl md:text-4xl text-white font-semibold tracking-tight">
+              <div className="font-mono text-3xl md:text-4xl text-fg-primary font-semibold tracking-tight">
                 USDT
               </div>
-              <div className="mt-1 text-xs uppercase tracking-wider text-white/40">
+              <div className="mt-1 text-xs uppercase tracking-wider text-fg-muted">
                 {t.trustBar.networks}
               </div>
             </div>

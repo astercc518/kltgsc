@@ -39,11 +39,11 @@ export default function ProductAIAssistant() {
               <span className="h-px w-8 bg-brand-purple-500" />
               {t.aiAssistant.eyebrow}
             </div>
-            <h2 className="mt-4 font-display text-display-2 text-white">
+            <h2 className="mt-4 font-display text-display-2 text-fg-primary">
               {t.aiAssistant.titleA}
-              <span className="text-white/50"> {t.aiAssistant.titleB}</span>
+              <span className="text-fg-muted"> {t.aiAssistant.titleB}</span>
             </h2>
-            <p className="mt-5 text-lg text-white/70 leading-relaxed">
+            <p className="mt-5 text-lg text-fg-secondary leading-relaxed">
               {t.aiAssistant.subtitle}
             </p>
           </div>
@@ -58,21 +58,21 @@ export default function ProductAIAssistant() {
                   'h-full rounded-2xl border p-6 transition-all',
                   s.highlight
                     ? 'border-brand-purple-500/40 bg-brand-purple-500/[0.08] shadow-glow-purple'
-                    : 'border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]',
+                    : 'border-line-subtle bg-brand-ink-900 hover:border-line-strong hover:bg-brand-ink-800',
                 ].join(' ')}
               >
                 <div className="flex items-center gap-3 mb-4">
-                  <span className="font-mono text-eyebrow text-white/40">
+                  <span className="font-mono text-eyebrow text-fg-muted">
                     {String(i + 1).padStart(2, '0')}
                   </span>
-                  <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl ${s.highlight ? 'bg-brand-purple-500/20 text-brand-purple-300' : 'bg-white/5 text-white/70'}`}>
+                  <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl ${s.highlight ? 'bg-brand-purple-500/20 text-brand-purple-300' : 'bg-brand-ink-800 text-fg-secondary'}`}>
                     <s.icon className="w-5 h-5" />
                   </div>
                 </div>
-                <h3 className="font-display text-xl font-semibold text-white mb-2">
+                <h3 className="font-display text-xl font-semibold text-fg-primary mb-2">
                   {s.title}
                 </h3>
-                <p className="text-sm text-white/60 leading-relaxed">
+                <p className="text-sm text-fg-secondary leading-relaxed">
                   {s.desc}
                 </p>
               </div>
@@ -88,13 +88,13 @@ export default function ProductAIAssistant() {
                 <Shield className="w-6 h-6 text-brand-purple-300" />
               </div>
               <div className="flex-1">
-                <h3 className="font-display text-xl font-semibold text-white mb-2">
+                <h3 className="font-display text-xl font-semibold text-fg-primary mb-2">
                   {t.aiAssistant.safetyTitle}
                 </h3>
-                <p className="text-white/70 leading-relaxed">
+                <p className="text-fg-secondary leading-relaxed">
                   {t.aiAssistant.safetyDesc}
                 </p>
-                <p className="mt-3 text-sm text-white/50">
+                <p className="mt-3 text-sm text-fg-muted">
                   {t.aiAssistant.safetyWhy}{' '}
                   <a href={LINKS.docsBilling} className="text-brand-purple-300 hover:text-brand-purple-200 underline underline-offset-4">
                     {t.aiAssistant.safetyLink}
@@ -106,10 +106,10 @@ export default function ProductAIAssistant() {
         </Reveal>
 
         {/* CTA strip */}
-        <div className="mt-12 flex flex-wrap items-center justify-between gap-6 rounded-2xl border border-white/10 bg-white/[0.03] px-6 py-5">
-          <p className="text-white/80">
+        <div className="mt-12 flex flex-wrap items-center justify-between gap-6 rounded-2xl border border-line-subtle bg-brand-ink-900 px-6 py-5">
+          <p className="text-fg-primary">
             {t.aiAssistant.stripText}
-            <span className="text-white/40"> {t.aiAssistant.stripQuiet}</span>
+            <span className="text-fg-muted"> {t.aiAssistant.stripQuiet}</span>
           </p>
           <div className="flex gap-3">
             <CTAButton
@@ -126,7 +126,7 @@ export default function ProductAIAssistant() {
               external
               trackEvent={Events.CTA_TG_SALES_CLICK}
               trackProps={{ source: 'ai_strip' }}
-              className="!text-white/80 hover:!text-white"
+              className="!text-fg-secondary hover:!text-fg-primary"
             >
               {t.aiAssistant.stripAskSales}
             </CTAButton>

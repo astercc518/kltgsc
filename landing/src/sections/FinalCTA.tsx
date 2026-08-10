@@ -9,6 +9,7 @@ import { useCallback, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import CTAButton from '@/components/CTAButton';
 import DemoVideoModal from '@/components/DemoVideoModal';
+import AuroraBlob from '@/components/AuroraBlob';
 import { LINKS } from '@/lib/links';
 import { Events } from '@/lib/analytics';
 import { useT } from '@/i18n';
@@ -23,6 +24,15 @@ export default function FinalCTA() {
       {/* Gradient orbs in the corners */}
       <div className="absolute -left-32 -top-32 w-96 h-96 rounded-full bg-brand-blue-500 opacity-15 blur-3xl pointer-events-none" />
       <div className="absolute -right-32 -bottom-32 w-96 h-96 rounded-full bg-brand-purple-500 opacity-15 blur-3xl pointer-events-none" />
+      <AuroraBlob
+        color="mixed"
+        size={500}
+        blur={180}
+        opacity={0.25}
+        top="50%"
+        left="50%"
+        className="-translate-x-1/2 -translate-y-1/2"
+      />
 
       <div className="relative max-w-container mx-auto px-6 py-24 lg:py-32 text-center">
         <motion.h2
@@ -30,7 +40,7 @@ export default function FinalCTA() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-15%' }}
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-          className="font-display text-display-1 text-white"
+          className="font-display text-display-1 text-fg-primary"
         >
           {t.finalCta.titlePart1}
           <br />
@@ -43,7 +53,7 @@ export default function FinalCTA() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-15%' }}
           transition={{ duration: 0.7, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-          className="mt-5 text-lg text-white/70 max-w-2xl mx-auto"
+          className="mt-5 text-lg text-fg-secondary max-w-2xl mx-auto"
         >
           {t.finalCta.subtitle}
         </motion.p>
@@ -77,7 +87,7 @@ export default function FinalCTA() {
             external
             trackEvent={Events.CTA_TG_SALES_CLICK}
             trackProps={{ source: 'final_cta' }}
-            className="!text-white/80 hover:!text-white"
+            className="!text-fg-secondary hover:!text-fg-primary"
           >
             {t.hero.ctaTertiary}
             <ArrowRight className="w-4 h-4" />

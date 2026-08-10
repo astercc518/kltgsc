@@ -59,7 +59,7 @@ export default function PricingCalculator() {
   }, [leads, sends, tracked]);
 
   return (
-    <section className="bg-white">
+    <section className="bg-brand-ink-950">
       <div className="max-w-container mx-auto px-6 py-20 lg:py-28">
         <Reveal>
           <div className="max-w-3xl mx-auto text-center">
@@ -68,17 +68,17 @@ export default function PricingCalculator() {
               {t.pricingCalc.eyebrow}
               <span className="h-px w-8 bg-brand-purple-500" />
             </div>
-            <h2 className="mt-4 font-display text-display-3 text-brand-ink-900">
+            <h2 className="mt-4 font-display text-display-3 text-fg-primary">
               {t.pricingCalc.title}
             </h2>
-            <p className="mt-3 text-brand-ink-600">
+            <p className="mt-3 text-fg-secondary">
               {t.pricingCalc.subtitle}
             </p>
           </div>
         </Reveal>
 
         <Reveal delay={120}>
-          <div className="mt-12 max-w-3xl mx-auto rounded-3xl border border-brand-ink-200 bg-brand-ink-50 p-6 lg:p-8">
+          <div className="mt-12 max-w-3xl mx-auto rounded-3xl border border-line-subtle bg-brand-ink-900 p-6 lg:p-8">
             {/* Sliders */}
             <Slider
               label={t.pricingCalc.leadsLabel}
@@ -98,8 +98,8 @@ export default function PricingCalculator() {
             />
 
             {/* Variable preview line */}
-            <div className="mt-6 rounded-xl bg-white border border-brand-ink-100 px-5 py-4">
-              <div className="text-eyebrow font-mono text-brand-ink-500 uppercase mb-2">
+            <div className="mt-6 rounded-xl bg-brand-ink-950 border border-line-subtle px-5 py-4">
+              <div className="text-eyebrow font-mono text-fg-muted uppercase mb-2">
                 {t.pricingCalc.walletCostHeader}
               </div>
               <div className="grid sm:grid-cols-3 gap-3 text-sm">
@@ -107,9 +107,9 @@ export default function PricingCalculator() {
                 <Line label={t.pricingCalc.aiLeadsLine}   qty={leads}            priceCents={UNIT.AI_LEAD_CENTS} />
                 <Line label={t.pricingCalc.bulkSendLine}  qty={sends}            priceCents={UNIT.BULK_SEND_CENTS} />
               </div>
-              <div className="mt-4 pt-3 border-t border-brand-ink-100 flex items-baseline justify-between">
-                <span className="text-brand-ink-500 text-sm">{t.pricingCalc.totalLabel}</span>
-                <span className="font-mono text-2xl font-semibold text-brand-ink-900">
+              <div className="mt-4 pt-3 border-t border-line-subtle flex items-baseline justify-between">
+                <span className="text-fg-muted text-sm">{t.pricingCalc.totalLabel}</span>
+                <span className="font-mono text-2xl font-semibold text-fg-primary">
                   ${variableUsd.toFixed(2)}
                 </span>
               </div>
@@ -125,21 +125,21 @@ export default function PricingCalculator() {
                     className={[
                       'rounded-xl p-4 border transition-all',
                       isCheap
-                        ? 'border-brand-purple-500 bg-white shadow-glow-purple'
-                        : 'border-brand-ink-200 bg-white',
+                        ? 'border-brand-purple-500 bg-brand-ink-950 shadow-glow-purple'
+                        : 'border-line-subtle bg-brand-ink-950',
                     ].join(' ')}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <span className="font-display font-semibold text-brand-ink-900">{p.label}</span>
+                      <span className="font-display font-semibold text-fg-primary">{p.label}</span>
                       {isCheap && (
                         <span className="text-eyebrow font-mono text-brand-purple-500 uppercase">{t.pricingCalc.bestBadge}</span>
                       )}
                     </div>
-                    <div className="text-brand-ink-400 text-xs font-mono mb-2">
+                    <div className="text-fg-muted text-xs font-mono mb-2">
                       ${p.monthlyUsd} {t.pricingCalc.subPlanLabel} · ${variableUsd.toFixed(0)} {t.pricingCalc.walletPlanLabel}
                     </div>
-                    <div className="font-mono text-2xl font-semibold text-brand-ink-900">
-                      ${p.totalUsd.toFixed(2)}<span className="text-sm text-brand-ink-400">{t.pricingCalc.perMo}</span>
+                    <div className="font-mono text-2xl font-semibold text-fg-primary">
+                      ${p.totalUsd.toFixed(2)}<span className="text-sm text-fg-muted">{t.pricingCalc.perMo}</span>
                     </div>
                   </div>
                 );
@@ -163,8 +163,8 @@ function Slider({
   return (
     <div className="mb-5">
       <div className="flex items-baseline justify-between mb-2">
-        <label className="text-sm font-medium text-brand-ink-700">{label}</label>
-        <span className="font-mono text-brand-ink-900 text-base">
+        <label className="text-sm font-medium text-fg-secondary">{label}</label>
+        <span className="font-mono text-fg-primary text-base">
           {value.toLocaleString()}{suffix}
         </span>
       </div>
@@ -184,8 +184,8 @@ function Slider({
 function Line({ label, qty, priceCents }: { label: string; qty: number; priceCents: number }) {
   return (
     <div>
-      <div className="text-brand-ink-500">{label}</div>
-      <div className="font-mono text-brand-ink-900">
+      <div className="text-fg-muted">{label}</div>
+      <div className="font-mono text-fg-primary">
         {qty.toLocaleString()} × ${(priceCents / 100).toFixed(2)} ={' '}
         <span className="font-semibold">${((qty * priceCents) / 100).toFixed(2)}</span>
       </div>

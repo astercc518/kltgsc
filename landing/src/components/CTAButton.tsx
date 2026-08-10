@@ -45,6 +45,7 @@ const baseClasses =
 
 const variantClasses: Record<Variant, string> = {
   primary:
+    'group relative overflow-hidden ' +
     'bg-brand-blue-500 text-white shadow-glow-blue ' +
     'hover:bg-brand-blue-600 focus-visible:ring-brand-blue-500',
   secondary:
@@ -76,8 +77,15 @@ export default function CTAButton({
 
   const content = (
     <>
-      <span>{children}</span>
-      {!noIcon && <Icon className="w-4 h-4" aria-hidden />}
+      {variant === 'primary' && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-full"
+          style={{ backgroundSize: '200% 100%' }}
+        />
+      )}
+      <span className="relative">{children}</span>
+      {!noIcon && <Icon className="w-4 h-4 relative" aria-hidden />}
     </>
   );
 
