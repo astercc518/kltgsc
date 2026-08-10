@@ -12,6 +12,10 @@ Gemini API key。
   1. AIConfig.provider="vertex"（推荐，付费档 GCP 配额）
   2. AIConfig.provider="gemini"（AI Studio key，免费档 100 RPM）
   3. SystemConfig llm_api_key（legacy 兼容，仅当 llm_provider=gemini）
+
+embed_text() — 统一 768 维 embedding 入口（薄包装 industry_kb_service._embed_text）。
+ICP 画像 / case_studies / 群消息 Layer 2 匹配都通过本函数调用。
+参考 spec §3.2 (Layer 2 ICP embedding)
 """
 import asyncio
 import json
@@ -19,6 +23,9 @@ import logging
 import os
 import tempfile
 from typing import List, Optional
+
+# NOTE: _embed_text_raw is imported lazily inside embed_text() to break the
+# circular dependency: industry_kb_service imports EmbeddingService from here.
 
 from sqlmodel import Session, select
 
@@ -317,4 +324,42 @@ class EmbeddingService:
                     continue
                 logger.error(f"Embedding call failed (chunk size {len(send_payload)}): {e}")
                 return None
+        return None
+
+
+# ---------------------------------------------------------------------------
+# embed_text — 统一薄包装入口（供 ICP / case_study / Layer 2 使用）
+# ---------------------------------------------------------------------------
+
+def _embed_text_raw(session, text: str, timeout: float = 15.0) -> Optional[List[float]]:
+    """
+    Thin shim that delegates to industry_kb_service._embed_text.
+    Defined here so tests can patch 'app.services.embedding_service._embed_text_raw'
+    without triggering the circular import.  The real import is deferred to first call.
+    """
+    # Lazy import breaks the circular dependency:
+    # industry_kb_service → EmbeddingService (this module)
+    # this module → industry_kb_service._embed_text
+    from app.services.industry_kb_service import _embed_text as _kb_embed  # noqa: PLC0415
+    return _kb_embed(session, text, timeout=timeout)
+
+
+async def embed_text(*, session, text: Optional[str], timeout: float = 15.0) -> Optional[List[float]]:
+    """
+    Async-safe wrapper. Bridges sync _embed_text_raw via asyncio.to_thread
+    so caller event loop is not blocked.
+
+    返回 768 维 float list, 失败/空文本返回 None。
+
+    Args:
+        session: SQLModel Session (industry_kb_service._embed_text 内部需要它读 ai_config)
+        text: 待 embed 的文本
+        timeout: 秒（透传给底层 _embed_text_raw）
+    """
+    if not text or not text.strip():
+        return None
+    try:
+        return await asyncio.to_thread(_embed_text_raw, session, text, timeout)
+    except Exception:
+        logger.exception("embed_text failed for text len=%d", len(text))
         return None
