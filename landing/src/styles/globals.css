@@ -10,8 +10,17 @@
 /* Font CDN @import is hoisted to index.css so the cascade obeys the
    "all @import statements first" rule. */
 
-html, body, #root {
+/* Use min-height: 100% so #root grows with content but still fills the
+   viewport on short pages. Setting `height: 100%` here broke sticky
+   positioning: it made #root only viewport-tall, so any descendant
+   `position: sticky` lost its containing block as soon as the user
+   scrolled out of #root (= immediately, since #root was viewport-bound).
+   The Header relies on sticky-top-0 to remain visible on scroll. */
+html, body {
   height: 100%;
+}
+#root {
+  min-height: 100%;
 }
 
 html {
@@ -22,12 +31,25 @@ html {
 
 body {
   font-family: var(--tg1-font-sans);
-  font-feature-settings: 'cv11', 'ss01', 'ss03';
+  /* cv11 = single-storey g; ss01 = open digits 4/6/9; ss03 = curved-tail rs;
+     cv02 = pseudo-italic strokes; salt = stylistic alternates */
+  font-feature-settings: 'cv11', 'cv02', 'ss01', 'ss03', 'salt';
+  font-variant-ligatures: contextual common-ligatures;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   background: var(--tg1-ink-50);
   color: var(--tg1-ink-900);
+}
+
+/* Display headlines deserve calt + dlig for the more refined ligatures */
+h1, h2, h3, .display {
+  font-feature-settings: 'cv11', 'ss01', 'ss03', 'calt', 'dlig';
+}
+
+/* Monospace numerals throughout — pricing, stats, calc */
+.font-mono, code, kbd, samp {
+  font-variant-numeric: tabular-nums slashed-zero;
 }
 
 /* Bigger headlines use Manrope by default. Tailwind utility .font-display

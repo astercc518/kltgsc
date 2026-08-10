@@ -40,19 +40,26 @@ type Props = {
 const baseClasses =
   'inline-flex items-center justify-center gap-2 font-medium ' +
   'rounded-full px-6 py-3 text-base ' +
-  'transition-all duration-150 active:scale-[0.98] ' +
+  'transition-all duration-200 ease-out active:scale-[0.98] ' +
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
 
 const variantClasses: Record<Variant, string> = {
+  // Primary — layered gradient + glow stack + 1px hover lift
   primary:
-    'bg-brand-blue-500 text-white shadow-glow-blue ' +
-    'hover:bg-brand-blue-600 focus-visible:ring-brand-blue-500',
+    'group relative overflow-hidden ' +
+    'bg-gradient-to-b from-brand-blue-400 to-brand-blue-600 text-white ' +
+    'shadow-glow-blue ' +
+    'hover:from-brand-blue-300 hover:to-brand-blue-500 hover:-translate-y-px ' +
+    'focus-visible:ring-brand-blue-500',
+  // Secondary — works on dark hero (light bg pops) AND light sections
   secondary:
     'bg-white text-brand-ink-900 border border-brand-ink-200 ' +
-    'hover:border-brand-ink-300 hover:bg-brand-ink-50 ' +
+    'hover:border-brand-ink-300 hover:bg-brand-ink-50 hover:-translate-y-px ' +
     'focus-visible:ring-brand-ink-300',
+  // Tertiary — quiet but still readable as a button (border-on-hover)
   tertiary:
-    'text-brand-ink-700 hover:text-brand-blue-600 ' +
+    'text-brand-ink-700 border border-transparent ' +
+    'hover:text-brand-blue-600 hover:border-brand-ink-200 hover:bg-white/40 ' +
     'focus-visible:ring-brand-ink-300',
 };
 
@@ -76,8 +83,31 @@ export default function CTAButton({
 
   const content = (
     <>
-      <span>{children}</span>
-      {!noIcon && <Icon className="w-4 h-4" aria-hidden />}
+      {variant === 'primary' && (
+        <>
+          {/* Top edge ridge — 1px white highlight gives the gradient pill a tactile feel */}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-x-2 top-0 h-px bg-white/40"
+          />
+          {/* Shimmer sweep on hover */}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-[900ms] ease-out group-hover:translate-x-full"
+            style={{ backgroundSize: '200% 100%' }}
+          />
+        </>
+      )}
+      <span className="relative">{children}</span>
+      {!noIcon && (
+        <Icon
+          className={[
+            'w-4 h-4 relative',
+            variant === 'primary' ? 'transition-transform duration-200 group-hover:translate-x-0.5' : '',
+          ].join(' ')}
+          aria-hidden
+        />
+      )}
     </>
   );
 

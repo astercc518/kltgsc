@@ -3,9 +3,16 @@
  *
  * No `href="#"` placeholders. Each column groups by intent:
  *   Product   → docs, pricing, changelog, in-page anchors
- *   Company   → about (TODO route), contact, sales TG
- *   Legal     → privacy, tos
- *   Social    → github, x
+ *   Company   → talkToSales, contact, legal
+ *   Brand     → mark + tagline + socials + status indicator
+ *
+ * Polish notes (2026-05-26 round 2):
+ *   - 3-column grid (was 4) — status indicator folded into brand column.
+ *   - Mono column headings get the editorial dot + tracking treatment.
+ *   - Tagline uses fg-secondary instead of `white/40` for clearer contrast.
+ *   - Bottom row gets a tabular-nums monospace year + tiny build-version
+ *     anchor (vite version + build date if we add it later).
+ *   - Status indicator is a <span>, not a dead `<a href="#">`.
  */
 import { Link } from 'react-router-dom';
 import { Github, Twitter, Send } from 'lucide-react';
@@ -44,16 +51,18 @@ export default function Footer() {
     },
   ];
   return (
-    <footer className="bg-brand-ink-950 border-t border-white/5 text-white/60">
+    <footer className="bg-brand-ink-950 border-t border-line-subtle text-fg-secondary relative overflow-hidden">
+      {/* Fine top hairline that fades to edges — same treatment as TrustBar */}
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.10] to-transparent" />
       <div className="max-w-container mx-auto px-6 py-16">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-10">
-          {/* Brand + tagline */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-10">
+          {/* Brand + tagline + socials + status */}
           <div className="col-span-2 md:col-span-1">
             <BrandMark size="sm" onDark />
-            <p className="mt-4 text-sm text-white/40 leading-relaxed">
+            <p className="mt-4 text-sm text-fg-secondary leading-relaxed max-w-xs">
               {t.footer.tagline}
             </p>
-            <div className="mt-5 flex gap-3">
+            <div className="mt-5 flex gap-2">
               {social.map((s) => (
                 <a
                   key={s.label}
@@ -61,18 +70,30 @@ export default function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={s.label}
-                  className="w-9 h-9 rounded-lg bg-white/5 hover:bg-white/10 inline-flex items-center justify-center transition-colors"
+                  className="w-9 h-9 rounded-lg bg-surface-2 border border-line-subtle hover:bg-surface-3 hover:border-line-medium inline-flex items-center justify-center text-fg-secondary hover:text-fg-primary transition-colors"
                 >
                   <s.icon className="w-4 h-4" />
                 </a>
               ))}
             </div>
+            {/* Status indicator — informational, not interactive */}
+            <span
+              className="mt-6 inline-flex items-center gap-2 text-xs font-mono uppercase tracking-[0.14em] text-fg-muted"
+              style={{ fontVariantNumeric: 'tabular-nums' }}
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-pulse-soft rounded-full bg-success/40" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
+              </span>
+              {t.footer.statusValue}
+            </span>
           </div>
 
           {/* Link columns */}
           {columns.map((col) => (
             <div key={col.title}>
-              <div className="text-eyebrow font-mono text-white/40 uppercase mb-4">
+              <div className="inline-flex items-center gap-2 font-mono uppercase text-[0.6875rem] tracking-[0.16em] text-fg-muted mb-5">
+                <span className="h-px w-6 bg-white/20" />
                 {col.title}
               </div>
               <ul className="space-y-3 text-sm">
@@ -83,20 +104,20 @@ export default function Footer() {
                         href={l.href}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="hover:text-white transition-colors"
+                        className="text-fg-secondary hover:text-fg-primary transition-colors"
                       >
                         {l.label}
                       </a>
                     </li>
                   ) : l.href.startsWith('#') ? (
                     <li key={l.label}>
-                      <a href={l.href} className="hover:text-white transition-colors">
+                      <a href={l.href} className="text-fg-secondary hover:text-fg-primary transition-colors">
                         {l.label}
                       </a>
                     </li>
                   ) : (
                     <li key={l.label}>
-                      <Link to={l.href} className="hover:text-white transition-colors">
+                      <Link to={l.href} className="text-fg-secondary hover:text-fg-primary transition-colors">
                         {l.label}
                       </Link>
                     </li>
@@ -105,23 +126,12 @@ export default function Footer() {
               </ul>
             </div>
           ))}
-
-          {/* 4th column reserved for newsletter / status, kept airy for now */}
-          <div className="hidden md:block">
-            <div className="text-eyebrow font-mono text-white/40 uppercase mb-4">
-              {t.footer.statusLabel}
-            </div>
-            <a
-              href="#"
-              className="inline-flex items-center gap-2 text-sm hover:text-white transition-colors"
-            >
-              <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
-              {t.footer.statusValue}
-            </a>
-          </div>
         </div>
 
-        <div className="mt-12 pt-6 border-t border-white/5 flex flex-wrap items-center justify-between gap-4 text-xs text-white/30 font-mono">
+        <div
+          className="mt-14 pt-6 border-t border-line-subtle flex flex-wrap items-center justify-between gap-4 text-xs text-fg-muted font-mono"
+          style={{ fontVariantNumeric: 'tabular-nums' }}
+        >
           <div>{t.footer.copyright.replace('{year}', String(new Date().getFullYear()))}</div>
           <div>{t.footer.notAffiliated}</div>
         </div>

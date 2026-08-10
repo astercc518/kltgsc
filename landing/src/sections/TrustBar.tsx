@@ -2,56 +2,81 @@
  * TrustBar — 5 credibility metrics under the hero.
  *
  * Uses AnimatedNumber for the integer stats so they count up when the
- * row scrolls into view. Strings come from real product caps:
- *   - 1000+ accounts per customer       (PROJECT_OVERVIEW.md §2)
- *   - 5 listener shards in prod         (project_capacity_plan.md)
- *   - Vertex Gemini RAG                 (project_gemini_on_vertex.md)
- *   - 99.9% uptime SLA                  (operational target)
- *   - USDT billing                      (project_payment_decision.md)
+ * row scrolls into view. Strings come from real product caps.
+ *
+ * Polish notes (2026-05-26):
+ *   - SectionLabel anchors the row with an editorial "01 · TRUST" marker.
+ *   - Numerals now opt into tabular-nums + slashed-zero via inline style;
+ *     fixes the wobble when the count-up rolls through different glyphs.
+ *   - Stat units (suffix) demoted to muted weight so the value reads
+ *     primary; previously suffix had the same color as the number.
+ *   - Vertical dividers between stats on md+ for a typographic spine.
  */
 import AnimatedNumber from '@/components/AnimatedNumber';
 import Reveal from '@/components/Reveal';
+import SectionLabel from '@/components/SectionLabel';
 import { useT } from '@/i18n';
+
+type Stat = {
+  value: number;
+  suffix?: string;
+  label: string;
+  format?: (n: number) => string;
+  literal?: string;
+};
 
 export default function TrustBar() {
   const t = useT();
-  const stats = [
-    { value: 1000, suffix: '+',   label: t.trustBar.accounts, format: (n: number) => Math.round(n).toLocaleString() },
-    { value: 5,    suffix: '',    label: t.trustBar.shards },
-    { value: 768,  suffix: '-dim', label: t.trustBar.rag },
-    { value: 99.9, suffix: '%',   label: t.trustBar.uptime,   format: (n: number) => n.toFixed(1) },
+  const stats: Stat[] = [
+    { value: 1000, suffix: '+',     label: t.trustBar.accounts, format: (n) => Math.round(n).toLocaleString() },
+    { value: 5,    suffix: '',      label: t.trustBar.shards },
+    { value: 768,  suffix: '-dim',  label: t.trustBar.rag },
+    { value: 99.9, suffix: '%',     label: t.trustBar.uptime,   format: (n) => n.toFixed(1) },
+    { value: 0,    literal: 'USDT', label: t.trustBar.networks },
   ];
   return (
     <section
       aria-label="Trust signals"
-      className="bg-brand-ink-950 border-y border-white/5"
+      className="relative bg-brand-ink-950 border-y border-line-subtle overflow-hidden"
     >
-      <div className="max-w-container mx-auto px-6 py-12">
+      {/* Faint top hairline accent that fades to edges */}
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.12] to-transparent" />
+      <div className="max-w-container mx-auto px-6 py-14">
         <Reveal>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-x-8 gap-y-8">
+          <div className="mb-8 flex justify-center">
+            <SectionLabel number="01" tone="dark">Trust signals</SectionLabel>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-x-8 gap-y-10">
             {stats.map((s, i) => (
-              <div key={i} className="text-center md:text-left">
-                <div className="font-mono text-3xl md:text-4xl text-white font-semibold tracking-tight">
-                  <AnimatedNumber
-                    value={s.value}
-                    suffix={s.suffix}
-                    format={s.format}
-                  />
+              <div
+                key={i}
+                className={[
+                  'text-center md:text-left',
+                  i > 0 ? 'md:pl-8 md:border-l md:border-line-subtle' : '',
+                ].join(' ')}
+              >
+                <div
+                  className="font-mono text-3xl md:text-4xl text-fg-primary font-semibold tracking-tight"
+                  style={{ fontVariantNumeric: 'tabular-nums slashed-zero' }}
+                >
+                  {s.literal ? (
+                    <span className="bg-gradient-to-br from-white to-brand-blue-300 bg-clip-text text-transparent">
+                      {s.literal}
+                    </span>
+                  ) : (
+                    <>
+                      <AnimatedNumber value={s.value} format={s.format} />
+                      {s.suffix && (
+                        <span className="text-fg-muted text-2xl md:text-3xl font-normal ml-0.5">{s.suffix}</span>
+                      )}
+                    </>
+                  )}
                 </div>
-                <div className="mt-1 text-xs uppercase tracking-wider text-white/40">
+                <div className="mt-2 text-[0.7rem] uppercase tracking-[0.16em] text-fg-muted font-mono">
                   {s.label}
                 </div>
               </div>
             ))}
-            {/* Fifth slot doubles as the "billing" callout — non-numeric */}
-            <div className="text-center md:text-left col-span-2 md:col-span-1">
-              <div className="font-mono text-3xl md:text-4xl text-white font-semibold tracking-tight">
-                USDT
-              </div>
-              <div className="mt-1 text-xs uppercase tracking-wider text-white/40">
-                {t.trustBar.networks}
-              </div>
-            </div>
           </div>
         </Reveal>
       </div>

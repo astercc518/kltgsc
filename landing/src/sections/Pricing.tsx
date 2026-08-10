@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import PriceCard from '@/components/PriceCard';
 import Reveal from '@/components/Reveal';
+import SectionLabel from '@/components/SectionLabel';
 import { LINKS } from '@/lib/links';
 import { useT } from '@/i18n';
 
@@ -68,12 +69,10 @@ export default function Pricing() {
       <div className="max-w-container mx-auto px-6 py-24 lg:py-32">
         <Reveal>
           <div className="text-center max-w-3xl mx-auto">
-            <div className="inline-flex items-center gap-2 text-eyebrow font-mono text-brand-ink-500 uppercase">
-              <span className="h-px w-8 bg-brand-ink-300" />
-              {t.pricing.eyebrow}
-              <span className="h-px w-8 bg-brand-ink-300" />
+            <div className="flex justify-center">
+              <SectionLabel number="05" tone="light">{t.pricing.eyebrow}</SectionLabel>
             </div>
-            <h2 className="mt-4 font-display text-display-2 text-brand-ink-900">
+            <h2 className="mt-5 font-display text-display-2 text-brand-ink-900 tracking-tight text-balance">
               {t.pricing.titlePart1}
               <br />
               <span className="text-brand-ink-500">{t.pricing.titlePart2}</span>

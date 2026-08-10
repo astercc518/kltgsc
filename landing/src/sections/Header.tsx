@@ -7,6 +7,15 @@
  *
  * Mobile (<md): collapses to BrandMark + hamburger that toggles a
  * full-screen sheet with the same links.
+ *
+ * Polish notes (2026-05-27 round 6):
+ *   - Active-section indicator: nav link gets a 1px gradient underline
+ *     when its target section is in the viewport. Tracked via
+ *     IntersectionObserver with a -40% bottom rootMargin so a section
+ *     "activates" when its top crosses the 60% mark.
+ *   - Hover indicator: a fine underline grows in from left on hover
+ *     for any non-active link, gives the chrome a "considered" feel.
+ *   - Sign-in gets a vertical hairline separator from the nav.
  */
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -18,31 +27,79 @@ import { LINKS } from '@/lib/links';
 import { Events } from '@/lib/analytics';
 import { useT } from '@/i18n';
 
+/** Section IDs that map to in-page nav anchors */
+const TRACKED_SECTION_IDS = ['self-serve', 'ai-assistant', 'pricing'];
+
 export default function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const t = useT();
 
-  const navLinks = [
-    { label: t.nav.selfServe,   href: '#self-serve' },
-    { label: t.nav.aiAssistant, href: '#ai-assistant' },
-    { label: t.nav.pricing,     href: '#pricing' },
-    { label: t.nav.docs,        href: LINKS.docs },
+  const navLinks: { label: string; href: string; trackedId: string | null }[] = [
+    { label: t.nav.selfServe,   href: '#self-serve',   trackedId: 'self-serve' },
+    { label: t.nav.aiAssistant, href: '#ai-assistant', trackedId: 'ai-assistant' },
+    { label: t.nav.pricing,     href: '#pricing',      trackedId: 'pricing' },
+    { label: t.nav.docs,        href: LINKS.docs,      trackedId: null },
   ];
 
+  /** Track whether the user has scrolled past ~24px. Uses an
+      IntersectionObserver against a fixed sentinel at y=24 instead of
+      a scroll listener that fires every frame — observer fires only
+      when the threshold is actually crossed (typically twice per
+      session). */
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 24);
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    const sentinel = document.createElement('div');
+    sentinel.setAttribute('aria-hidden', 'true');
+    sentinel.style.cssText = 'position:absolute;top:24px;left:0;width:1px;height:1px;pointer-events:none;';
+    document.body.appendChild(sentinel);
+    const observer = new IntersectionObserver(
+      ([entry]) => setScrolled(!entry.isIntersecting),
+      { rootMargin: '0px' },
+    );
+    observer.observe(sentinel);
+    return () => {
+      observer.disconnect();
+      sentinel.remove();
+    };
+  }, []);
+
+  /** Track which tracked section is currently in view. Active = nearest
+      to the top of viewport with the title still visible. */
+  useEffect(() => {
+    const targets = TRACKED_SECTION_IDS
+      .map((id) => document.getElementById(id))
+      .filter((el): el is HTMLElement => el !== null);
+    if (targets.length === 0) return;
+
+    const onIntersect: IntersectionObserverCallback = (entries) => {
+      // Prefer the entry with the largest intersection ratio
+      const visible = entries.filter((e) => e.isIntersecting);
+      if (visible.length === 0) {
+        // Falling through nothing — let the previous active stand until
+        // another section enters. Avoids flicker between sections.
+        return;
+      }
+      const top = visible.reduce((a, b) => (a.intersectionRatio > b.intersectionRatio ? a : b));
+      setActiveId(top.target.id);
+    };
+
+    const observer = new IntersectionObserver(onIntersect, {
+      // Section becomes active when its top crosses 25% from the viewport top
+      rootMargin: '-25% 0px -55% 0px',
+      threshold: [0, 0.25, 0.5, 1],
+    });
+    targets.forEach((t) => observer.observe(t));
+    return () => observer.disconnect();
   }, []);
 
   return (
     <header
       className={[
-        'sticky top-0 z-40 transition-all duration-200',
+        'sticky top-0 z-40 transition-all duration-300 ease-out',
         scrolled
-          ? 'bg-white/80 backdrop-blur-xl border-b border-brand-ink-100'
+          // Scrolled: refined frosted glass — saturate boost so brand colors stay punchy under blur
+          ? 'bg-white/75 [backdrop-filter:saturate(180%)_blur(20px)] border-b border-brand-ink-100/80'
           : 'bg-transparent border-b border-transparent',
       ].join(' ')}
     >
@@ -54,27 +111,58 @@ export default function Header() {
         {/* Desktop nav */}
         <nav
           className={[
-            'hidden md:flex items-center gap-8 text-sm transition-colors',
-            scrolled ? 'text-brand-ink-700' : 'text-white/80',
+            'hidden md:flex items-center gap-1 text-sm transition-colors',
+            scrolled ? 'text-brand-ink-700' : 'text-white/75',
           ].join(' ')}
         >
-          {navLinks.map((l) => (
-            <a
-              key={l.href}
-              href={l.href}
-              className={scrolled ? 'hover:text-brand-ink-900' : 'hover:text-white'}
-            >
-              {l.label}
-            </a>
-          ))}
+          {navLinks.map((l) => {
+            const isActive = l.trackedId !== null && activeId === l.trackedId;
+            return (
+              <a
+                key={l.href}
+                href={l.href}
+                className={[
+                  'group relative px-3 py-2 transition-colors duration-200',
+                  scrolled ? 'hover:text-brand-ink-900' : 'hover:text-white',
+                  isActive ? (scrolled ? 'text-brand-ink-900' : 'text-white') : '',
+                ].join(' ')}
+              >
+                {l.label}
+                {/* Indicator rule: gradient underline grows from left.
+                    Active: full width. Hover (non-active): half width.
+                    Sits 6px below baseline so it doesn't crowd descenders. */}
+                <span
+                  aria-hidden
+                  className={[
+                    'pointer-events-none absolute left-3 right-3 bottom-1 h-px origin-left transition-transform duration-300 ease-out',
+                    scrolled
+                      ? 'bg-gradient-to-r from-brand-blue-500 via-brand-blue-400 to-brand-purple-500'
+                      : 'bg-gradient-to-r from-brand-blue-300 via-white to-brand-purple-200',
+                    isActive
+                      ? 'scale-x-100'
+                      : 'scale-x-0 group-hover:scale-x-50',
+                  ].join(' ')}
+                />
+              </a>
+            );
+          })}
         </nav>
 
         <div className="hidden md:flex items-center gap-3">
           <LangSwitcher onDark={!scrolled} />
+          {/* Vertical hairline separator — establishes that LangSwitcher
+              belongs to chrome cluster, Sign In + CTA belong to action cluster */}
+          <span
+            aria-hidden
+            className={[
+              'h-5 w-px transition-colors',
+              scrolled ? 'bg-brand-ink-200' : 'bg-white/15',
+            ].join(' ')}
+          />
           <a
             href={LINKS.signIn}
             className={[
-              'text-sm px-3 py-1.5 transition-colors',
+              'text-sm px-3 py-1.5 transition-colors duration-200',
               scrolled
                 ? 'text-brand-ink-700 hover:text-brand-ink-900'
                 : 'text-white/80 hover:text-white',

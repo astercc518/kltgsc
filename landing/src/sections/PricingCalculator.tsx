@@ -10,6 +10,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import Reveal from '@/components/Reveal';
+import SectionLabel from '@/components/SectionLabel';
 import { track, Events } from '@/lib/analytics';
 import { useT } from '@/i18n';
 
@@ -63,12 +64,10 @@ export default function PricingCalculator() {
       <div className="max-w-container mx-auto px-6 py-20 lg:py-28">
         <Reveal>
           <div className="max-w-3xl mx-auto text-center">
-            <div className="inline-flex items-center gap-2 text-eyebrow font-mono text-brand-purple-500 uppercase">
-              <span className="h-px w-8 bg-brand-purple-500" />
-              {t.pricingCalc.eyebrow}
-              <span className="h-px w-8 bg-brand-purple-500" />
+            <div className="flex justify-center">
+              <SectionLabel number="06" tone="light">{t.pricingCalc.eyebrow}</SectionLabel>
             </div>
-            <h2 className="mt-4 font-display text-display-3 text-brand-ink-900">
+            <h2 className="mt-5 font-display text-display-3 text-brand-ink-900 tracking-tight text-balance">
               {t.pricingCalc.title}
             </h2>
             <p className="mt-3 text-brand-ink-600">

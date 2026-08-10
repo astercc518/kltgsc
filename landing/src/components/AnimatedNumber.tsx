@@ -26,25 +26,34 @@ type Props = {
 };
 
 const defaultFormat = (n: number) => Math.round(n).toLocaleString();
+const SNAP: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
 export default function AnimatedNumber({
   value, duration = 1.6, format = defaultFormat, className, prefix, suffix,
 }: Props) {
   const elRef = useRef<HTMLSpanElement | null>(null);
-  const { ref: inViewRef, inView } = useInView({ triggerOnce: true, rootMargin: '-10% 0px' });
+  // Snapshot the format function — call sites typically pass an inline
+  // arrow which would otherwise re-trigger the animate() effect every
+  // render. Keeping it in a ref lets us read the latest implementation
+  // inside onUpdate without making it an effect dependency.
+  const formatRef = useRef(format);
+  formatRef.current = format;
+
+  const { ref: inViewRef, inView } = useInView({ triggerOnce: true, rootMargin: '-12% 0px 0px' });
 
   useEffect(() => {
     if (!inView || !elRef.current) return;
     const node = elRef.current;
     const controls = animate(0, value, {
       duration,
-      ease: [0.22, 1, 0.36, 1],
+      ease: SNAP,
       onUpdate(v) {
-        node.textContent = format(v);
+        node.textContent = formatRef.current(v);
       },
     });
     return () => controls.stop();
-  }, [inView, value, duration, format]);
+    // `format` intentionally not in deps — we read latest via ref above.
+  }, [inView, value, duration]);
 
   // Combine the two refs into one callback for the wrapper.
   const setRefs = (el: HTMLSpanElement | null) => {

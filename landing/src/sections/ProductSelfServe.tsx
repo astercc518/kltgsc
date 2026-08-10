@@ -15,6 +15,7 @@ import {
 import FeatureCard from '@/components/FeatureCard';
 import Reveal from '@/components/Reveal';
 import CTAButton from '@/components/CTAButton';
+import SectionLabel from '@/components/SectionLabel';
 import { LINKS } from '@/lib/links';
 import { Events } from '@/lib/analytics';
 import { useT } from '@/i18n';
@@ -30,15 +31,12 @@ export default function ProductSelfServe() {
         {/* Eyebrow + title block */}
         <Reveal>
           <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 text-eyebrow font-mono text-brand-blue-500 uppercase">
-              <span className="h-px w-8 bg-brand-blue-500" />
-              {t.selfServe.eyebrow}
-            </div>
-            <h2 className="mt-4 font-display text-display-2 text-brand-ink-900">
+            <SectionLabel number="02" tone="light">{t.selfServe.eyebrow}</SectionLabel>
+            <h2 className="mt-5 font-display text-display-2 text-brand-ink-900 tracking-tight text-balance">
               {t.selfServe.titleA}
               <span className="text-brand-ink-500"> {t.selfServe.titleB}</span>
             </h2>
-            <p className="mt-5 text-lg text-brand-ink-600 leading-relaxed">
+            <p className="mt-5 text-lg text-brand-ink-600 leading-relaxed max-w-2xl">
               {t.selfServe.subtitle}
             </p>
           </div>
@@ -59,17 +57,27 @@ export default function ProductSelfServe() {
           ))}
         </div>
 
-        {/* Flow diagram */}
+        {/* Flow diagram — wallet prepay → auto-pause mechanic */}
         <Reveal delay={200}>
-          <div className="mt-16 rounded-3xl bg-brand-ink-50 border border-brand-ink-100 p-6 lg:p-10">
-            <div className="flex items-center gap-3 mb-6">
-              <Wallet className="w-5 h-5 text-brand-blue-500" />
-              <span className="text-eyebrow font-mono text-brand-ink-500 uppercase">
+          <div className="mt-16 rounded-3xl bg-brand-ink-50 border border-brand-ink-100 p-6 lg:p-10 relative overflow-hidden">
+            {/* Wallet emblem in corner — soft brand accent */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -right-12 -top-12 w-48 h-48 rounded-full bg-brand-blue-500 opacity-[0.04] blur-2xl"
+            />
+            <div className="relative mb-7 inline-flex items-center gap-3">
+              <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-brand-blue-500/10 text-brand-blue-500">
+                <Wallet className="w-4 h-4" />
+              </span>
+              <span
+                className="text-[0.7rem] font-mono uppercase tracking-[0.16em] text-brand-ink-500"
+                style={{ fontVariantNumeric: 'tabular-nums' }}
+              >
                 {t.selfServe.flowTitle}
               </span>
             </div>
 
-            <div className="grid md:grid-cols-4 gap-4 items-stretch">
+            <div className="relative grid md:grid-cols-4 gap-4 items-stretch">
               {t.selfServe.flowSteps.map((s, i) => (
                 <React.Fragment key={i}>
                   {i > 0 && <FlowArrow />}
@@ -116,12 +124,21 @@ function FlowStep({
   n, title, desc, icon: Icon,
 }: { n: string; title: string; desc: string; icon?: typeof PauseCircle }) {
   return (
-    <div className="rounded-2xl bg-white border border-brand-ink-100 p-4">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-eyebrow font-mono text-brand-blue-500 uppercase">{n}</span>
-        {Icon && <Icon className="w-4 h-4 text-brand-ink-400" />}
+    <div className="rounded-2xl bg-white border border-brand-ink-100 p-5 hover:border-brand-ink-200 transition-colors">
+      <div className="flex items-center justify-between mb-3">
+        <span
+          className="font-mono text-[0.78rem] font-medium text-brand-blue-500"
+          style={{ fontVariantNumeric: 'tabular-nums' }}
+        >
+          {n}
+        </span>
+        {Icon && (
+          <span className="inline-flex w-6 h-6 items-center justify-center rounded-md bg-brand-ink-50 text-brand-ink-500">
+            <Icon className="w-3.5 h-3.5" />
+          </span>
+        )}
       </div>
-      <h4 className="font-display font-semibold text-brand-ink-900 mb-1">{title}</h4>
+      <h4 className="font-display font-semibold text-brand-ink-900 mb-1 tracking-tight">{title}</h4>
       <p className="text-sm text-brand-ink-600 leading-relaxed">{desc}</p>
     </div>
   );
@@ -130,7 +147,7 @@ function FlowStep({
 function FlowArrow() {
   return (
     <div className="hidden md:flex items-center justify-center text-brand-ink-300">
-      <ArrowRight className="w-5 h-5" />
+      <ArrowRight className="w-4 h-4" />
     </div>
   );
 }
