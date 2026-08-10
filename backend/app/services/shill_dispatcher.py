@@ -315,7 +315,7 @@ class ShillDispatcher:
                     knowledge=knowledge or "无",
                 ),
                 source="shill_dispatch",
-                chat_id=str(chat_id) if chat_id else None,
+                chat_id=str(group_id) if group_id else None,
             )
             text_a = _anti_hallucination_filter(raw_a)
         except Exception as e:
@@ -334,7 +334,7 @@ class ShillDispatcher:
                     knowledge=knowledge or "无",
                 ),
                 source="shill_dispatch",
-                chat_id=str(chat_id) if chat_id else None,
+                chat_id=str(group_id) if group_id else None,
             )
             text_b = _anti_hallucination_filter(raw_b)
         except Exception as e:
