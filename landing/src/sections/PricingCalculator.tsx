@@ -51,11 +51,11 @@ export default function PricingCalculator() {
   // Fire analytics once per interaction session (debounced).
   useEffect(() => {
     if (tracked) return;
-    const t = setTimeout(() => {
+    const id = setTimeout(() => {
       track(Events.PRICING_CALC_USED, { leads, sends });
       setTracked(true);
     }, 1200);
-    return () => clearTimeout(t);
+    return () => clearTimeout(id);
   }, [leads, sends, tracked]);
 
   return (

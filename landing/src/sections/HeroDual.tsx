@@ -40,20 +40,6 @@ export default function HeroDual() {
       <div className="absolute inset-0 -z-10 bg-noise opacity-60" />
 
       <div className="max-w-container mx-auto px-6 pt-20 pb-16 lg:pt-32 lg:pb-24">
-        {/* Live status badge */}
-        <motion.div
-          initial="hidden" animate="visible" variants={fadeUp} custom={0}
-          className="flex justify-center"
-        >
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-xs font-mono text-white/70 backdrop-blur">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
-            </span>
-            <span>{t.hero.liveBadge}</span>
-          </div>
-        </motion.div>
-
         {/* Headline */}
         <motion.h1
           initial="hidden" animate="visible" variants={fadeUp} custom={0.1}

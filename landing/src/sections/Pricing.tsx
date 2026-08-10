@@ -98,6 +98,7 @@ export default function Pricing() {
           <div className="mt-14 max-w-3xl mx-auto rounded-2xl border border-brand-ink-200 bg-white overflow-hidden">
             <button
               type="button"
+              data-testid="pricing-table-toggle"
               className="w-full flex items-center justify-between gap-3 px-6 py-4 text-left transition-colors hover:bg-brand-ink-50"
               onClick={() => setTableOpen((v) => !v)}
               aria-expanded={tableOpen}
@@ -136,9 +137,10 @@ export default function Pricing() {
                     ))}
                   </tbody>
                 </table>
-                <div className="px-6 py-3 bg-brand-ink-50 text-xs text-brand-ink-500">
-                  {t.pricing.tableAdminNote.replace('billing docs', '')}
-                  <a href={LINKS.docsBilling} className="text-brand-blue-500 underline underline-offset-2">billing docs</a>.
+                <div data-testid="pricing-table-admin-note" className="px-6 py-3 bg-brand-ink-50 text-xs text-brand-ink-500">
+                  {t.pricing.tableAdminNote.before}
+                  <a href={LINKS.docsBilling} className="text-brand-blue-500 underline underline-offset-2">{t.pricing.tableAdminNote.linkLabel}</a>
+                  {t.pricing.tableAdminNote.after}
                 </div>
               </div>
             )}

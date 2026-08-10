@@ -111,13 +111,10 @@ export default function Footer() {
             <div className="text-eyebrow font-mono text-white/40 uppercase mb-4">
               {t.footer.statusLabel}
             </div>
-            <a
-              href="#"
-              className="inline-flex items-center gap-2 text-sm hover:text-white transition-colors"
-            >
+            <span className="inline-flex items-center gap-2 text-sm">
               <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
               {t.footer.statusValue}
-            </a>
+            </span>
           </div>
         </div>
 

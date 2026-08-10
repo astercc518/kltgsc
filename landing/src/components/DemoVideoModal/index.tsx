@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTimeline, type Act } from './useTimeline';
-import { useBodyScrollLock } from './useBodyScrollLock';
+import { useBodyScrollLock } from '@/lib/useBodyScrollLock';
 import { useFocusTrap } from './useFocusTrap';
 import { DURATION_MS } from './demoScript';
 import TopBar from './parts/TopBar';

@@ -50,7 +50,6 @@ export type Dict = {
     freeTrial: string;
   };
   hero: {
-    liveBadge: string;         // "1,247 AI monitor rules running right now"
     titlePart1: string;        // "Two ways to grow"
     titlePart2: string;        // "on Telegram"
     subtitle: string;
@@ -96,7 +95,11 @@ export type Dict = {
       unit:    string;
       price:   string;
     };
-    tableAdminNote: string;     // "Admin can override any line per-customer for volume deals. See billing docs."
+    tableAdminNote: {
+      before: string;            // "Admin can override any line per-customer for volume deals. See "
+      linkLabel: string;         // "billing docs"
+      after: string;             // "."
+    };
   };
   finalCta: {
     titlePart1: string;        // "Stop firefighting bans."
@@ -255,7 +258,6 @@ const en: Dict = {
     freeTrial: 'Free $20 Trial',
   },
   hero: {
-    liveBadge: '1,247 AI monitor rules running right now',
     titlePart1: 'Two ways to grow',
     titlePart2: 'on Telegram',
     subtitle:
@@ -406,7 +408,11 @@ const en: Dict = {
       unit:    'Billed as',
       price:   'Default',
     },
-    tableAdminNote: 'Admin can override any line per-customer for volume deals. See billing docs.',
+    tableAdminNote: {
+      before: 'Admin can override any line per-customer for volume deals. See ',
+      linkLabel: 'billing docs',
+      after: '.',
+    },
   },
   finalCta: {
     titlePart1: 'Stop firefighting bans.',
@@ -635,7 +641,6 @@ const zhCN: Dict = {
     freeTrial: '免费试用 $20',
   },
   hero: {
-    liveBadge: '此刻有 1,247 条 AI 监听规则正在运行',
     titlePart1: 'Telegram 营销的两种',
     titlePart2: '打开方式',
     subtitle:
@@ -786,7 +791,11 @@ const zhCN: Dict = {
       unit:    '计费方式',
       price:   '默认单价',
     },
-    tableAdminNote: '大客户可向 admin 申请单价覆盖，详见 billing 文档。',
+    tableAdminNote: {
+      before: '大客户可向 admin 申请单价覆盖，详见 ',
+      linkLabel: 'billing 文档',
+      after: '。',
+    },
   },
   finalCta: {
     titlePart1: '停止跟封号救火。',
@@ -1015,7 +1024,6 @@ const ja: Dict = {
     freeTrial: '$20 無料トライアル',
   },
   hero: {
-    liveBadge: '現在 1,247 件の AI モニターが稼働中',
     titlePart1: 'Telegram で成長する',
     titlePart2: '2 つの方法',
     subtitle:
@@ -1151,7 +1159,11 @@ const ja: Dict = {
       unit:    '課金単位',
       price:   'デフォルト',
     },
-    tableAdminNote: '大口取引は管理者が顧客ごとに単価を上書きできます。billing ドキュメントを参照。',
+    tableAdminNote: {
+      before: '大口取引は管理者が顧客ごとに単価を上書きできます。',
+      linkLabel: 'billing ドキュメント',
+      after: 'を参照。',
+    },
   },
   finalCta: {
     titlePart1: 'BAN との戦いをやめよう。',
@@ -1322,7 +1334,6 @@ const ko: Dict = {
     freeTrial: '$20 무료 체험',
   },
   hero: {
-    liveBadge: '지금 1,247개의 AI 모니터가 가동 중',
     titlePart1: '텔레그램에서 성장하는',
     titlePart2: '두 가지 방법',
     subtitle:
@@ -1458,7 +1469,11 @@ const ko: Dict = {
       unit:    '청구 단위',
       price:   '기본',
     },
-    tableAdminNote: '대량 거래는 관리자가 고객별로 단가를 재정의할 수 있습니다. billing 문서 참조.',
+    tableAdminNote: {
+      before: '대량 거래는 관리자가 고객별로 단가를 재정의할 수 있습니다. ',
+      linkLabel: 'billing 문서',
+      after: ' 참조.',
+    },
   },
   finalCta: {
     titlePart1: '계정 차단과의 싸움을 멈추세요.',
@@ -1629,7 +1644,6 @@ const es: Dict = {
     freeTrial: 'Prueba $20',
   },
   hero: {
-    liveBadge: '1,247 reglas de monitor IA activas ahora mismo',
     titlePart1: 'Dos formas de crecer',
     titlePart2: 'en Telegram',
     subtitle:
@@ -1765,7 +1779,11 @@ const es: Dict = {
       unit:    'Unidad',
       price:   'Por defecto',
     },
-    tableAdminNote: 'Para grandes volúmenes, el admin puede sobrescribir cualquier línea por cliente. Ver docs de billing.',
+    tableAdminNote: {
+      before: 'Para grandes volúmenes, el admin puede sobrescribir cualquier línea por cliente. Ver ',
+      linkLabel: 'docs de billing',
+      after: '.',
+    },
   },
   finalCta: {
     titlePart1: 'Deja de apagar incendios de bans.',
